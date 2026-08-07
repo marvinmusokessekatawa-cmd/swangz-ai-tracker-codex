@@ -6,17 +6,22 @@
 <title>Swangz Avenue — AI Adoption Tracker</title>
 <!-- Supabase JS client (used for Google OAuth sign-in + session persistence) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+<!-- Redesign fonts: Inter (UI) + JetBrains Mono (figures) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0d12;
-    --bg-2: #0e1220;
-    --panel: #131722;
-    --panel-2: #1a2030;
-    --panel-3: #232a40;
-    --border: #2a3246;
-    --border-2: #3a4463;
-    --text: #e6e9f0;
-    --muted: #8a93a8;
+    /* Base surfaces — deep glassy slate (redesign Phase 1) */
+    --bg: #070a14;
+    --bg-2: #0b1020;
+    --panel: #131826;
+    --panel-2: #1a2132;
+    --panel-3: #232c42;
+    --border: #283149;
+    --border-2: #3a4666;
+    --text: #eef1f7;
+    --muted: #9aa4bd;
     --muted-2: #5f6a82;
     --accent: #f5c542;
     --accent-2: #7c5cff;
@@ -25,6 +30,24 @@
     --bad: #ff5c7a;
     --radius: 12px;
     --shadow: 0 10px 30px rgba(0,0,0,0.35);
+
+    /* Redesign tokens */
+    --accent-strong: #ffd45e;
+    --accent-glow: rgba(245,197,66,0.32);
+    --glass-bg: rgba(22,28,44,0.55);
+    --glass-bg-2: rgba(30,37,56,0.62);
+    --glass-border: rgba(255,255,255,0.09);
+    --glass-highlight: inset 0 1px 0 rgba(255,255,255,0.07);
+    --blur: 15px;
+    --radius-sm: 8px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --shadow-sm: 0 4px 14px rgba(0,0,0,0.30);
+    --shadow-lg: 0 22px 60px rgba(0,0,0,0.50);
+    --ring: 0 0 0 3px rgba(245,197,66,0.38);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Fira Code', monospace;
+    --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:24px; --space-6:32px; --space-8:48px;
   }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -543,6 +566,139 @@
   /* Public request entry button on the auth screen */
   .auth-divider { display:flex; align-items:center; gap: 12px; color: var(--muted-2); font-size: 11px; margin: 20px 0 14px; }
   .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  /* ============================================================
+     REDESIGN LAYER — Phase 1 foundation (glassmorphism SaaS).
+     Appended last so it refines the base styles above via the CSS
+     cascade. Purely visual — no markup, IDs, or JS behavior changed.
+     ============================================================ */
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+  /* Ambient glow background — static, GPU-light, sits behind all content */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(60vw 60vw at 10% -10%, rgba(245,197,66,0.10), transparent 60%),
+      radial-gradient(55vw 55vw at 105% 0%, rgba(124,92,255,0.13), transparent 55%),
+      radial-gradient(70vw 45vw at 50% 118%, rgba(61,220,151,0.06), transparent 62%),
+      var(--bg);
+  }
+
+  h1, h2, h3 { letter-spacing: -0.015em; }
+
+  /* Currency / numeric values → monospace with tabular figures */
+  .kpi .val, .cost-summary .val, .tool-card .sav-box .sv, .my-history-stats .val,
+  .bar-val, .te-card .te-stats b, .rate-box input, .savings-pos, .savings-neg {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  }
+
+  /* ---- Glass surfaces: blurred (large & few) ---- */
+  header {
+    background: linear-gradient(135deg, rgba(19,24,38,0.72), rgba(11,16,32,0.70));
+    backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .card, .accordion {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--blur)) saturate(130%); -webkit-backdrop-filter: blur(var(--blur)) saturate(130%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-lg), var(--glass-highlight);
+    border-radius: var(--radius-lg);
+  }
+  .view-toggle {
+    background: var(--glass-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+  }
+
+  /* ---- Frosted panels: NO blur (small & numerous — keeps the Celeron smooth) ---- */
+  .kpi, .tool-item, .profile-badge {
+    background: var(--glass-bg-2); border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-lg), var(--glass-highlight); border-radius: var(--radius-lg);
+  }
+  .card, .kpi, .tool-item { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+  .kpi { position: relative; overflow: hidden; }
+  .kpi::before {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background: linear-gradient(var(--accent-strong), var(--accent-2)); opacity:.85;
+  }
+  .kpi:hover { transform: translateY(-3px); border-color: rgba(245,197,66,0.35); }
+  .tool-item:hover {
+    transform: translateY(-3px); border-color: rgba(245,197,66,0.45);
+    box-shadow: 0 26px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,197,66,0.22);
+  }
+
+  .view-toggle button { transition: color .15s, background .2s; }
+  .view-toggle button.active {
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    color:#141200; box-shadow: 0 4px 16px var(--accent-glow);
+  }
+
+  /* ---- Buttons ---- */
+  button.primary, button.secondary, button.danger, button.ghost {
+    border-radius: 10px;
+    transition: transform .06s ease, filter .15s ease, box-shadow .18s ease, background .18s ease;
+  }
+  button.primary {
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    color:#141200; box-shadow: 0 6px 20px var(--accent-glow);
+  }
+  button.primary:hover { box-shadow: 0 10px 30px var(--accent-glow); filter: brightness(1.03); }
+  button.secondary {
+    background: rgba(255,255,255,0.05); border:1px solid var(--glass-border);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  button.secondary:hover { background: rgba(255,255,255,0.10); }
+  button.primary:active, button.secondary:active, button.danger:active, button.ghost:active { transform: scale(.97); }
+
+  /* ---- Inputs ---- */
+  input, select, textarea {
+    background: rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius: 10px;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,197,66,0.18); background: rgba(255,255,255,0.06);
+  }
+
+  /* ---- Accessible keyboard focus ring ---- */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+  textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+    outline: none; box-shadow: var(--ring);
+  }
+
+  /* ---- Custom scrollbars ---- */
+  * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--muted-2); background-clip: content-box; }
+
+  /* ---- Hero — layered glass ---- */
+  .hero {
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(245,197,66,0.10), transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, rgba(124,92,255,0.13), transparent 55%),
+      var(--glass-bg);
+    backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+    border: 1px solid var(--glass-border); border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg), var(--glass-highlight);
+  }
+  .hero h1 { font-size: 30px; font-weight: 800; }
+
+  /* ---- Fallback: no backdrop-filter support → solid panels ---- */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    header, .card, .accordion, .hero, .view-toggle, button.secondary { background: var(--panel); }
+  }
+
+  /* ---- Respect reduced motion ---- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important; scroll-behavior: auto !important;
+    }
+  }
 </style>
 </head>
 <body>
