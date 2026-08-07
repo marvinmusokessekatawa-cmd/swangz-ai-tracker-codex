@@ -1345,9 +1345,16 @@ async function persistDeptRoleToAuthMetadata() {
    allowed redirect URLs). It NEVER activates on a real host, so
    it stays inert in production even if accidentally left in.
    ============================================================ */
+/* Hosts (besides localhost) where the sign-in bypass is allowed — ONLY our
+   private staging site, so we can review/test the dashboards without depending
+   on Marvin's Supabase or the live site. The LIVE host
+   (swangz-ai-tracker.netlify.app) is deliberately NOT listed, so production
+   stays fully gated. Remove the staging host before the final merge to live. */
+const PREVIEW_BYPASS_HOSTS = ['swangzaitracker.netlify.app'];
 function isLocalDev() {
   const h = window.location.hostname;
-  return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h === '::1' || h === '';
+  if (h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h === '::1' || h === '') return true;
+  return PREVIEW_BYPASS_HOSTS.includes(h);
 }
 function devBypassSignIn() {
   if (!isLocalDev()) { toast('Dev bypass is localhost-only', true); return; }
@@ -1372,12 +1379,12 @@ function mountDevBypass() {
   btn.id = 'devBypassBtn';
   btn.className = 'secondary';
   btn.style.cssText = 'margin-top:16px; width:100%;';
-  btn.textContent = '🔧 Continue as Local Dev (skip sign-in)';
+  btn.textContent = '🔧 Continue without signing in (preview)';
   btn.addEventListener('click', devBypassSignIn);
   const note = document.createElement('p');
   note.className = 'help';
   note.style.cssText = 'margin-top:8px; opacity:.65;';
-  note.textContent = 'Local dev only — never shown on the deployed site.';
+  note.textContent = 'Staging/preview only — never shown on the live site.';
   card.appendChild(btn);
   card.appendChild(note);
 }
