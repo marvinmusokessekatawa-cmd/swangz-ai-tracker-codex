@@ -2060,6 +2060,120 @@
   .otp-preview b { color: var(--accent); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; }
   .otp-preview code { color: var(--text); font-size: 15px; letter-spacing: 3px; background: none; padding: 0; }
 
+  /* ============================================================
+     CINEMATIC INTRO
+     ============================================================ */
+  body.intro-open { overflow: hidden; }
+  .intro {
+    position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+    background: radial-gradient(120% 90% at 50% 40%, #0b0d16 0%, #04060c 60%, #000 100%);
+    animation: fade-in .5s ease both;
+  }
+  .intro.closing { animation: intro-out .78s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes intro-out {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.06); visibility: hidden; }
+  }
+  /* The portrait clip sits in a lit "cinema screen" rather than being cropped */
+  .intro-stage {
+    position: relative; height: min(72vh, 560px); aspect-ratio: 9 / 16;
+    border-radius: 22px; overflow: hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,.7), 0 0 90px rgba(245,197,66,.16);
+    animation: intro-rise 1.1s cubic-bezier(.22,1,.36,1) both;
+  }
+  @keyframes intro-rise {
+    0%   { opacity: 0; transform: translate3d(0,26px,0) scale(.96); }
+    100% { opacity: 1; transform: none; }
+  }
+  .intro-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Inner edge + subtle vignette so it reads as film, not a raw <video> */
+  .intro-frame {
+    position: absolute; inset: 0; pointer-events: none; border-radius: 22px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 0 90px rgba(0,0,0,.55);
+  }
+  .intro-brand {
+    position: absolute; left: 0; right: 0; top: 6vh; text-align: center;
+    animation: fade-in .9s ease .35s both;
+  }
+  .intro-brand img { height: 34px; width: auto; filter: drop-shadow(0 6px 22px rgba(245,197,66,.4)); }
+  .intro-tag {
+    display: block; margin-top: 10px; font-size: 10.5px; font-weight: 800;
+    letter-spacing: 3.4px; text-transform: uppercase; color: rgba(255,255,255,.62);
+  }
+  .intro-bar {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: 8vh;
+    width: min(280px, 54vw); height: 2px; border-radius: 999px;
+    background: rgba(255,255,255,.14); overflow: hidden;
+  }
+  .intro-bar i {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ffd970, #f5c542);
+    box-shadow: 0 0 12px rgba(245,197,66,.7); transition: width .18s linear;
+  }
+  .intro-skip {
+    position: absolute; right: 26px; bottom: 26px; cursor: pointer;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18);
+    color: rgba(255,255,255,.8); font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 9px 15px; border-radius: 999px; backdrop-filter: blur(8px);
+    animation: fade-in .6s ease 1.1s both; transition: all .18s;
+  }
+  .intro-skip:hover { color: #fff; border-color: rgba(245,197,66,.5); background: rgba(245,197,66,.14); }
+  @media (max-width: 760px) {
+    .intro-stage { height: min(64vh, 480px); border-radius: 18px; }
+    .intro-skip { right: 50%; transform: translateX(50%); bottom: 18px; }
+    .intro-bar { bottom: 64px; }
+  }
+
+  /* ============================================================
+     SIGN-IN SCREEN  (ref: "login part" / "login centered")
+     Brand above the card, a soft light beam behind it, an
+     outlined glass card, full-width action, divider, footer links.
+     ============================================================ */
+  body[data-shell="auth"] main { position: relative; }
+  .auth-beam {
+    position: absolute; left: 50%; top: -10%; transform: translateX(-50%);
+    width: min(760px, 92vw); height: 120%; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(46% 40% at 50% 8%, rgba(245,197,66,.20), transparent 70%),
+      radial-gradient(38% 55% at 50% 34%, rgba(167,139,250,.16), transparent 72%);
+    filter: blur(6px);
+  }
+  .auth-wrap { position: relative; z-index: 1; width: 100%; display: grid; place-items: center; }
+  .auth-brand { text-align: center; margin-bottom: 22px; }
+  .auth-brand img { height: 40px; width: auto; filter: drop-shadow(0 8px 26px var(--accent-glow)); }
+  .auth-brand p {
+    margin: 12px 0 0; font-size: 12.5px; color: var(--muted); letter-spacing: .3px;
+  }
+  body[data-shell="auth"] .auth-card {
+    max-width: 430px; width: 100%; padding: 32px 30px 26px; border-radius: 20px;
+  }
+  body[data-shell="auth"] .auth-card h2 {
+    text-align: center; font-size: 21px; margin: 0 0 4px; font-weight: 700;
+  }
+  .auth-sub { text-align: center; color: var(--muted); font-size: 12.5px; margin: 0 0 22px; }
+  .auth-foot {
+    display: flex; justify-content: center; gap: 18px; flex-wrap: wrap;
+    margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--glass-border);
+  }
+  .auth-foot a, .auth-foot button {
+    background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+    color: var(--muted); font-size: 11.5px; text-decoration: none; transition: color .15s;
+  }
+  .auth-foot a:hover, .auth-foot button:hover { color: var(--accent); }
+  .auth-legal { text-align: center; font-size: 11px; color: var(--muted-2); margin-top: 14px; line-height: 1.6; }
+  /* Short viewports (laptops, landscape phones): compress so the card never clips */
+  @media (max-height: 720px) {
+    .auth-brand { margin-bottom: 14px; }
+    .auth-brand img { height: 32px; }
+    .auth-brand p { margin-top: 8px; font-size: 11.5px; }
+    body[data-shell="auth"] .auth-card { padding: 22px 26px 18px; }
+    body[data-shell="auth"] .auth-card h2 { font-size: 19px; }
+    .auth-sub { margin-bottom: 16px; }
+    .auth-divider { margin: 14px 0 12px; }
+    .auth-legal { margin-top: 10px; }
+    .auth-foot { margin-top: 14px; padding-top: 12px; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -2087,6 +2201,25 @@
 </style>
 </head>
 <body>
+<!-- ============================================================
+     CINEMATIC INTRO — plays once per session before sign-in.
+     Muted + playsinline so autoplay is allowed; a watchdog closes
+     it if playback is blocked so the app can never be locked out.
+     ============================================================ -->
+<div class="intro" id="introOverlay" role="presentation">
+  <div class="intro-stage">
+    <video id="introVideo" class="intro-video" src="assets/intro.mp4" poster="assets/intro-poster.jpg"
+           muted playsinline autoplay preload="auto" disablepictureinpicture></video>
+    <div class="intro-frame" aria-hidden="true"></div>
+  </div>
+  <div class="intro-brand">
+    <img src="assets/swangz-logo.webp" alt="Swangz Avenue" />
+    <span class="intro-tag">AI&nbsp;Adoption&nbsp;Tracker</span>
+  </div>
+  <div class="intro-bar" aria-hidden="true"><i id="introProgress"></i></div>
+  <button type="button" class="intro-skip" onclick="dismissIntro(true)">Skip intro →</button>
+</div>
+
 <div class="aurora" aria-hidden="true">
   <span class="a1"></span><span class="a2"></span><span class="a3"></span><span class="a4"></span>
 </div>
@@ -2113,17 +2246,28 @@
 
   <!-- AUTH VIEW (Google sign-in) -->
   <section id="authView" class="view active">
+    <div class="auth-beam" aria-hidden="true"></div>
+    <div class="auth-wrap">
+    <div class="auth-brand">
+      <img src="assets/swangz-logo.webp" alt="Swangz Avenue" />
+      <p>AI Adoption Tracker — see what AI is really saving the company</p>
+    </div>
     <div class="card lock-card auth-card">
-      <img class="auth-logo" src="assets/swangz-logo.webp" alt="Swangz AI Tracker" />
-      <h2>Sign in to Swangz AI Tracker</h2>
-      <p class="help" style="margin-bottom:24px;">Use your Google account to access the tracker. Your profile, tools, and history are saved across devices.</p>
+      <h2>Sign in</h2>
+      <p class="auth-sub">Use your Swangz Google account to continue</p>
       <button class="primary google-signin" onclick="signInWithGoogle()">
         <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right:10px; vertical-align:middle;"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
         Sign in with Google
       </button>
       <div class="auth-divider">or</div>
       <button class="secondary" style="width:100%; justify-content:center;" onclick="startPublicRequest()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/></svg> Submit a tool request without signing in</button>
-      <p class="help" style="margin-top:24px; font-size:11px;">Team members: sign in to add full tool reports. Anyone can submit a quick tool request — it goes to the admin inbox for review.</p>
+      <p class="auth-legal">Team members sign in to add full tool reports.<br/>Anyone can submit a quick request — it goes to the admin inbox for review.</p>
+      <div class="auth-foot">
+        <button type="button" onclick="botToggle(true)">Help</button>
+        <a href="https://swangzavenue.com" target="_blank" rel="noopener noreferrer">Swangz Avenue</a>
+        <button type="button" onclick="toast('Ask a system owner for access')">Support</button>
+      </div>
+    </div>
     </div>
   </section>
 
@@ -7297,6 +7441,60 @@ function clearDemoData() {
       '<button type="button" onclick="seedDemoData()">Load demo data</button>' +
       '<button type="button" onclick="clearDemoData()">Clear demo</button>';
     document.body.appendChild(bar);
+  });
+})();
+
+/* ============================================================
+   CINEMATIC INTRO
+   Shown once per browser session, before the sign-in screen.
+   Safety: if autoplay is blocked, the file 404s, or the tab is
+   restored mid-play, a watchdog dismisses it — the app must never
+   be trapped behind the intro.
+   ============================================================ */
+const INTRO_KEY = 'swangz_intro_seen_v1';
+let introDone = false;
+function dismissIntro(skipped) {
+  if (introDone) return;
+  introDone = true;
+  const el = document.getElementById('introOverlay');
+  const v  = document.getElementById('introVideo');
+  try { sessionStorage.setItem(INTRO_KEY, '1'); } catch (_) {}
+  if (v) { try { v.pause(); } catch (_) {} }
+  if (!el) return;
+  el.classList.add('closing');
+  setTimeout(() => { el.remove(); document.body.classList.remove('intro-open'); }, 780);
+}
+(function () {
+  const el = document.getElementById('introOverlay');
+  if (!el) return;
+  let seen = false;
+  try { seen = sessionStorage.getItem(INTRO_KEY) === '1'; } catch (_) {}
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (seen || reduced) { el.remove(); return; }
+
+  document.body.classList.add('intro-open');
+  const v = document.getElementById('introVideo');
+  const bar = document.getElementById('introProgress');
+  if (!v) { dismissIntro(); return; }
+
+  // Hard watchdog: never let the intro outlive ~9s under any circumstance.
+  const watchdog = setTimeout(() => dismissIntro(), 9000);
+  // If playback hasn't actually started within 2.5s, autoplay was blocked.
+  const startCheck = setTimeout(() => { if (v.currentTime === 0 || v.paused) dismissIntro(); }, 2500);
+
+  v.addEventListener('timeupdate', function () {
+    if (bar && v.duration) bar.style.width = Math.min(100, (v.currentTime / v.duration) * 100) + '%';
+  });
+  v.addEventListener('ended', () => { clearTimeout(watchdog); dismissIntro(); });
+  v.addEventListener('error', () => { clearTimeout(watchdog); dismissIntro(); });
+  v.addEventListener('playing', () => clearTimeout(startCheck));
+
+  const p = v.play();
+  if (p && typeof p.catch === 'function') p.catch(() => dismissIntro());
+  // Any key or click gets you past it
+  el.addEventListener('click', () => dismissIntro(true));
+  document.addEventListener('keydown', function onKey(e) {
+    if (!introDone && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) { dismissIntro(true); document.removeEventListener('keydown', onKey); }
   });
 })();
 
