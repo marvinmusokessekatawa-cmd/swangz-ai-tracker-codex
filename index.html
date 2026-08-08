@@ -1810,6 +1810,72 @@
   }
   .lock-card .lock-ico .ico { width: 26px; height: 26px; }
 
+  /* ============================================================
+     WIZARD (add tool / tool detail) — roomier, aligned, refined
+     ============================================================ */
+  .wizard { max-height: calc(100vh - 48px); border-radius: var(--radius-xl); }
+  .wizard-head { padding: 20px 26px 14px; }
+  .wizard-head h2 { font-size: 19px; }
+  .wizard-body { padding: 20px 26px 24px; }
+  .wizard-foot { padding: 14px 26px 18px; }
+
+  /* Columns align even when one label wraps to two lines */
+  .wizard-body .grid > div { display: flex; flex-direction: column; }
+  .wizard-body .grid > div > label { min-height: 2.2em; display: flex; align-items: flex-end; }
+  .wizard-body .grid { align-items: start; gap: 16px 18px; }
+
+  .wizard-step .step-title { font-size: 16px; margin-bottom: 5px; }
+  .wizard-step .step-help  { font-size: 12.5px; margin-bottom: 18px; line-height: 1.55; }
+  .wizard-body .field-caption { line-height: 1.5; }
+
+  /* Progress stepper — clearer states */
+  .wiz-progress { gap: 8px; margin-top: 18px; padding-bottom: 4px; }
+  .wiz-progress .ws .dot {
+    width: 28px; height: 28px; font-size: 12.5px;
+    background: rgba(255,255,255,0.05); border-color: var(--glass-border);
+    transition: background .25s, color .25s, box-shadow .25s;
+  }
+  .wiz-progress .ws.current .dot {
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    color: #0b0616; box-shadow: 0 4px 16px var(--accent-glow);
+  }
+  .wiz-progress .ws.done .dot { background: var(--c-emerald); color: #04120c; }
+  .wiz-progress .ws .lbl { font-size: 11.5px; }
+  .wiz-progress .sep { background: var(--glass-border); }
+
+  /* Segmented Report / Request control */
+  .seg { background: rgba(255,255,255,0.05); border-color: var(--glass-border); padding: 4px; }
+  .seg button { padding: 7px 15px; display: inline-flex; align-items: center; }
+  .seg button.active {
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    color: #0b0616; box-shadow: 0 3px 12px var(--accent-glow);
+  }
+  .seg button .ico { width: 15px; height: 15px; }
+
+  /* Checkbox rows read as tappable cards rather than bare inputs */
+  .reg-toggle {
+    display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; cursor: pointer;
+    padding: 11px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+    text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text);
+    transition: border-color .18s, background .18s;
+  }
+  .reg-toggle:hover { border-color: rgba(245,197,66,0.4); background: rgba(245,197,66,0.06); }
+  .reg-toggle input { width: auto; min-height: 0; margin: 2px 0 0; flex: 0 0 auto; accent-color: var(--accent); }
+  .reg-toggle strong { font-size: 12.5px; font-weight: 700; }
+  .reg-toggle .rt-help { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.5; }
+
+  /* Body scrollbar sits inside the rounded card */
+  .wizard-body::-webkit-scrollbar { width: 8px; }
+  .wizard-body::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 999px; }
+
+  @media (max-width: 760px) {
+    .wizard-head { padding: 16px 18px 12px; }
+    .wizard-body { padding: 18px; }
+    .wizard-foot { padding: 12px 18px calc(16px + env(safe-area-inset-bottom)); }
+    .wizard-body .grid > div > label { min-height: 0; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -2062,15 +2128,15 @@
           <div class="field-caption" id="cap_toolUrl" style="margin-top:6px;"></div>
         </div>
         <div>
-          <label>Official Website (auto-filled)</label>
+          <label>Official Website</label>
           <input id="f_officialUrl" type="url" placeholder="https://example.com/"
                  oninput="onDetailDirty()" />
-          <div class="field-caption">Leave the autofilled URL alone for known tools. For new tools paste the official site so multiple submitters merge correctly.</div>
-          <label class="reg-toggle" style="display:flex; align-items:flex-start; gap:8px; margin-top:10px; font-size:12px; text-transform:none; letter-spacing:0; color: var(--text); font-weight:500; cursor:pointer;">
-            <input id="f_persistInRegistry" type="checkbox" style="width:auto; margin-top:2px;" onchange="onDetailDirty()" />
+          <div class="field-caption">Auto-filled for known tools. For a new one, paste the official site so entries merge.</div>
+          <label class="reg-toggle">
+            <input id="f_persistInRegistry" type="checkbox" onchange="onDetailDirty()" />
             <span>
-              <strong>Save tool permanently to team registry</strong>
-              <span style="display:block; color: var(--muted); font-size:11px; margin-top:2px;">If checked, this tool name + website stays in everyone's autocomplete even if you later delete this entry. Leave unchecked for one-off tools you may remove.</span>
+              <strong>Save to team registry</strong>
+              <span class="rt-help">Keeps this tool in everyone's autocomplete, even if you delete your entry.</span>
             </span>
           </label>
         </div>
