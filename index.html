@@ -585,15 +585,9 @@
      the corners (ref: SPECTRA/stadium frames), a cool violet counter-light, a
      faint dot-grid for texture and an edge vignette for depth. Static layers =
      no per-frame GPU cost. */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
-    background:
-      radial-gradient(80vw 70vh at -8% -12%, rgba(245,197,66,0.16), transparent 62%),
-      radial-gradient(65vw 60vh at 108% 8%, rgba(124,92,255,0.14), transparent 58%),
-      radial-gradient(75vw 55vh at 88% 112%, rgba(245,160,50,0.11), transparent 60%),
-      radial-gradient(60vw 50vh at 12% 105%, rgba(61,220,151,0.05), transparent 62%),
-      #05070d;
-  }
+  /* Base colour lives on <body>; the animated .aurora layer sits above it.
+     (An opaque ::before here would hide the aurora entirely.) */
+  body { background-color: #05070d; }
   /* Texture + vignette layer */
   body::after {
     content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
