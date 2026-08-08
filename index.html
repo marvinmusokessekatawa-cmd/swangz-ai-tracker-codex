@@ -6645,6 +6645,22 @@ function currentRole() {
 }
 function canSeeAdmin() { const r = currentRole(); return r === 'super' || r === 'admin'; }
 
+/* Keep the sign-in gate and the admin lists from ever drifting apart.
+   Without this, an owner or a granted admin whose address is outside
+   @swangzavenue.com would be refused at sign-in and could never reach the
+   admin gate at all — a confusing lockout. Anyone who is allowed to
+   administer the tracker is, by definition, allowed to sign in to it. */
+(function () {
+  if (typeof isEmailAllowed !== 'function') return;
+  const original = isEmailAllowed;
+  window.isEmailAllowed = function (email) {
+    const e = normEmail(email);
+    if (isSuperAdmin(e)) return true;          // the two system owners
+    if (extraAdmins().includes(e)) return true; // admins granted in the dashboard
+    return original.apply(this, arguments);     // org domain + the original list
+  };
+})();
+
 /* ============================================================
    ADMIN MULTI-FACTOR GATE — Google → email OTP → password.
 
