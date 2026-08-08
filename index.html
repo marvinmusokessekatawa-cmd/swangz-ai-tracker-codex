@@ -6339,7 +6339,13 @@ const DEMO_SPEC = [
 ];
 function seedDemoData(force) {
   if (typeof isLocalDev === 'function' && !isLocalDev()) { toast('Demo data is preview-only', true); return; }
-  if (!force && entries.length && !confirm('This adds ' + DEMO_SPEC.length + ' sample entries for previewing the dashboards. Continue?')) return;
+  // No native confirm() here: a modal dialog blocks the whole page (and any
+  // automation driving it). Demo rows are tagged isDemo and "Clear demo"
+  // removes exactly those, so seeding is already safely reversible.
+  if (!force && entries.some(e => e.isDemo)) {
+    toast('Demo data is already loaded — use "Clear demo" first', true);
+    return;
+  }
   const now = new Date();
   const made = DEMO_SPEC.map(function (r, i) {
     const [dept, tool, cat, status, tradT, aiT, tradC, freq, sub, rev, why] = r;
