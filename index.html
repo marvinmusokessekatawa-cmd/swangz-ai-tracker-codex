@@ -6908,18 +6908,18 @@ function printAiReport() {
    live host, and it never overwrites existing data without asking.
    ============================================================ */
 const DEMO_SPEC = [
-  ['Production','ChatGPT','Writing & Content','In use',4,0.5,120,12,20,0,'Script drafts and shot lists'],
-  ['Production','Runway','Video','Piloting',16,3,900,3,35,4000,'Music video pre-viz for a client'],
-  ['Content','Midjourney','Design & Image','In use',5,0.75,150,20,30,0,'Cover art and thumbnails'],
-  ['Content','ElevenLabs','Audio','Scaling',3,0.4,90,16,22,1500,'Voiceovers for social edits'],
-  ['Digital','Canva','Design & Image','In use',2,0.5,45,40,15,0,'Social templates at volume'],
-  ['Digital','ChatGPT','Writing & Content','In use',3,0.4,80,25,20,2200,'Campaign copy and captions'],
-  ['Marketing','Suno','Audio','Piloting',8,1,300,4,10,0,'Jingles for brand spots'],
-  ['Marketing','HeyGen','Video','Requested',10,2,500,2,29,0,'Localised promo avatars'],
-  ['Finance','Claude','Writing & Content','In use',6,1,200,10,20,0,'Budget summaries and variance notes'],
-  ['Record Label','Suno','Audio','Scaling',12,2,600,6,10,7500,'Demo ideation for A&R'],
-  ['Events','Midjourney','Design & Image','In use',4,0.6,110,14,30,0,'Event key art concepts'],
-  ['HR','ChatGPT','Writing & Content','In use',3,0.5,70,18,20,0,'Job specs and onboarding docs'],
+  ['Production','ChatGPT','Copywriting / Text','In Active Use',4,0.5,120,12,20,0,'Script drafts and shot lists'],
+  ['Production','Runway','Video Generation','Piloting',16,3,900,3,35,4000,'Music video pre-viz for a client'],
+  ['Content','Midjourney','Image Generation','In Active Use',5,0.75,150,20,30,0,'Cover art and thumbnails'],
+  ['Content','ElevenLabs','Audio / Voice','Scaling Across Team',3,0.4,90,16,22,1500,'Voiceovers for social edits'],
+  ['Digital','Canva','Image Generation','In Active Use',2,0.5,45,40,15,0,'Social templates at volume'],
+  ['Digital','ChatGPT','Copywriting / Text','In Active Use',3,0.4,80,25,20,2200,'Campaign copy and captions'],
+  ['Marketing','Suno','Audio / Voice','Piloting',8,1,300,4,10,0,'Jingles for brand spots'],
+  ['Marketing','HeyGen','Video Generation','Requesting (need to invest)',10,2,500,2,29,0,'Localised promo avatars'],
+  ['Finance','Claude','Copywriting / Text','In Active Use',6,1,200,10,20,0,'Budget summaries and variance notes'],
+  ['Record Label','Suno','Audio / Voice','Scaling Across Team',12,2,600,6,10,7500,'Demo ideation for A&R'],
+  ['Events','Midjourney','Image Generation','In Active Use',4,0.6,110,14,30,0,'Event key art concepts'],
+  ['HR','ChatGPT','Copywriting / Text','In Active Use',3,0.5,70,18,20,0,'Job specs and onboarding docs'],
 ];
 function seedDemoData(force) {
   if (typeof isLocalDev === 'function' && !isLocalDev()) { toast('Demo data is preview-only', true); return; }
@@ -7398,7 +7398,7 @@ function renderDeptOverview() {
   if (rings) {
     const groups = {};
     list.forEach(e => { const s = e.status || 'Unspecified'; groups[s] = (groups[s] || 0) + 1; });
-    const colors = { 'In use': CHART_GREEN, 'Piloting': CHART_VIOLET, 'Scaling': CHART_GOLD, 'Requested': '#ff8a65' };
+    const colors = { 'In Active Use': CHART_GREEN, 'Piloting': CHART_VIOLET, 'Scaling Across Team': CHART_SKY, 'Requesting (need to invest)': CHART_ROSE };
     rings.innerHTML = Object.entries(groups).map(([label, n]) => {
       const pct = Math.round(n / list.length * 100), col = colors[label] || CHART_GOLD;
       const R = 26, C = 2 * Math.PI * R, len = C * pct / 100;
