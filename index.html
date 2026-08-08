@@ -35,16 +35,18 @@
     /* Redesign tokens */
     --accent-strong: #ffd45e;
     --accent-glow: rgba(245,197,66,0.32);
-    --glass-bg: rgba(22,28,44,0.55);
-    --glass-bg-2: rgba(30,37,56,0.62);
-    --glass-border: rgba(255,255,255,0.09);
-    --glass-highlight: inset 0 1px 0 rgba(255,255,255,0.07);
+    /* Glass recipe matched to educore.site.ug (user's own reference build):
+       lighter fill, brighter 0.14 border, deep 24/60 shadow + inset hairline. */
+    --glass-bg: rgba(255,255,255,0.06);
+    --glass-bg-2: rgba(255,255,255,0.075);
+    --glass-border: rgba(255,255,255,0.14);
+    --glass-highlight: inset 0 0 0 1px rgba(255,255,255,0.04);
     --blur: 15px;
     --radius-sm: 8px;
     --radius-lg: 18px;
     --radius-xl: 24px;
     --shadow-sm: 0 4px 14px rgba(0,0,0,0.30);
-    --shadow-lg: 0 22px 60px rgba(0,0,0,0.50);
+    --shadow-lg: 0 24px 60px rgba(0,0,0,0.55);
     --ring: 0 0 0 3px rgba(245,197,66,0.38);
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Fira Code', monospace;
@@ -599,6 +601,66 @@
       radial-gradient(circle at center, rgba(255,255,255,0.028) 1px, transparent 1px),
       radial-gradient(130% 110% at 50% 50%, transparent 52%, rgba(0,0,0,0.55) 100%);
     background-size: 26px 26px, 100% 100%;
+  }
+
+  /* ============================================================
+     LIVE BACKGROUND — slowly drifting aurora orbs behind the app.
+     Only `transform` is animated (compositor-only, no layout or
+     paint), so it stays smooth on low-end machines. Disabled
+     entirely under prefers-reduced-motion.
+     ============================================================ */
+  .aurora { position: fixed; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; }
+  /* mix-blend-mode: screen makes the glows read as light rather than paint —
+     this is what gives the reference build its luminous depth. */
+  .aurora span {
+    position: absolute; inset: -8%; display: block;
+    mix-blend-mode: screen; will-change: transform;
+  }
+  .aurora .a1 {
+    background: radial-gradient(at 16% 20%, rgba(245,197,66,0.40), transparent 55%),
+                radial-gradient(at 84% 76%, rgba(245,160,50,0.26), transparent 55%);
+    animation: aurora-a 26s ease-in-out infinite alternate;
+  }
+  .aurora .a2 {
+    background: radial-gradient(at 82% 16%, rgba(124,92,255,0.34), transparent 55%),
+                radial-gradient(at 24% 84%, rgba(124,92,255,0.20), transparent 55%);
+    animation: aurora-b 34s ease-in-out infinite alternate;
+  }
+  .aurora .a3 {
+    background: radial-gradient(at 50% 108%, rgba(61,220,151,0.18), transparent 52%),
+                radial-gradient(at 8% 60%, rgba(255,138,101,0.16), transparent 52%);
+    animation: aurora-c 42s ease-in-out infinite alternate;
+  }
+  .aurora .a4 { display: none; }
+  @keyframes aurora-a { from { transform: translate3d(-2%,-1%,0) scale(1); }    to { transform: translate3d(2%,1%,0) scale(1.06); } }
+  @keyframes aurora-b { from { transform: translate3d(2%,1%,0) scale(1.05); }   to { transform: translate3d(-2%,-1.5%,0) scale(1); } }
+  @keyframes aurora-c { from { transform: translate3d(1%,-1%,0) scale(1.02); }  to { transform: translate3d(-2%,1.5%,0) scale(1.08); } }
+  /* Particle starfield */
+  #starfield { position: fixed; inset: 0; z-index: -2; pointer-events: none; opacity: .55; }
+  @media (prefers-reduced-motion: reduce) {
+    .aurora span { animation: none !important; }
+    #starfield { display: none; }
+  }
+
+  /* ---- App shell: a floating glass panel over the live background ---- */
+  @media (min-width: 1100px) {
+    body { padding: 18px; }
+    .app-shell {
+      position: relative; border-radius: 26px; overflow: hidden;
+      min-height: calc(100vh - 36px);
+      background: rgba(10,14,24,0.55);
+      backdrop-filter: blur(26px) saturate(135%); -webkit-backdrop-filter: blur(26px) saturate(135%);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 40px 120px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.09);
+    }
+    /* Sidebar stays fixed (so it doesn't scroll away) but is inset to sit
+       inside the floating shell and share its rounded left edge. */
+    .app-shell header {
+      top: 18px; left: 18px; bottom: 18px;
+      border-radius: 26px 0 0 26px; border-right: 1px solid var(--glass-border);
+      background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012));
+    }
+    .app-shell main { min-height: calc(100vh - 36px); }
   }
 
   h1, h2, h3 { letter-spacing: -0.015em; }
@@ -1337,6 +1399,32 @@
     .gs-rate-num { font-size: 28px; }
   }
 
+  /* ---- Admin section tabs in the sidebar ---- */
+  .admin-nav { display: none; flex-direction: column; gap: 3px; }
+  body[data-section="admin"] .admin-nav { display: flex; }
+  .admin-nav::before {
+    content: 'Sections'; font-size: 9.5px; font-weight: 800; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--muted-2); padding: 0 12px 7px;
+  }
+  .admin-nav button {
+    background: transparent; border: 1px solid transparent; color: var(--muted);
+    text-align: left; padding: 9px 12px; border-radius: 10px; cursor: pointer;
+    font-size: 12.5px; font-weight: 600; font-family: inherit;
+    transition: color .15s, background .18s, border-color .18s, transform .15s;
+  }
+  .admin-nav button:hover { color: var(--text); background: rgba(255,255,255,0.05); transform: translateX(3px); }
+  .admin-nav button.active {
+    color: var(--accent); background: rgba(245,197,66,0.10);
+    border-color: rgba(245,197,66,0.28); font-weight: 700;
+  }
+  @media (max-width: 919px) {
+    /* On phones the section tabs scroll horizontally under the top bar */
+    .admin-nav { flex-direction: row; overflow-x: auto; gap: 6px; padding: 8px 0 2px; width: 100%; }
+    .admin-nav::before { display: none; }
+    .admin-nav button { flex: 0 0 auto; white-space: nowrap; border: 1px solid var(--glass-border); border-radius: 999px; }
+    body[data-section="admin"] header { flex-wrap: wrap; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -1364,6 +1452,12 @@
 </style>
 </head>
 <body>
+<div class="aurora" aria-hidden="true">
+  <span class="a1"></span><span class="a2"></span><span class="a3"></span><span class="a4"></span>
+</div>
+<canvas id="starfield" aria-hidden="true"></canvas>
+
+<div class="app-shell">
 <header>
   <div class="brand">
     <img class="brand-logo" src="assets/swangz-logo.webp" alt="Swangz" />
@@ -1373,6 +1467,7 @@
     <button id="btnUser" class="active" onclick="goToUser()">Departments</button>
     <button id="btnAdmin" onclick="switchView('admin')">Admin Dashboard</button>
   </div>
+  <nav class="admin-nav" id="adminNav" aria-label="Admin sections"></nav>
 </header>
 
 <main>
@@ -1439,14 +1534,6 @@
 
   <!-- TOOLS LIST VIEW -->
   <section id="toolsView" class="view">
-    <div class="greet-row">
-      <div class="greet-hero" aria-hidden="false">
-        <h1><span id="greetTime">Welcome back</span><span id="greetName"></span></h1>
-        <p>Here's your department's AI adoption at a glance.</p>
-      </div>
-      <div class="quick-stats" id="quickStats"></div>
-    </div>
-
     <div class="profile-badge">
       <div class="who">
         <div class="avatar" id="avatarInitials">?</div>
@@ -1471,6 +1558,14 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div class="greet-row">
+      <div class="greet-hero" aria-hidden="false">
+        <h1><span id="greetTime">Welcome back</span><span id="greetName"></span></h1>
+        <p>Here's your department's AI adoption at a glance.</p>
+      </div>
+      <div class="quick-stats" id="quickStats"></div>
     </div>
 
     <div id="myHistoryCard" class="card my-history-card" style="display:none;">
@@ -1782,6 +1877,7 @@
   <section id="adminView" class="view">
     <div id="adminGate"></div>
     <div id="adminContent" style="display:none;">
+    <div id="adminOverview">
     <div class="kpis">
       <div class="kpi">
         <div class="lbl">Tools Tracked</div>
@@ -1870,7 +1966,7 @@
       <div id="topTools"></div>
     </div>
 
-    <p class="help" style="margin: -2px 0 14px;">Click a tab below to expand it. The KPI cards above are always-visible summary tiles.</p>
+    </div><!-- /#adminOverview -->
 
     <details class="accordion" id="acc_requests" open>
       <summary>
@@ -2156,6 +2252,7 @@
     </div>
   </section>
 </main>
+</div><!-- /.app-shell -->
 
 <div id="toast" class="toast">Saved</div>
 
@@ -6296,6 +6393,105 @@ function clearDemoData() {
       '<button type="button" onclick="clearDemoData()">Clear demo</button>';
     document.body.appendChild(bar);
   });
+})();
+
+/* ============================================================
+   STARFIELD — drifting particles behind the glass (technique
+   matched to the user's educore.site.ug build). Deliberately
+   frugal: few particles, capped DPR, paused when the tab is
+   hidden and skipped entirely under reduced-motion.
+   ============================================================ */
+(function () {
+  const cv = document.getElementById('starfield');
+  if (!cv) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const ctx = cv.getContext('2d');
+  let w = 0, h = 0, dots = [], raf = null;
+  const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+  function size() {
+    w = cv.clientWidth; h = cv.clientHeight;
+    cv.width = Math.floor(w * DPR); cv.height = Math.floor(h * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const target = Math.min(90, Math.round(w * h / 26000));
+    dots = Array.from({ length: target }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      r: Math.random() * 1.25 + 0.35,
+      vx: (Math.random() - 0.5) * 0.09, vy: (Math.random() - 0.5) * 0.09,
+      a: Math.random() * 0.5 + 0.18, t: Math.random() * Math.PI * 2,
+    }));
+  }
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+    for (const d of dots) {
+      d.x += d.vx; d.y += d.vy; d.t += 0.012;
+      if (d.x < -4) d.x = w + 4; else if (d.x > w + 4) d.x = -4;
+      if (d.y < -4) d.y = h + 4; else if (d.y > h + 4) d.y = -4;
+      const tw = d.a * (0.62 + 0.38 * Math.sin(d.t));
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,236,190,' + tw.toFixed(3) + ')';
+      ctx.fill();
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function start() { if (!raf) raf = requestAnimationFrame(frame); }
+  function stop() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  size(); start();
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(size, 180); });
+  document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+})();
+
+/* ============================================================
+   ADMIN SECTION TABS — the admin accordions become tabs in the
+   floating sidebar; selecting one reveals only that section in
+   the main area. Built from the DOM, so no accordion markup or
+   handler is modified.
+   ============================================================ */
+let adminSection = 'overview';
+function buildAdminNav() {
+  const nav = document.getElementById('adminNav');
+  const content = document.getElementById('adminContent');
+  if (!nav || !content) return;
+  const accs = [...content.querySelectorAll('details.accordion')];
+  const items = [{ id: 'overview', label: 'Overview' }].concat(
+    accs.map(a => ({ id: a.id, label: (a.querySelector('.acc-title') || {}).textContent || a.id }))
+  );
+  nav.innerHTML = items.map(i =>
+    `<button type="button" data-sec="${i.id}" class="${i.id === adminSection ? 'active' : ''}"
+       onclick="showAdminSection('${i.id}')">${escapeHTML(i.label.trim())}</button>`).join('');
+}
+function showAdminSection(id) {
+  adminSection = id;
+  const content = document.getElementById('adminContent');
+  if (!content) return;
+  const overview = document.getElementById('adminOverview');
+  if (overview) overview.style.display = (id === 'overview') ? '' : 'none';
+  content.querySelectorAll('details.accordion').forEach(a => {
+    const on = (a.id === id);
+    a.style.display = on ? '' : 'none';
+    if (on) a.open = true;
+  });
+  const nav = document.getElementById('adminNav');
+  if (nav) nav.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+(function () {
+  if (typeof renderAdmin !== 'function') return;
+  const original = window.renderAdmin;
+  window.renderAdmin = function () {
+    const out = original.apply(this, arguments);
+    try { buildAdminNav(); showAdminSection(adminSection); } catch (e) { console.warn('admin nav skipped:', e); }
+    return out;
+  };
+})();
+/* Sidebar admin tabs only make sense while the admin view is open */
+(function () {
+  const adminView = document.getElementById('adminView');
+  const body = document.body;
+  if (!adminView) return;
+  function apply() { body.setAttribute('data-section', adminView.classList.contains('active') ? 'admin' : 'app'); }
+  new MutationObserver(apply).observe(adminView, { attributes: true, attributeFilter: ['class'] });
+  apply();
 })();
 
 /* ============================================================
