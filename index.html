@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="icon" type="image/webp" href="assets/swangz-logo.webp">
+<link rel="icon" type="image/webp" href="assets/swangz-badge.webp">
 <style>
   :root {
     /* Base surfaces — deep glassy slate (redesign Phase 1) */
@@ -795,6 +795,110 @@
   }
   .greet-hero p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
   @media (max-width: 600px) { .greet-hero h1 { font-size: 24px; } }
+
+  /* ============================================================
+     REDESIGN — Phase 3: vibrancy, gradients & motion
+     ============================================================ */
+
+  /* ---- Sign-in screen: no app chrome until authenticated ---- */
+  body[data-shell="auth"] header { display: none; }
+  body[data-shell="auth"] main { margin-left: 0; }
+  body[data-shell="auth"] main { display: grid; place-items: center; min-height: 100vh; padding-top: 0; }
+  /* Auth card: gradient border + entrance */
+  body[data-shell="auth"] .auth-card {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(245,197,66,0.12), transparent 60%),
+      var(--glass-bg);
+    animation: rise-in .5s cubic-bezier(.16,1,.3,1) both;
+  }
+  body[data-shell="auth"] .auth-card::before {
+    content:''; position:absolute; left:0; right:0; top:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  /* ---- Entrance motion ---- */
+  @keyframes rise-in { from { opacity:0; transform: translateY(14px) scale(.985); } to { opacity:1; transform:none; } }
+  @keyframes fade-in { from { opacity:0; } to { opacity:1; } }
+  @keyframes sheen  { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+
+  .view.active > * { animation: rise-in .45s cubic-bezier(.16,1,.3,1) both; }
+  /* Staggered reveal — first 8 blocks cascade, rest fade together */
+  .view.active > *:nth-child(1) { animation-delay: .02s; }
+  .view.active > *:nth-child(2) { animation-delay: .06s; }
+  .view.active > *:nth-child(3) { animation-delay: .10s; }
+  .view.active > *:nth-child(4) { animation-delay: .14s; }
+  .view.active > *:nth-child(5) { animation-delay: .18s; }
+  .view.active > *:nth-child(6) { animation-delay: .22s; }
+  .view.active > *:nth-child(7) { animation-delay: .26s; }
+  .view.active > *:nth-child(8) { animation-delay: .30s; }
+  .tool-list > *, .kpis > * { animation: rise-in .42s cubic-bezier(.16,1,.3,1) both; }
+  .kpis > *:nth-child(2), .tool-list > *:nth-child(2) { animation-delay: .05s; }
+  .kpis > *:nth-child(3), .tool-list > *:nth-child(3) { animation-delay: .10s; }
+  .kpis > *:nth-child(4), .tool-list > *:nth-child(4) { animation-delay: .15s; }
+  .tool-list > *:nth-child(n+5) { animation-delay: .20s; }
+
+  /* ---- Buttons: gradient, glass, artistic (not solid slabs) ---- */
+  button.primary {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #ffe08a, var(--accent-strong) 45%, #e0a91f);
+    border: 1px solid rgba(255,255,255,0.22);
+  }
+  button.primary::after {
+    content:''; position:absolute; top:0; bottom:0; width:36%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.55), transparent);
+    transform: translateX(-120%); opacity:0;
+  }
+  button.primary:hover::after { opacity:1; animation: sheen .75s ease forwards; }
+  button.secondary, button.ghost, .file-import {
+    background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+    border: 1px solid var(--glass-border); color: var(--text);
+  }
+  button.secondary:hover, button.ghost:hover, .file-import:hover {
+    border-color: rgba(245,197,66,0.45); color: var(--text);
+    box-shadow: 0 6px 22px rgba(245,197,66,0.14);
+  }
+  button.danger { background: linear-gradient(135deg, rgba(255,92,122,0.18), rgba(255,92,122,0.06)); }
+  .google-signin {
+    background: linear-gradient(135deg, #ffffff, #eef1f7) !important;
+    box-shadow: 0 8px 26px rgba(0,0,0,0.35);
+  }
+
+  /* Sidebar nav items — gradient active state + slide affordance */
+  .view-toggle button { position: relative; transition: transform .16s ease, background .2s, color .2s; }
+  @media (min-width: 920px) {
+    .view-toggle button:hover { transform: translateX(3px); }
+    .view-toggle button.active::before {
+      content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:2px;
+      background: #141200; opacity:.5;
+    }
+  }
+
+  /* Cards — gradient tint + top light edge (less flat) */
+  .card, .kpi, .tool-item, .accordion {
+    background-image: linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012));
+  }
+  .card::after, .tool-item::after {
+    content:''; position:absolute; left:14px; right:14px; top:0; height:1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+    pointer-events:none;
+  }
+  .card, .tool-item { position: relative; }
+
+  /* Pills — richer gradients */
+  .pill.dept { background: linear-gradient(135deg, rgba(124,92,255,0.28), rgba(124,92,255,0.10)); }
+  .pill.cat  { background: linear-gradient(135deg, rgba(245,197,66,0.26), rgba(245,197,66,0.08)); }
+  .pill.good { background: linear-gradient(135deg, rgba(61,220,151,0.28), rgba(61,220,151,0.08)); }
+
+  /* Profile avatar — glow */
+  .avatar { box-shadow: 0 6px 20px var(--accent-glow); }
+
+  /* Toast — glass instead of solid green */
+  .toast {
+    background: linear-gradient(135deg, rgba(61,220,151,0.92), rgba(45,190,128,0.92));
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.18); box-shadow: var(--shadow-lg);
+  }
 </style>
 </head>
 <body>
@@ -4854,6 +4958,23 @@ boot();
   }
   new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
   sync();
+})();
+
+/* ============================================================
+   REDESIGN — chrome state flag (additive).
+   Marks <body data-shell="auth|app"> by watching which view is
+   active, so CSS can hide the sidebar until the user is in the
+   app. Observer-based: no existing function is modified.
+   ============================================================ */
+(function () {
+  var auth = document.getElementById('authView');
+  var body = document.body;
+  if (!auth || !body) return;
+  function apply() {
+    body.setAttribute('data-shell', auth.classList.contains('active') ? 'auth' : 'app');
+  }
+  new MutationObserver(apply).observe(auth, { attributes: true, attributeFilter: ['class'] });
+  apply();
 })();
 </script>
 </body>
