@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/webp" href="assets/swangz-logo.webp">
 <style>
   :root {
     /* Base surfaces — deep glassy slate (redesign Phase 1) */
@@ -699,16 +700,49 @@
       transition-duration: .001ms !important; scroll-behavior: auto !important;
     }
   }
+
+  /* ============================================================
+     REDESIGN — Phase 2a: brand lockup + left sidebar navigation
+     ============================================================ */
+  .brand-logo { height: 34px; width: auto; display: block; filter: drop-shadow(0 4px 12px var(--accent-glow)); }
+  .brand-tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
+    margin: 0; padding: 3px 10px; border-radius: 999px;
+    background: rgba(245,197,66,0.10); border: 1px solid rgba(245,197,66,0.28); align-self: center;
+  }
+  img.auth-logo {
+    width: auto; height: 48px; background: none !important; box-shadow: none; border-radius: 0;
+    margin: 0 auto 18px; display: block; filter: drop-shadow(0 6px 18px var(--accent-glow));
+  }
+
+  /* Desktop ≥920px: header becomes a fixed glass left sidebar */
+  @media (min-width: 920px) {
+    header {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 250px; z-index: 30;
+      flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 24px;
+      padding: 26px 16px; border-bottom: none; border-right: 1px solid var(--glass-border);
+      overflow-y: auto;
+    }
+    .brand { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .brand-tag { align-self: flex-start; }
+    .view-toggle {
+      flex-direction: column; width: 100%; gap: 4px; padding: 0;
+      background: transparent; border: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    .view-toggle button { width: 100%; text-align: left; padding: 12px 14px; border-radius: 11px; font-size: 14px; }
+    .view-toggle button:not(.active):hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    main { margin-left: 250px; }
+  }
+
+  /* Hide section nav on the sign-in screen (nothing to navigate to yet) */
+  body:has(#authView.active) .view-toggle { display: none; }
 </style>
 </head>
 <body>
 <header>
   <div class="brand">
-    <div class="logo">SA</div>
-    <div>
-      <h1>Swangz Avenue — AI Adoption Tracker</h1>
-      <p>Cross-department AI tool investment &amp; impact tracker</p>
-    </div>
+    <img class="brand-logo" src="assets/swangz-logo.webp" alt="Swangz" />
+    <h1 class="brand-tag">AI&nbsp;Tracker</h1>
   </div>
   <div class="view-toggle" role="tablist">
     <button id="btnUser" class="active" onclick="goToUser()">Departments</button>
@@ -721,7 +755,7 @@
   <!-- AUTH VIEW (Google sign-in) -->
   <section id="authView" class="view active">
     <div class="card lock-card auth-card">
-      <div class="auth-logo">SA</div>
+      <img class="auth-logo" src="assets/swangz-logo.webp" alt="Swangz AI Tracker" />
       <h2>Sign in to Swangz AI Tracker</h2>
       <p class="help" style="margin-bottom:24px;">Use your Google account to access the tracker. Your profile, tools, and history are saved across devices.</p>
       <button class="primary google-signin" onclick="signInWithGoogle()">
