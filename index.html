@@ -2929,24 +2929,29 @@
     .deck-panel, .deck-scrim, .deck-dock, .deck-chip, .deck-row { transition: none !important; animation: none !important; }
   }
 
-  /* ---- Native dropdown lists were unreadable: the control is translucent
-     white, and Chrome paints the option popup with that same colour, so dark
-     text landed on near-white glass. Give the list an opaque surface. ---- */
+  /* ---- Native dropdown lists were unreadable. The control was left
+     translucent white, and Chrome paints the option popup with the control's
+     own background colour — so the list came up as near-white glass with
+     pale text on it. Several places also restated `background:` at higher
+     specificity, which is why only some dropdowns were affected and why this
+     has to win outright rather than politely. ---- */
   select {
-    background-color: rgba(24,29,44,0.92);
+    background-color: rgba(24,29,44,0.94) !important;
     color: var(--text);
     /* the app draws its own caret so the control reads as one of ours */
     appearance: none; -webkit-appearance: none; -moz-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3adc2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 15px 15px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3adc2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 15px 15px !important;
     padding-right: 32px;
   }
   select option, select optgroup {
     background-color: #161b28; color: #e8ecf6;
   }
   select:disabled { opacity: .55; cursor: not-allowed; }
+  /* Keep the multi-line time-unit picker legible next to its number field */
+  .time-input select { background-position: right 8px center !important; padding-right: 28px; }
 
   /* ============================================================
      TOOLS SUMMARY · MONEY · CALCULATOR · EXECUTIVE BRIEFING
@@ -3022,7 +3027,7 @@
   .mo-row b i { font-style: normal; font-weight: 600; color: var(--muted-2); font-size: 11.5px; margin-left: 5px; }
   .mo-row.total { background: rgba(255,255,255,0.04); }
 
-  .calc-load { max-width: 420px; margin-bottom: 16px; }
+  .calc-load { max-width: 420px; margin: 16px 0; }
   .calc-grid { margin-bottom: 18px; }
   .calc-out { border-radius: 15px; border: 1px solid var(--glass-border); overflow: hidden; }
   .calc-head {
@@ -3147,6 +3152,8 @@
   .proj-read i { display: block; font-style: normal; font-size: 12px; color: var(--muted-2); margin-top: 3px; }
   .proj-read p { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
   .proj-read em { color: var(--accent); font-style: normal; font-weight: 700; }
+  .ask-body { margin: 0; font-size: 14.5px; line-height: 1.7; color: var(--muted); }
+  .ask-body strong { color: var(--text); font-weight: 700; }
   .drive-row { display: flex; gap: 9px; align-items: stretch; flex-wrap: wrap; }
   .drive-row input { flex: 1 1 220px; min-width: 0; }
   .drive-btn { flex: 0 0 auto; height: auto; min-height: 40px; white-space: nowrap; }
@@ -4197,7 +4204,6 @@ async function signInWithGoogle() {
 }
 async function signOut() {
   if (!supabaseClient) return;
-  if (!confirm('Sign out of the tracker?')) return;
   await supabaseClient.auth.signOut();
   authUser = null;
   profile = { department:'', name:'', role:'', email:'', avatarUrl:'' };
@@ -5075,7 +5081,7 @@ async function changeAdminPassword() {
 }
 
 function requestPasswordReset() {
-  const ok = confirm('Reset admin password?\n\nThis clears the stored password hash. Your tool entries are preserved. You\'ll be asked to set a new password next time you open the admin dashboard.');
+  const ok = true;   // asked on a floating tile before we get here
   if (!ok) return;
   delete settings.adminPasswordHash;
   saveSettings();
@@ -5312,13 +5318,8 @@ function addNewTool(tag) {
   clearDetailForm();
   currentTag = (tag === 'request') ? 'request' : 'report';
   document.getElementById('detailHeading').textContent = currentTag === 'request' ? 'New Tool Request' : 'New Tool Report';
-  // Resolve any saved draft BEFORE opening the overlay, so a native confirm()
-  // doesn't pop over an animating glass sheet.
-  const draft = loadDetailDraft();
-  if (draft && (!draft.currentToolId) && (draft.f_toolName || draft.f_reason || draft.f_impact)) {
-    if (confirm('You have a draft from a previous session for a new tool. Restore it?')) applyDraftToForm(draft);
-    else clearDetailDraft();
-  }
+  // An unfinished draft is offered on a floating tile once the wizard has
+  // settled — see the addNewTool wrapper at the end of the file.
   openWizard('edit');
 }
 
@@ -5336,7 +5337,6 @@ function openTool(id) {
 function removeTool(id) {
   const e = entries.find(x => x.id === id);
   if (!e) return;
-  if (!confirm(`Remove "${e.toolName || 'this tool'}" from your list?`)) return;
   preserveRegistryStubIfNeeded(e);
   entries = entries.filter(x => x.id !== id);
   saveEntries();
@@ -5368,7 +5368,6 @@ function preserveRegistryStubIfNeeded(e) {
 }
 
 function backToTools() {
-  if (isDirty && !confirm('Discard unsaved changes?')) return;
   // Explicit Cancel = discard the draft too (else it would re-prompt next visit)
   clearDetailDraft();
   isDirty = false;
@@ -5668,7 +5667,6 @@ function deleteCurrent() {
   if (!currentToolId) { closeWizard(); return; }
   const e = entries.find(x => x.id === currentToolId);
   if (!e) { closeWizard(); return; }
-  if (!confirm('Delete this tool entry?' + (e.persistInRegistry ? '\n\nNote: you marked this tool as a permanent team-registry entry, so the tool name + URL will stay in everyone\'s autocomplete after deletion.' : ''))) return;
   preserveRegistryStubIfNeeded(e);
   const delId = e.id;
   entries = entries.filter(x => x.id !== currentToolId);
@@ -6928,13 +6926,6 @@ function addRegistryToolFromAdmin() {
 function deleteRegistryTool(url) {
   const key = _stripUrlTrail(url);
   const matches = entries.filter(e => _stripUrlTrail(e.officialUrl) === key);
-  const stubs = matches.filter(isRegistryStub);
-  const realCount = matches.length - stubs.length;
-  let confirmMsg = `Remove this tool from the team registry?`;
-  if (realCount > 0) {
-    confirmMsg += `\n\nNote: ${realCount} real submission${realCount===1?'':'s'} reference this tool. Their entries are kept (this only removes the registry pin so the tool stops appearing in autocomplete suggestions once the last real submission is gone).`;
-  }
-  if (!confirm(confirmMsg)) return;
   // Only remove the stub(s); keep the real submissions intact.
   entries = entries.filter(e => !(isRegistryStub(e) && _stripUrlTrail(e.officialUrl) === key));
   // Also unset persistInRegistry on any real entries so they don't recreate the stub on edit
@@ -7119,7 +7110,6 @@ function toast(msg, isErr) {
 }
 
 function wipeAll(){
-  if (!confirm('Delete ALL entries? This cannot be undone.')) return;
   entries = []; saveEntries(); renderAdmin(); toast('All entries wiped');
   // Push is upsert-only now, so an empty local set won't clear the server.
   // wipeAll is the one legitimate delete-all path for Supabase.
@@ -7184,12 +7174,10 @@ async function testBackendConnection() {
   }
 }
 async function manualPushAll() {
-  if (!entries.length && !confirm('Local store is empty. Push anyway (will wipe remote)?')) return;
   try { const r = await backendPushAll(); toast('Pushed ' + (r.count||0) + ' entries'); }
   catch (err) { toast('Push failed: ' + (err.message||err), true); }
 }
 async function manualPullAll() {
-  if (!confirm('This replaces the local cache with the backend\'s data. Continue?')) return;
   try { const r = await backendPullAll(); toast('Pulled ' + (r.count||0) + ' entries'); }
   catch (err) { toast('Pull failed: ' + (err.message||err), true); }
 }
@@ -7321,7 +7309,6 @@ async function manualSyncNow() {
    Sample data (USD-native, realistic FY Uganda/East Africa figures)
 ---------------------------------------------------------*/
 function seedDemo() {
-  if (entries.length && !confirm('This will add sample entries to your existing data. Continue?')) return;
   const samples = [
     {
       department:'Production', submittedBy:'Ivan', role:'Creative Director',
@@ -9871,6 +9858,9 @@ function buildRailGroups() {
   if (!nav) return;
   const host = nav.parentNode;
   // A rebuild replaces the anchors, so never leave a menu on a dead one.
+  // Anything that re-renders the dashboard used to shut an open menu in the
+  // reader's face; remember it and put it back on the new button instead.
+  const wasOpen = railMenuOpen() ? openGroup : null;
   closeRailMenu();
   // buildAdminNav only wipes the nav's own markup; the footer pair lives
   // outside it and would otherwise accumulate on every render.
@@ -9915,6 +9905,7 @@ function buildRailGroups() {
   });
   syncGroupActive(adminSection);
   try { syncBackendWarning(); } catch (_) {}
+  if (wasOpen && groupItems[wasOpen]) openRailMenu(wasOpen);
 }
 
 function railMenuEl() {
@@ -10347,9 +10338,11 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
         '<span class="dp-ico">' + svgIcon(p.spec.icon) + '</span>' +
         '<div class="dp-title"><b></b>' + (p.spec.sub ? '<i></i>' : '') + '</div>' +
         '<div class="dp-tools">' +
+          /* A question you have not answered must not be parked on the dock */
+          (p.spec.noMinimise ? '' :
           '<button type="button" class="dp-btn dp-min" title="Minimise — keeps it on the right" aria-label="Minimise">' +
             '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 18h12"/></svg>' +
-          '</button>' +
+          '</button>') +
           '<button type="button" class="dp-btn dp-x" title="Close" aria-label="Close">' +
             '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>' +
           '</button>' +
@@ -10368,7 +10361,8 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
       f.innerHTML = p.spec.foot;
       el.appendChild(f);
     }
-    el.querySelector('.dp-min').addEventListener('click', () => minimize(p.id));
+    const minBtn = el.querySelector('.dp-min');
+    if (minBtn) minBtn.addEventListener('click', () => minimize(p.id));
     el.querySelector('.dp-x').addEventListener('click', () => close(p.id));
 
     layer.appendChild(el);
@@ -10376,10 +10370,15 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     paint();
 
     if (animate && !reduced()) {
-      el.animate(
+      const a = el.animate(
         [{ opacity: 0, transform: 'translate3d(0,28px,0) scale(.955)', filter: 'blur(10px)' },
          { opacity: 1, transform: 'none', filter: 'blur(0)' }],
         { duration: 520, easing: EASE, fill: 'both' });
+      /* Hand the element back to CSS once it has arrived. A filled animation
+         that never finishes — a backgrounded tab throttles them — would
+         otherwise hold the panel at 95% for as long as the tab stays hidden. */
+      a.onfinish = () => a.cancel();
+      setTimeout(() => { if (a.playState !== 'finished') a.cancel(); }, 900);
     }
     setTimeout(() => {
       const f = el.querySelector('[autofocus], input, select, textarea, button');
@@ -10549,9 +10548,11 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     open, close, minimize, restore,
     has(kind, args) { return panels.some(p => p.id === keyOf(kind, args)); },
     isOpen() { return panels.some(p => !p.min); },
-    /* Rebuild whatever is on screen — used after data changes */
+    /* Rebuild whatever is on screen — used after data changes.
+       Ephemeral panels are skipped: they hold a live conversation (a
+       question waiting on an answer) that a rebuild would silently cancel. */
     refresh() {
-      panels.filter(p => !p.min && p.live).forEach(p => {
+      panels.filter(p => !p.min && p.live && !p.spec.ephemeral).forEach(p => {
         let fresh; try { fresh = builders[p.kind] && builders[p.kind](p.args); } catch (_) { return; }
         if (!fresh) return;
         const keep = p.live;
@@ -12265,7 +12266,7 @@ DECK.register('saved', function (a) {
   return {
     title: isReq ? 'Request sent' : 'Report saved',
     sub: isReq ? 'It is with the admin team now' : 'It now counts towards your department\'s case',
-    icon: isReq ? 'inbox' : 'flag', size: 'slim', ephemeral: true, noAutofocus: true,
+    icon: isReq ? 'inbox' : 'flag', size: 'slim', ephemeral: true, noAutofocus: true, noMinimise: true,
     html:
       '<div class="saved-tick">' + svgIcon('pulse') + '</div>' +
       '<p class="saved-lead">' + (isReq
@@ -12282,6 +12283,56 @@ DECK.register('saved', function (a) {
       '<button type="button" class="primary" onclick="DECK.closeAll(true)">Back to my tools</button>',
   };
 });
+
+/* ============================================================
+   ASKING BEFORE SOMETHING IRREVERSIBLE
+   ------------------------------------------------------------
+   Every one of these used to be a native confirm(). A native
+   dialog freezes the whole page — scripts stop, animations stop,
+   nothing else can be clicked — and it looks nothing like the
+   rest of the app. This is the same question on a floating tile.
+   ============================================================ */
+let _askResolve = null;
+function askConfirm(opts) {
+  const o = Object.assign({ title: 'Are you sure?', body: '', confirm: 'Continue', cancel: 'Cancel', danger: false, icon: 'flag' }, opts || {});
+  /* One question at a time — a second would strand the first unanswered */
+  if (_askResolve) { const r = _askResolve; _askResolve = null; r(false); }
+  return new Promise(resolve => {
+    _askResolve = resolve;
+    DECK.open('ask', o);
+  });
+}
+DECK.register('ask', function (o) {
+  return {
+    title: o.title, sub: '', icon: o.danger ? 'flag' : (o.icon || 'flag'),
+    size: 'slim', ephemeral: true, noAutofocus: true, noMinimise: true,
+    html: '<p class="ask-body">' + (o.html || escapeHTML(o.body || '')) + '</p>',
+    foot:
+      '<button type="button" class="secondary" onclick="answerAsk(false)">' + escapeHTML(o.cancel) + '</button>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="' + (o.danger ? 'danger' : 'primary') + '" onclick="answerAsk(true)">' + escapeHTML(o.confirm) + '</button>',
+    /* Dismissing the tile any other way is a "no" */
+    unmount() { if (_askResolve) { const r = _askResolve; _askResolve = null; setTimeout(() => r(false), 0); } },
+  };
+});
+function answerAsk(yes) {
+  const r = _askResolve;
+  _askResolve = null;
+  DECK.closeKind('ask');
+  if (r) r(!!yes);
+}
+
+/* Each of these keeps its original behaviour; only the question changed. */
+function guardWith(name, ask) {
+  const original = window[name];
+  if (typeof original !== 'function') return;
+  window[name] = function () {
+    const args = arguments, self = this;
+    const spec = ask.apply(self, args);
+    if (!spec) return original.apply(self, args);       // nothing to ask
+    askConfirm(spec).then(ok => { if (ok) original.apply(self, args); });
+  };
+}
 
 /* ============================================================
    THE REST OF THE ADMIN, AS LISTS
@@ -12442,7 +12493,6 @@ function applyReassign(id) {
 function deleteSubmission(id) {
   const e = entries.find(x => x.id === id);
   if (!e) return;
-  if (!confirm('Delete the submission for "' + (e.toolName || 'this tool') + '"? This cannot be undone.')) return;
   entries = entries.filter(x => x.id !== id);
   saveEntries();
   DECK.close('reassign|' + JSON.stringify(id));
@@ -12582,10 +12632,146 @@ DECK.register('entry', function (id) {
       if (hr && !hr.value) hr.value = hourlyRate() || '';
       runCalc();
       renderExecBriefing();
+      DECK.refresh();          // anything on screen shows the new numbers
     } catch (e) { console.warn('admin extras skipped:', e); }
     return out;
   };
 })();
+
+/* ============================================================
+   THE ASSISTANT KEEPS THE SAME SECRET AS THE REST OF THE APP
+   ------------------------------------------------------------
+   The department side no longer shows money anywhere — but the
+   assistant was still answering "what does it cost" with real
+   figures. It now redirects those questions, and strips any
+   currency that survives, so there is no way round the front
+   door by asking the chatbot instead.
+   ============================================================ */
+(function () {
+  if (typeof botAnswer !== 'function') return;
+  const original = window.botAnswer;
+  const MONEY = /\$\s?[\d][\d,]*(\.\d+)?|\bUGX\b|\bUSD\b/;
+  const MONEY_Q = /(cost|costs|costing|spend|spending|paying|pay|subscription|licence|license|budget|price|pricing|money|revenue|profit|dollar|ugx|shilling|roi|worth it|expensive|cheap)/;
+
+  const redirect = () =>
+    'Money is held by the admin team, so I do not have prices or savings on this side. ' +
+    'What I can tell you is the <strong>effort</strong>: how long the work used to take, how long it takes now, and how many hours that gives back each month. ' +
+    'Record those accurately and the admin team turns them into the business case. ' +
+    'If you need a figure for a proposal, ask them directly.';
+
+  function scrub(html) {
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    box.querySelectorAll('li').forEach(li => { if (MONEY.test(li.textContent)) li.remove(); });
+    box.querySelectorAll('ul, ol').forEach(l => { if (!l.children.length) l.remove(); });
+    return MONEY.test(box.textContent) ? null : box.innerHTML;
+  }
+
+  window.botAnswer = function (qRaw) {
+    if (canSeeAdmin()) return original.apply(this, arguments);
+    if (MONEY_Q.test(String(qRaw || '').toLowerCase())) return redirect();
+    const out = original.apply(this, arguments);
+    if (typeof out !== 'string' || !MONEY.test(out)) return out;
+    const cleaned = scrub(out);
+    return cleaned || redirect();
+  };
+})();
+
+/* Second pass: the guards must wrap the final version of each function,
+   after every other layer has had its say. */
+(function () {
+  guardWith('signOut', () => ({
+    title: 'Sign out?', body: 'You will need to sign in again to add or edit anything.',
+    confirm: 'Sign out', icon: 'eye',
+  }));
+  guardWith('removeTool', id => {
+    const e = entries.find(x => x.id === id);
+    return {
+      title: 'Remove ' + ((e && e.toolName) || 'this tool') + '?',
+      body: 'It disappears from your list and from your department\'s figures.' +
+            (e && e.persistInRegistry ? ' The name and website stay in the team registry.' : ''),
+      confirm: 'Remove', danger: true,
+    };
+  });
+  guardWith('deleteCurrent', () => ({
+    title: 'Delete this entry?',
+    body: 'Everything recorded on it goes with it — the projects, the times, the pricing. This cannot be undone.',
+    confirm: 'Delete', danger: true,
+  }));
+  guardWith('deleteRegistryTool', url => {
+    const key = _stripUrlTrail(url);
+    const real = entries.filter(e => !isRegistryStub(e) && _stripUrlTrail(e.officialUrl) === key).length;
+    return {
+      title: 'Remove this tool from the registry?',
+      body: 'It stops appearing in everyone\'s autocomplete.' +
+        (real ? ' The ' + real + ' submission' + (real === 1 ? '' : 's') + ' that already use it stay exactly as they are.' : ''),
+      confirm: 'Remove', danger: true,
+    };
+  });
+  guardWith('wipeAll', () => ({
+    title: 'Delete every entry?',
+    body: 'Every submission from every department, gone. Export first if there is any doubt.',
+    confirm: 'Delete everything', danger: true,
+  }));
+  guardWith('requestPasswordReset', () => ({
+    title: 'Reset the admin password?',
+    body: 'The stored password is cleared and a new one is set next time the dashboard is opened. Entries are untouched.',
+    confirm: 'Reset it',
+  }));
+  guardWith('seedDemo', () => (entries.length ? {
+    title: 'Add sample entries?',
+    body: 'Demo data is added alongside what is already here. You can clear it again from the preview bar.',
+    confirm: 'Add samples',
+  } : null));
+  guardWith('backToTools', () => (isDirty ? {
+    title: 'Discard what you have typed?',
+    body: 'This entry has changes that were never saved.',
+    confirm: 'Discard', cancel: 'Keep editing', danger: true,
+  } : null));
+  guardWith('deleteSubmission', id => {
+    const e = entries.find(x => x.id === id);
+    return {
+      title: 'Delete ' + ((e && e.toolName) || 'this submission') + '?',
+      body: 'Submitted by ' + ((e && e.submittedBy) || 'someone') + '. This cannot be undone.',
+      confirm: 'Delete', danger: true,
+    };
+  });
+  guardWith('manualPushAll', () => (entries.length ? null : {
+    title: 'Push an empty store?',
+    body: 'There is nothing saved locally, so this would wipe whatever the backend is holding.',
+    confirm: 'Push anyway', danger: true,
+  }));
+  guardWith('manualPullAll', () => ({
+    title: 'Replace local data with the backend\'s?',
+    body: 'Anything saved here that has not reached the backend is lost.',
+    confirm: 'Pull and replace', danger: true,
+  }));
+})();
+
+/* The draft prompt fired a native confirm() while the wizard was still
+   animating open. Offer it on a tile once the wizard has settled instead. */
+(function () {
+  if (typeof addNewTool !== 'function') return;
+  const original = window.addNewTool;
+  window.addNewTool = function (tag) {
+    const draft = (typeof loadDetailDraft === 'function') ? loadDetailDraft() : null;
+    const worthOffering = draft && !draft.currentToolId && (draft.f_toolName || draft.f_reason || draft.f_impact);
+    /* Stop the original from asking: it only asks when a draft exists */
+    if (worthOffering) clearDetailDraft();
+    const out = original.apply(this, arguments);
+    if (worthOffering) {
+      setTimeout(() => {
+        askConfirm({
+          title: 'Pick up where you left off?',
+          html: 'There is an unfinished entry for <strong>' + escapeHTML(draft.f_toolName || 'a tool') + '</strong> from earlier.',
+          confirm: 'Restore it', cancel: 'Start fresh',
+        }).then(ok => { if (ok) applyDraftToForm(draft); });
+      }, 560);
+    }
+    return out;
+  };
+})();
+
 </script>
 </body>
 </html>
