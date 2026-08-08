@@ -2037,6 +2037,29 @@
     .tools-head .row-actions .primary { display: none; }
   }
 
+  /* ============================================================
+     ADMIN MULTI-FACTOR GATE
+     ============================================================ */
+  .mfa-card { max-width: 460px; }
+  .mfa-steps { display: flex; gap: 6px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .mfa-step {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .4px; padding: 5px 11px; border-radius: 999px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); color: var(--muted-2);
+  }
+  .mfa-step.done { color: var(--c-emerald); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .mfa-step.current { color: var(--accent); border-color: rgba(245,197,66,0.4); background: rgba(245,197,66,0.12); }
+  .otp-input {
+    text-align: center; letter-spacing: 12px; font-size: 26px; font-weight: 700;
+    font-family: var(--font-mono); padding: 14px 12px; text-indent: 12px;
+  }
+  .otp-preview {
+    display: flex; flex-direction: column; gap: 3px; text-align: left;
+    background: rgba(245,197,66,0.09); border: 1px solid rgba(245,197,66,0.3);
+    border-radius: 12px; padding: 11px 13px; margin-top: 12px; font-size: 11.5px; color: var(--muted);
+  }
+  .otp-preview b { color: var(--accent); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .otp-preview code { color: var(--text); font-size: 15px; letter-spacing: 3px; background: none; padding: 0; }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -6474,13 +6497,129 @@ function currentRole() {
 }
 function canSeeAdmin() { const r = currentRole(); return r === 'super' || r === 'admin'; }
 
+/* ============================================================
+   ADMIN MULTI-FACTOR GATE — Google → email OTP → password.
+
+   ⚠️ OTP DELIVERY: a browser cannot send email. The code is
+   generated and verified here, but DELIVERY needs a server. Set
+   OTP_ENDPOINT to your backend (Supabase Edge Function / Apps
+   Script) and it will POST {email, code} there. Until that is
+   configured the app runs in PREVIEW delivery mode and shows the
+   code on screen so the flow can be demonstrated — that is NOT
+   secure and must not be used with real data.
+   ============================================================ */
+const OTP_ENDPOINT = '';                 // e.g. 'https://script.google.com/macros/s/…/exec'
+const OTP_TTL_MS   = 10 * 60 * 1000;     // 10 minutes
+const OTP_MAX_TRIES = 5;
+const OTP_KEY = 'swangz_admin_otp_v1';   // sessionStorage — cleared when the tab closes
+
+function otpState() {
+  try { return JSON.parse(sessionStorage.getItem(OTP_KEY)) || null; } catch (_) { return null; }
+}
+function setOtpState(s) {
+  if (s) sessionStorage.setItem(OTP_KEY, JSON.stringify(s));
+  else sessionStorage.removeItem(OTP_KEY);
+}
+function randomCode() {
+  const a = new Uint32Array(1);
+  (window.crypto || window.msCrypto).getRandomValues(a);
+  return String(a[0] % 1000000).padStart(6, '0');
+}
+async function sendAdminOtp() {
+  const email = currentEmail();
+  if (!email) { toast('Sign in first', true); return; }
+  const code = randomCode();
+  const state = { hash: await sha256(code), email, exp: Date.now() + OTP_TTL_MS, tries: 0, preview: '' };
+  if (OTP_ENDPOINT) {
+    try {
+      const res = await fetch(OTP_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+      if (!res.ok) throw new Error('status ' + res.status);
+      toast('Code sent to ' + email);
+    } catch (err) {
+      console.warn('OTP send failed', err);
+      toast('Could not send the code — check the backend', true);
+      return;
+    }
+  } else {
+    state.preview = code;                 // preview delivery only
+  }
+  setOtpState(state);
+  renderAdminGate();
+}
+async function verifyAdminOtp() {
+  const input = document.getElementById('adm_otp');
+  const code = (input && input.value || '').replace(/\D/g, '');
+  const st = otpState();
+  if (!st) { gateError('Request a new code'); return; }
+  if (Date.now() > st.exp) { setOtpState(null); gateError('That code expired — request a new one'); renderAdminGate(); return; }
+  if (st.tries >= OTP_MAX_TRIES) { setOtpState(null); gateError('Too many attempts — request a new code'); renderAdminGate(); return; }
+  if (code.length !== 6) { gateError('Enter the 6-digit code'); return; }
+  const ok = (await sha256(code)) === st.hash;
+  if (!ok) { st.tries++; setOtpState(st); gateError('Incorrect code — ' + (OTP_MAX_TRIES - st.tries) + ' attempt(s) left'); return; }
+  st.verified = true; setOtpState(st);
+  renderAdminGate();
+}
+function otpVerified() {
+  const st = otpState();
+  return !!(st && st.verified && st.email === currentEmail() && Date.now() < st.exp + 60 * 60 * 1000);
+}
+
 /* Admin gate: refuse non-admins BEFORE the password screen is shown. */
 (function () {
   if (typeof renderAdminGate !== 'function') return;
   const original = renderAdminGate;
   window.renderAdminGate = function () {
     const gate = document.getElementById('adminGate');
-    if (canSeeAdmin()) return original.apply(this, arguments);
+    if (canSeeAdmin()) {
+      // Step 2 of the gate: email OTP, between Google sign-in and the password.
+      if (!otpVerified()) {
+        if (typeof showAdminGateOnly === 'function') showAdminGateOnly();
+        if (!gate) return;
+        const st = otpState();
+        const email = currentEmail();
+        const sent = !!(st && !st.verified && Date.now() < st.exp);
+        gate.innerHTML =
+          '<div class="card lock-card mfa-card">' +
+            '<div class="mfa-steps">' +
+              '<span class="mfa-step done">1 · Google</span>' +
+              '<span class="mfa-step current">2 · Email code</span>' +
+              '<span class="mfa-step">3 · Password</span>' +
+            '</div>' +
+            '<div class="lock-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></div>' +
+            '<h2>Verify it\'s you</h2>' +
+            (sent
+              ? '<p class="help">We sent a 6-digit code to <strong>' + escapeHTML(email) + '</strong>. It expires in 10 minutes.</p>' +
+                '<div id="adm_error" class="gate-error" style="display:none;"></div>' +
+                (st.preview
+                  ? '<div class="otp-preview"><b>Preview delivery</b><span>Email sending needs a backend, so the code is shown here: <code>' + escapeHTML(st.preview) + '</code></span></div>'
+                  : '') +
+                '<div style="margin:14px 0;">' +
+                  '<label for="adm_otp">6-digit code</label>' +
+                  '<input id="adm_otp" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" ' +
+                    'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); verifyAdminOtp();}" />' +
+                '</div>' +
+                '<div class="row-actions" style="justify-content:space-between;">' +
+                  '<button type="button" class="ghost" onclick="sendAdminOtp()">Resend code</button>' +
+                  '<div style="display:flex; gap:10px;">' +
+                    '<button type="button" class="secondary" onclick="goToUser()">Cancel</button>' +
+                    '<button type="button" class="primary" onclick="verifyAdminOtp()">Verify</button>' +
+                  '</div>' +
+                '</div>'
+              : '<p class="help">For a second layer of security we email a one-time code to <strong>' + escapeHTML(email) + '</strong> before the password step.</p>' +
+                '<div id="adm_error" class="gate-error" style="display:none;"></div>' +
+                '<div class="row-actions" style="justify-content:center; margin-top:16px;">' +
+                  '<button type="button" class="secondary" onclick="goToUser()">Cancel</button>' +
+                  '<button type="button" class="primary" onclick="sendAdminOtp()">Send me a code</button>' +
+                '</div>') +
+          '</div>';
+        if (sent) setTimeout(() => document.getElementById('adm_otp')?.focus(), 60);
+        return;
+      }
+      return original.apply(this, arguments);
+    }
     if (typeof showAdminGateOnly === 'function') showAdminGateOnly();
     if (!gate) return;
     const who = currentEmail();
