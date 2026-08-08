@@ -1958,6 +1958,69 @@
   /* Backend status chips */
   .backend-status { border-radius: 10px; }
 
+  /* ============================================================
+     ONBOARDING / LANDING
+     ============================================================ */
+  .visually-hidden {
+    position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .onboard-hero { text-align: center; padding: 34px 32px 30px; }
+  .onboard-logo { height: 38px; width: auto; display: block; margin: 0 auto 14px;
+                  filter: drop-shadow(0 6px 18px var(--accent-glow)); }
+  .onboard-step {
+    display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 1.6px;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    background: rgba(245,197,66,0.10); border: 1px solid rgba(245,197,66,0.28);
+    padding: 5px 13px; border-radius: 999px;
+  }
+  .onboard-hero h1 { font-size: 30px; margin-bottom: 12px; }
+  .onboard-steps {
+    display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 24px;
+  }
+  .onboard-steps > div {
+    display: flex; align-items: center; gap: 9px; padding: 9px 15px; border-radius: 999px;
+    background: rgba(255,255,255,0.045); border: 1px solid var(--glass-border);
+    font-size: 12.5px; font-weight: 600; color: var(--muted);
+  }
+  .onboard-steps b {
+    width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 11px; font-family: var(--font-mono); color: #0b0616;
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  }
+
+  .dept-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .dept-tile {
+    text-align: left; cursor: pointer; padding: 14px 15px; border-radius: 14px; font-family: inherit;
+    background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015));
+    border: 1px solid var(--glass-border); color: var(--text);
+    transition: transform .18s cubic-bezier(.22,1,.36,1), border-color .18s, box-shadow .18s;
+  }
+  .dept-tile:hover { transform: translateY(-3px); border-color: rgba(245,197,66,0.42); }
+  .dept-tile.on {
+    border-color: var(--accent);
+    background: linear-gradient(160deg, rgba(245,197,66,0.16), rgba(245,197,66,0.04));
+    box-shadow: 0 12px 32px var(--accent-glow), inset 0 0 0 1px rgba(245,197,66,0.25);
+  }
+  .dept-tile .dt-name { display: block; font-size: 13.5px; font-weight: 700; }
+  .dept-tile.on .dt-name { color: var(--accent); }
+  .dept-tile .dt-sub { display: block; font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
+  .onboard-hint { flex: 1; text-align: left; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .onboard-hint.ready { color: var(--c-emerald); }
+
+  @media (max-width: 919px) {
+    .onboard-hero { padding: 26px 20px 24px; }
+    .onboard-hero h1 { font-size: 23px; }
+    .onboard-steps { gap: 8px; }
+    .onboard-steps > div { font-size: 11.5px; padding: 8px 12px; }
+    .dept-picker { grid-template-columns: 1fr 1fr; }
+    .dept-tile { padding: 12px; }
+    .dept-tile .dt-sub { display: none; }
+    .onboard-hint { flex: 1 1 100%; margin-bottom: 8px; text-align: center; }
+  }
+  @media (max-width: 420px) { .dept-picker { grid-template-columns: 1fr; } }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -2023,43 +2086,53 @@
 
   <!-- LANDING VIEW (department/role completion after sign-in) -->
   <section id="landingView" class="view">
-    <div class="hero">
-      <h1>Welcome to the AI Adoption Tracker</h1>
-      <p>Tell us which department you're from. You'll then add the AI tools you use (or want to use), with impact on work, time &amp; cost comparison, projects, and revenue impact — so leadership can see the full business case.</p>
+    <div class="hero onboard-hero">
+      <img class="onboard-logo" src="assets/swangz-badge.webp" alt="" />
+      <span class="onboard-step">Getting started</span>
+      <h1>Welcome to the AI&nbsp;Adoption Tracker</h1>
+      <p>Tell us where you work. You'll then record the AI tools your team uses — the time and money they save, and the revenue they help win — so leadership can see the full business case.</p>
+      <div class="onboard-steps">
+        <div><b>1</b><span>Pick your department</span></div>
+        <div><b>2</b><span>Add the tools you use</span></div>
+        <div><b>3</b><span>See your team's impact</span></div>
+      </div>
     </div>
 
     <div class="card">
-      <h2>Your Details</h2>
-      <p class="help">Fill in your department, name and role to start.</p>
-      <div class="grid cols-3">
+      <div class="section-title" style="margin-top:0;">Which department are you in?</div>
+      <p class="help" style="margin:-4px 0 14px;">Your entries are recorded against this team. You can change it later from your profile.</p>
+
+      <!-- Visual picker drives the original select, which the app still reads -->
+      <div class="dept-picker" id="deptPicker" role="radiogroup" aria-label="Department"></div>
+      <select id="p_department" class="visually-hidden" tabindex="-1" aria-hidden="true">
+        <option value="">Select department…</option>
+        <option>Production</option>
+        <option>Content</option>
+        <option>Digital</option>
+        <option>Finance</option>
+        <option>Strategy</option>
+        <option>HR</option>
+        <option>Record Label</option>
+        <option>Creative Tech and Innovations</option>
+        <option>Events</option>
+        <option>Academy</option>
+        <option>Sales</option>
+        <option>Marketing</option>
+      </select>
+
+      <div class="section-title">About you</div>
+      <div class="grid cols-2">
         <div>
-          <label>Department</label>
-          <select id="p_department">
-            <option value="">Select department…</option>
-            <option>Production</option>
-            <option>Content</option>
-            <option>Digital</option>
-            <option>Finance</option>
-            <option>Strategy</option>
-            <option>HR</option>
-            <option>Record Label</option>
-            <option>Creative Tech and Innovations</option>
-            <option>Events</option>
-            <option>Academy</option>
-            <option>Sales</option>
-            <option>Marketing</option>
-          </select>
-        </div>
-        <div>
-          <label>Your Name</label>
+          <label for="p_name">Your name</label>
           <input id="p_name" type="text" placeholder="e.g. Ivan Musoke" />
         </div>
         <div>
-          <label>Role / Title</label>
+          <label for="p_role">Role / title</label>
           <input id="p_role" type="text" placeholder="e.g. Senior Editor" />
         </div>
       </div>
       <div class="row-actions" style="margin-top: 22px;">
+        <span class="onboard-hint" id="onboardHint">Pick a department to continue</span>
         <button class="primary" onclick="saveProfileAndContinue()">Continue →</button>
       </div>
     </div>
@@ -7187,6 +7260,64 @@ function appScrollTop() {
    PROFILE MENU — replaces the two large buttons with a discreet
    ⋯ menu (change profile / replay tour / sign out).
    ============================================================ */
+/* ============================================================
+   ONBOARDING — department picker as visual cards.
+   The original <select id="p_department"> is kept (visually
+   hidden) and driven from the cards, so saveProfileAndContinue()
+   and every other reader keep working untouched.
+   ============================================================ */
+const DEPT_META = {
+  'Production': 'Shoots, edits, post',
+  'Content': 'Writing, social, copy',
+  'Digital': 'Web, campaigns, performance',
+  'Finance': 'Budgets, reporting',
+  'Strategy': 'Planning, insights',
+  'HR': 'People, hiring, culture',
+  'Record Label': 'A&R, artists, releases',
+  'Creative Tech and Innovations': 'R&D, new formats',
+  'Events': 'Live shows, activations',
+  'Academy': 'Training, talent',
+  'Sales': 'Clients, pipeline',
+  'Marketing': 'Brand, campaigns',
+};
+function renderDeptPicker() {
+  const host = document.getElementById('deptPicker');
+  const sel = document.getElementById('p_department');
+  if (!host || !sel) return;
+  const current = sel.value || (typeof profile !== 'undefined' ? profile.department : '') || '';
+  host.innerHTML = Object.keys(DEPT_META).map(d => {
+    const on = d === current;
+    return `<button type="button" role="radio" aria-checked="${on}" class="dept-tile${on ? ' on' : ''}"
+      data-dept="${escapeHTML(d)}" onclick="pickDepartment('${escapeAttr(d)}')">
+      <span class="dt-name">${escapeHTML(d)}</span>
+      <span class="dt-sub">${escapeHTML(DEPT_META[d])}</span>
+    </button>`;
+  }).join('');
+  updateOnboardHint();
+}
+function pickDepartment(d) {
+  const sel = document.getElementById('p_department');
+  if (sel) { sel.value = d; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+  if (typeof profile !== 'undefined') profile.department = d;
+  renderDeptPicker();
+}
+function updateOnboardHint() {
+  const hint = document.getElementById('onboardHint');
+  const sel = document.getElementById('p_department');
+  if (!hint || !sel) return;
+  hint.textContent = sel.value ? 'Continuing as ' + sel.value : 'Pick a department to continue';
+  hint.classList.toggle('ready', !!sel.value);
+}
+/* Build the picker whenever the landing view is shown */
+(function () {
+  const landing = document.getElementById('landingView');
+  if (!landing) return;
+  const apply = () => { if (landing.classList.contains('active')) renderDeptPicker(); };
+  new MutationObserver(apply).observe(landing, { attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('DOMContentLoaded', apply);
+  apply();
+})();
+
 /* ============================================================
    PROFILE SETTINGS — everything a user manages about themselves.
    Additive: reads/writes the existing `profile` object and saves
