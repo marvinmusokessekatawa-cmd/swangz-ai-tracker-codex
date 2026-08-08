@@ -15,7 +15,7 @@ The repo stays **private** — Cloudflare Pages deploys from private repos on th
    - **Build output directory:** `/`
 4. **Save and Deploy.**
 
-Live at **https://swangz-ai-tracker.pages.dev** — and every push to `main`
+Live at **https://swangz-ai-tracker.arnoldkigozi.workers.dev** — and every push to `main`
 redeploys automatically.
 
 ## Before the real launch

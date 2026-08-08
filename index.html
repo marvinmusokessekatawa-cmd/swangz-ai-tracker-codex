@@ -3216,9 +3216,11 @@ async function persistDeptRoleToAuthMetadata() {
 const PREVIEW_BYPASS_HOSTS = [
   'swangzaitracker.netlify.app',
   'swangz-ai-tracker.pages.dev',
+  'swangz-ai-tracker.arnoldkigozi.workers.dev',
 ];
 const PREVIEW_BYPASS_SUFFIXES = [
-  '.swangz-ai-tracker.pages.dev',   // Cloudflare branch/preview deployments
+  '.swangz-ai-tracker.pages.dev',   // Cloudflare Pages branch/preview deployments
+  '.arnoldkigozi.workers.dev',      // Arnold's own Workers namespace — only he can deploy here
 ];
 function isLocalDev() {
   const h = (window.location.hostname || '').toLowerCase();
