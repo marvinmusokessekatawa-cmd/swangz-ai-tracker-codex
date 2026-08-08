@@ -11,6 +11,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="icon" type="image/webp" href="assets/swangz-badge.webp">
+<!-- Declare that this page is ALREADY dark. Without this, Chrome on Android
+     (Settings → Themes → "Auto dark theme") applies its own colour inversion
+     on top of ours, which looks like the palette has been flipped. Reported on
+     one device and not another because the setting is per-device. -->
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#05070d">
 <style>
   :root {
     /* Base surfaces — deep glassy slate (redesign Phase 1) */
@@ -590,6 +596,9 @@
      Appended last so it refines the base styles above via the CSS
      cascade. Purely visual — no markup, IDs, or JS behavior changed.
      ============================================================ */
+  /* Belt and braces with the <meta name="color-scheme">: tells the engine our
+     own dark palette is authoritative, so no auto-darkening is layered on top. */
+  :root { color-scheme: dark; }
   html { scroll-behavior: smooth; }
   body {
     font-family: var(--font-sans);
@@ -2188,6 +2197,59 @@
     .auth-divider { margin: 14px 0 12px; }
     .auth-legal { margin-top: 10px; }
     .auth-foot { margin-top: 14px; padding-top: 12px; }
+  }
+
+  /* ============================================================
+     MOBILE LAYOUT FIXES  (scoped to ≤919px — desktop untouched)
+     ============================================================ */
+  @media (max-width: 919px) {
+    /* The brand is stacked on two lines for the desktop rail; on a horizontal
+       top bar that made the header tall and pushed everything down. */
+    .brand-name br { display: none; }
+    .brand-name { font-size: 14px; white-space: nowrap; line-height: 1.15; }
+    header {
+      align-items: center; gap: 10px; flex-wrap: nowrap;
+      min-height: 54px;
+    }
+    .brand { flex: 0 1 auto; min-width: 0; }
+
+    /* Admin section pills must not grow the bar — they scroll on their own row */
+    body[data-section="admin"] header { flex-wrap: wrap; row-gap: 6px; }
+    body[data-section="admin"] .admin-nav { max-height: 46px; }
+
+    /* Content has to clear BOTH the bottom tab bar and the floating assistant,
+       otherwise the last card sits underneath them. */
+    main { padding-bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+
+    /* The ⋯ menu could run off the right edge on narrow screens */
+    .profile-menu {
+      right: 0; left: auto; min-width: 0;
+      width: min(240px, calc(100vw - 32px));
+    }
+
+    /* Greeting block reads better left-aligned and tighter on a phone */
+    .greet-row { gap: 12px; }
+    .greet-hero h1 { font-size: 22px; line-height: 1.25; }
+    .greet-hero p { font-size: 12.5px; }
+
+    /* Profile bar: avatar + details on one row, actions never overlap the ⋯ */
+    .profile-badge { flex-direction: row; align-items: center; gap: 10px; padding: 12px 14px; }
+    .profile-badge .who { flex: 1; min-width: 0; }
+    .profile-badge .details .name { font-size: 13.5px; }
+    .profile-badge .details .sub {
+      font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 46vw;
+    }
+    .profile-menu-wrap { flex: 0 0 auto; }
+
+    /* Stat pills: two per row, equal height, no ragged wrapping */
+    .quick-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .qs { flex: none; }
+
+    /* Charts and rings need room to breathe rather than being squeezed */
+    .rings-row { gap: 12px; }
+    .ring svg { width: 52px; height: 52px; }
+    .chart-wrap { overflow-x: hidden; }
   }
 
   /* Staging preview toolbar */
