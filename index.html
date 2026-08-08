@@ -1876,6 +1876,88 @@
     .wizard-body .grid > div > label { min-height: 0; }
   }
 
+  /* ============================================================
+     ADMIN SECTION INTERIORS
+     Sections are now standalone panels (chosen from the sidebar),
+     so the accordion header reads as a page title, not a toggle.
+     ============================================================ */
+  .accordion summary { padding: 20px 24px; font-size: 17px; letter-spacing: -.01em; }
+  .accordion summary:hover { background: transparent; }
+  .accordion summary .chevron { display: none; }
+  .accordion summary .acc-meta {
+    font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+    color: var(--muted); background: rgba(255,255,255,0.05);
+    border: 1px solid var(--glass-border); padding: 5px 11px; border-radius: 999px;
+  }
+  .accordion .acc-body { padding: 0 24px 24px; }
+  .accordion[open] { border-color: var(--glass-border); }
+
+  /* Executive report — reads as a briefing, not a text dump */
+  .exec-report {
+    background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+    border: 1px solid var(--glass-border); border-radius: 16px;
+    padding: 22px 26px; font-size: 14.5px; line-height: 1.75;
+  }
+  .exec-report p { margin: 0 0 14px; }
+  .exec-report p:first-child {
+    font-size: 16px; line-height: 1.7; color: var(--text);
+    padding-left: 16px; border-left: 3px solid var(--accent);
+  }
+  .exec-report strong { color: var(--accent); font-weight: 700; font-family: var(--font-mono); font-size: .96em; }
+  .exec-report em { color: var(--c-violet); }
+  .exec-report ul { margin: 12px 0 0; padding-left: 0; list-style: none; }
+  .exec-report li { margin: 8px 0; padding-left: 22px; position: relative; }
+  .exec-report li::before {
+    content: ''; position: absolute; left: 4px; top: .62em;
+    width: 7px; height: 7px; border-radius: 2px; background: var(--accent); opacity: .85;
+  }
+
+  /* Request cards */
+  .req-card {
+    background: linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
+    border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px 20px;
+    transition: border-color .18s, transform .18s, box-shadow .18s;
+  }
+  .req-card:hover {
+    border-color: rgba(245,197,66,0.35); transform: translateY(-2px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  }
+  .req-card .rc-title { font-size: 16px; }
+  .req-card .rc-body .rc-field .k { font-weight: 700; letter-spacing: .5px; }
+  .req-actions button.rb {
+    background: rgba(255,255,255,0.05); border-color: var(--glass-border);
+    padding: 7px 13px; border-radius: 9px; transition: all .16s;
+  }
+  .req-actions button.rb:hover { border-color: rgba(245,197,66,0.4); color: var(--accent); }
+  .req-actions button.rb.active {
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    color: #0b0616; border-color: transparent; box-shadow: 0 3px 12px var(--accent-glow);
+  }
+
+  /* Aggregated tool cards, registry rows, manage rows — one consistent card */
+  .tools-entered-grid .te-card, .te-detail-card, .te-submitter,
+  .reg-row, .manage-row, .project-item, details:not(.accordion) {
+    background: rgba(255,255,255,0.045); border-color: var(--glass-border); border-radius: 14px;
+  }
+  .tools-entered-grid .te-card { padding: 16px 18px; transition: transform .18s, border-color .18s; }
+  .tools-entered-grid .te-card:hover {
+    border-color: rgba(245,197,66,0.4); transform: translateY(-3px);
+    box-shadow: 0 18px 42px rgba(0,0,0,0.4);
+  }
+  .te-card .te-name { font-size: 15.5px; }
+  .te-card .te-stats b { font-family: var(--font-mono); }
+  .reg-row { padding: 12px 14px; }
+  .reg-row .rr-url { color: var(--c-cyan); }
+
+  /* Filter / search rows */
+  .filters, .req-filters { gap: 10px; }
+  .filters input, .filters select, .req-filters input, .req-filters select {
+    background: rgba(255,255,255,0.045);
+  }
+
+  /* Backend status chips */
+  .backend-status { border-radius: 10px; }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -4579,7 +4661,7 @@ function renderRequestsInbox() {
   let list = requestEntries();
   const meta = document.getElementById('acc_requestsMeta');
   const newCount = list.filter(e => (e.requestStatus || 'new') === 'new').length;
-  if (meta) meta.textContent = list.length + ' request(s)' + (newCount ? ' · ' + newCount + ' new' : '');
+  if (meta) meta.textContent = list.length + (list.length === 1 ? ' request' : ' requests') + (newCount ? ' · ' + newCount + ' new' : '');
   if (statusFilter) list = list.filter(e => (e.requestStatus || 'new') === statusFilter);
   if (q) list = list.filter(e =>
     (e.toolName || '').toLowerCase().includes(q) ||
@@ -4863,7 +4945,8 @@ function renderAdmin() {
   });
 
   document.getElementById('k_tools').textContent = list.length;
-  document.getElementById('k_toolsSub').textContent = [...new Set(list.map(e=>e.department))].length + ' department(s)';
+  const deptCount = new Set(list.map(e => e.department).filter(Boolean)).size;
+  document.getElementById('k_toolsSub').textContent = deptCount + (deptCount === 1 ? ' department' : ' departments');
   document.getElementById('k_timeSaved').textContent = fmtDuration(totalTime);
   document.getElementById('k_timeSavedSub').textContent = 'based on reported frequency';
   document.getElementById('k_costSaved').textContent = fmtUSD(totalNetUSD);
@@ -6907,6 +6990,7 @@ function printAiReport() {
    content. Guarded by isLocalDev() so it can never run on the
    live host, and it never overwrites existing data without asking.
    ============================================================ */
+const REQUESTING = 'Requesting (need to invest)';
 const DEMO_SPEC = [
   ['Production','ChatGPT','Copywriting / Text','In Active Use',4,0.5,120,12,20,0,'Script drafts and shot lists'],
   ['Production','Runway','Video Generation','Piloting',16,3,900,3,35,4000,'Music video pre-viz for a client'],
@@ -6936,8 +7020,8 @@ function seedDemoData(force) {
     const when = new Date(now.getFullYear(), now.getMonth() - (5 - Math.floor(i / 2.4)), 3 + (i % 20));
     return {
       id: 'demo-' + i + '-' + Math.random().toString(36).slice(2, 8),
-      kind: 'tool', tag: status === 'Requested' ? 'request' : 'report',
-      requestStatus: status === 'Requested' ? 'new' : '', adminNote: '',
+      kind: 'tool', tag: status === REQUESTING ? 'request' : 'report',
+      requestStatus: status === REQUESTING ? 'new' : '', adminNote: '',
       department: dept, submittedBy: ['Ivan M.','Sarah N.','Brian K.','Diana A.','Joel T.'][i % 5],
       submittedByEmail: '', role: 'Team member',
       toolName: tool, toolNameRaw: tool,
