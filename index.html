@@ -2252,6 +2252,101 @@
     .chart-wrap { overflow-x: hidden; }
   }
 
+  /* ============================================================
+     GUIDED FLOW — purpose + confirmation layers
+     ============================================================ */
+  /* Nobody navigates by tabs any more: the app decides where you belong.
+     Admins reach the portal through the same door, by role. */
+  .view-toggle { display: none !important; }
+  /* Normal users never see the dashboard shortcut either */
+  body:not([data-role="super"]):not([data-role="admin"]) .sidebar-add { display: none !important; }
+
+  .flow-head { text-align: center; max-width: 680px; margin: 0 auto 30px; }
+  .flow-step {
+    display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+    background: rgba(245,197,66,0.10); border: 1px solid rgba(245,197,66,0.28);
+    padding: 5px 13px; border-radius: 999px;
+  }
+  .flow-head h1 { margin: 0; font-size: clamp(26px, 3.6vw, 38px); font-weight: 800; letter-spacing: -.02em; }
+  .flow-head h1 span {
+    background: linear-gradient(100deg, var(--accent-strong), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .flow-head p { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+  .flow-foot { text-align: center; color: var(--muted); font-size: 12.5px; margin: 26px 0 0; }
+  .flow-foot strong { color: var(--text); }
+
+  .purpose-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 18px; max-width: 860px; margin: 0 auto;
+  }
+  .purpose-card {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+    text-align: left; cursor: pointer; padding: 28px 26px; border-radius: 20px;
+    font-family: inherit; color: var(--text); position: relative; overflow: hidden;
+    background: linear-gradient(160deg, rgba(255,255,255,0.075), rgba(255,255,255,0.02));
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35), var(--glass-highlight);
+    transition: transform .22s cubic-bezier(.22,1,.36,1), border-color .22s, box-shadow .22s;
+  }
+  .purpose-card::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; opacity: 0;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent); transition: opacity .22s;
+  }
+  .purpose-card:hover {
+    transform: translateY(-5px); border-color: rgba(245,197,66,0.45);
+    box-shadow: 0 30px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(245,197,66,0.22);
+  }
+  .purpose-card:hover::before { opacity: 1; }
+  .purpose-card .pc-ico {
+    width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center;
+    color: var(--accent); background: rgba(245,197,66,0.12); border: 1px solid rgba(245,197,66,0.28);
+  }
+  .purpose-card .pc-ico .ico { width: 24px; height: 24px; }
+  .purpose-card:nth-child(2) .pc-ico {
+    color: var(--c-violet); background: rgba(167,139,250,0.14); border-color: rgba(167,139,250,0.32);
+  }
+  .purpose-card:nth-child(2)::before { background: linear-gradient(90deg, transparent, var(--c-violet), transparent); }
+  .purpose-card:nth-child(2):hover {
+    border-color: rgba(167,139,250,0.45);
+    box-shadow: 0 30px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(167,139,250,0.24);
+  }
+  .purpose-card .pc-title { font-size: 18px; font-weight: 700; }
+  .purpose-card .pc-sub { font-size: 13px; line-height: 1.65; color: var(--muted); }
+  .purpose-card .pc-go { margin-top: 6px; font-size: 12.5px; font-weight: 700; color: var(--accent); }
+  .purpose-card:nth-child(2) .pc-go { color: var(--c-violet); }
+
+  /* Confirmation layer */
+  .done-wrap { max-width: 520px; margin: 0 auto; text-align: center; padding-top: 12px; }
+  .done-tick {
+    width: 72px; height: 72px; margin: 0 auto 22px; border-radius: 50%; display: grid; place-items: center;
+    color: var(--c-emerald); background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.35);
+    box-shadow: 0 0 40px rgba(52,211,153,0.18);
+  }
+  .done-tick svg { width: 34px; height: 34px; }
+  .done-wrap h1 { margin: 0 0 10px; font-size: 28px; font-weight: 800; }
+  .done-wrap > p { margin: 0 0 24px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+  .done-summary {
+    text-align: left; border-radius: 16px; padding: 6px 18px; margin-bottom: 24px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+  }
+  .ds-row {
+    display: flex; justify-content: space-between; gap: 14px; padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px;
+  }
+  .ds-row:last-child { border-bottom: none; }
+  .ds-row span { color: var(--muted); }
+  .ds-row b { font-weight: 700; }
+  .done-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  @media (max-width: 919px) {
+    .purpose-grid { grid-template-columns: 1fr; gap: 14px; }
+    .purpose-card { padding: 22px 20px; }
+    .flow-head { margin-bottom: 22px; }
+    .done-actions button { flex: 1 1 100%; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -2334,6 +2429,44 @@
       <p class="credits-names"><span>Arnold Kigozi</span><i aria-hidden="true">&amp;</i><span>Marvin Musoke</span></p>
       <span class="credits-rule" aria-hidden="true"></span>
     </div>
+    </div>
+  </section>
+
+  <!-- PURPOSE VIEW — asked on every sign-in. Layer 1 of the guided flow. -->
+  <section id="purposeView" class="view">
+    <div class="flow-head">
+      <span class="flow-step">Step 1 of 3</span>
+      <h1>What brings you here<span id="purposeName"></span>?</h1>
+      <p>Choose one to begin. It only takes a few minutes.</p>
+    </div>
+    <div class="purpose-grid">
+      <button type="button" class="purpose-card" onclick="choosePurpose('report')">
+        <span class="pc-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="7" width="3" height="10" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg></span>
+        <span class="pc-title">Report a tool we use</span>
+        <span class="pc-sub">An AI tool your team already uses. You'll record the time and money it saves, and any revenue it helped win.</span>
+        <span class="pc-go">Start reporting →</span>
+      </button>
+      <button type="button" class="purpose-card" onclick="choosePurpose('request')">
+        <span class="pc-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/></svg></span>
+        <span class="pc-title">Request a new tool</span>
+        <span class="pc-sub">A tool the company doesn't have yet. Tell us what it is and why you need it — it goes to the admin inbox for review.</span>
+        <span class="pc-go">Start a request →</span>
+      </button>
+    </div>
+    <p class="flow-foot" id="purposeFoot"></p>
+  </section>
+
+  <!-- DONE VIEW — final layer, after a submission -->
+  <section id="doneView" class="view">
+    <div class="done-wrap">
+      <div class="done-tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></svg></div>
+      <h1 id="doneTitle">Thank you</h1>
+      <p id="doneMsg">Your submission has been recorded.</p>
+      <div id="doneSummary" class="done-summary"></div>
+      <div class="done-actions">
+        <button type="button" class="primary" onclick="startPurpose()">Submit another</button>
+        <button type="button" class="secondary" onclick="signOut()">Sign out</button>
+      </div>
     </div>
   </section>
 
@@ -7139,7 +7272,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (v === 'admin') {
       const signedIn = (typeof authUser !== 'undefined' && authUser) || currentEmail();
       if (!signedIn) { if (typeof toast === 'function') toast('Sign in to continue', true); return original.call(this, 'auth'); }
-      if (!canSeeAdmin()) { if (typeof toast === 'function') toast('Admin access is restricted', true); return original.call(this, 'tools'); }
+      if (!canSeeAdmin()) {
+        if (typeof toast === 'function') toast('Admin access is restricted', true);
+        // Normal users belong in the guided flow, never on a dashboard.
+        if (typeof startPurpose === 'function') return startPurpose();
+        return original.call(this, 'tools');
+      }
     }
     const out = original.apply(this, arguments);
     // The panel scrolls internally on desktop, so the app's own window.scrollTo
@@ -7716,6 +7854,160 @@ function updateOnboardHint() {
   new MutationObserver(apply).observe(landing, { attributes: true, attributeFilter: ['class'] });
   document.addEventListener('DOMContentLoaded', apply);
   apply();
+})();
+
+/* ============================================================
+   GUIDED FLOW — the department side is a task, not a dashboard.
+
+   Sign in → "report or request?" → details (only if missing) →
+   the step wizard → confirmation. The purpose question is asked
+   on every sign-in. Admins are routed to the admin portal by the
+   same door; nobody sees section tabs.
+   ============================================================ */
+/* NOTE: VIEW_IDS is a top-level `const`, so it lives in the first script's
+   lexical scope — assigning window.VIEW_IDS would create a *different*
+   property and switchView would keep using the original list. The new
+   layers are therefore handled by wrapping switchView itself. */
+const EXTRA_VIEWS = ['purpose', 'done'];
+(function () {
+  if (typeof switchView !== 'function') return;
+  const original = switchView;
+  window.switchView = function (v) {
+    // The old tools dashboard is admin-only now; normal users get the flow.
+    if (v === 'tools' && !canSeeAdmin() && typeof startPurpose === 'function'
+        && profile.department && profile.name) {
+      return startPurpose();
+    }
+    if (EXTRA_VIEWS.includes(v)) {
+      dismissOverlays();
+      currentView = v;
+      // Deactivate every section, then light up the requested one.
+      document.querySelectorAll('main > section.view').forEach(s => s.classList.remove('active'));
+      const el = document.getElementById(v + 'View');
+      if (el) el.classList.add('active');
+      try { appScrollTop(); } catch (_) {}
+      return;
+    }
+    return original.apply(this, arguments);
+  };
+})();
+
+function startPurpose() {
+  const name = (profile.nickname || profile.name || '').trim().split(/\s+/)[0];
+  const t = document.getElementById('purposeName');
+  if (t) t.textContent = name ? ', ' + name : '';
+  const foot = document.getElementById('purposeFoot');
+  if (foot) {
+    foot.innerHTML = profile.department
+      ? 'Submitting as <strong>' + escapeHTML(profile.name || 'you') + '</strong> · ' + escapeHTML(profile.department)
+      : 'We\'ll ask for your department next.';
+  }
+  switchView('purpose');
+}
+
+/* Layer 2 → 3: purpose chosen, collect details if we don't have them yet,
+   then drop straight into the wizard already set to the right kind. */
+let pendingPurpose = null;
+function choosePurpose(kind) {
+  pendingPurpose = (kind === 'request') ? 'request' : 'report';
+  if (!profile.department || !profile.name) {
+    switchView('landing');
+    toast('Tell us where you work, then we\'ll continue');
+    return;
+  }
+  openGuidedWizard(pendingPurpose);
+}
+function openGuidedWizard(kind) {
+  currentToolId  = null;
+  projectsInForm = [];
+  isDirty        = false;
+  clearDetailForm();
+  currentTag = (kind === 'request') ? 'request' : 'report';
+  const h = document.getElementById('detailHeading');
+  if (h) h.textContent = currentTag === 'request' ? 'Request an AI Tool' : 'Report a Tool You Use';
+  openWizard('edit');
+}
+
+/* After the details step, continue into whatever they picked. */
+(function () {
+  if (typeof saveProfileAndContinue !== 'function') return;
+  const original = saveProfileAndContinue;
+  window.saveProfileAndContinue = function () {
+    const out = original.apply(this, arguments);
+    if (pendingPurpose && profile.department && profile.name) {
+      const kind = pendingPurpose; pendingPurpose = null;
+      setTimeout(() => openGuidedWizard(kind), 260);
+    }
+    return out;
+  };
+})();
+
+/* Confirmation layer once something is saved through the guided flow. */
+function showDone(kind, toolName) {
+  const isReq = kind === 'request';
+  const t = document.getElementById('doneTitle');
+  const m = document.getElementById('doneMsg');
+  const s = document.getElementById('doneSummary');
+  if (t) t.textContent = isReq ? 'Request submitted' : 'Report saved';
+  if (m) m.textContent = isReq
+    ? 'It has gone to the admin inbox for review. You\'ll hear back once a decision is made.'
+    : 'Thank you — this now counts towards your department\'s business case.';
+  if (s) {
+    const mine = (typeof entries !== 'undefined' ? entries : []).filter(e =>
+      e.department === profile.department && (e.submittedBy || '') === (profile.name || ''));
+    s.innerHTML =
+      '<div class="ds-row"><span>Tool</span><b>' + escapeHTML(toolName || '—') + '</b></div>' +
+      '<div class="ds-row"><span>Department</span><b>' + escapeHTML(profile.department || '—') + '</b></div>' +
+      '<div class="ds-row"><span>Your submissions</span><b>' + mine.length + '</b></div>';
+  }
+  switchView('done');
+}
+
+/* Saving through the guided flow ends on the confirmation layer instead of
+   dropping the user back onto a list. Admins keep the original behaviour. */
+(function () {
+  if (typeof saveDetail !== 'function') return;
+  const original = saveDetail;
+  window.saveDetail = function () {
+    const nameAtSave = (document.getElementById('f_toolName') || {}).value || '';
+    const kindAtSave = currentTag;
+    const before = (typeof entries !== 'undefined' ? entries.length : 0);
+    const out = original.apply(this, arguments);
+    const saved = (typeof entries !== 'undefined' ? entries.length : 0) > before;
+    if (saved && !canSeeAdmin()) setTimeout(() => showDone(kindAtSave, nameAtSave), 220);
+    return out;
+  };
+})();
+
+/* Route by role the moment someone lands in the app. */
+function routeAfterSignIn() {
+  if (!authUser && !currentEmail()) { switchView('auth'); return; }
+  if (canSeeAdmin()) { switchView('admin'); return; }   // owners/admins go to the portal
+  if (!profile.department || !profile.name) { switchView('landing'); return; }
+  startPurpose();                                        // everyone else is asked the question
+}
+
+/* Replace the app's own "go to the tools list" entry point: normal users must
+   never land on a dashboard again. */
+(function () {
+  if (typeof goToUser !== 'function') return;
+  window.goToUser = function () {
+    if (canSeeAdmin()) { switchView('admin'); return; }
+    if (!profile.department || !profile.name) { switchView('landing'); return; }
+    startPurpose();
+  };
+})();
+
+/* Send people to the right place as soon as they are signed in. */
+(function () {
+  let routed = false;
+  setInterval(function () {
+    const signedIn = (typeof authUser !== 'undefined' && authUser) || currentEmail();
+    if (!signedIn) { routed = false; return; }
+    if (routed) return;
+    const onAuth = document.getElementById('authView')?.classList.contains('active');
+    if (onAuth) { routed = true; routeAfterSignIn(); }
+  }, 500);
 })();
 
 /* ============================================================
