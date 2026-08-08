@@ -785,6 +785,16 @@
     border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04);
   }
   .cost-summary .val { font-size: 20px; }
+
+  /* Greeting hero (Departments view) — reference: "Good Morning, Noah!" */
+  .greet-hero { margin: 6px 0 20px; }
+  .greet-hero h1 { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+  .greet-hero h1 #greetName {
+    background: linear-gradient(100deg, var(--accent-strong), var(--accent) 60%, #e8a828);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .greet-hero p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  @media (max-width: 600px) { .greet-hero h1 { font-size: 24px; } }
 </style>
 </head>
 <body>
@@ -863,6 +873,10 @@
 
   <!-- TOOLS LIST VIEW -->
   <section id="toolsView" class="view">
+    <div class="greet-hero" aria-hidden="false">
+      <h1><span id="greetTime">Welcome back</span><span id="greetName"></span></h1>
+      <p>Here's your department's AI adoption at a glance.</p>
+    </div>
     <div class="profile-badge">
       <div class="who">
         <div class="avatar" id="avatarInitials">?</div>
@@ -4813,6 +4827,34 @@ function boot() {
   updateConversions();
 }
 boot();
+</script>
+<script>
+/* ============================================================
+   REDESIGN — greeting hero sync (fully additive).
+   Mirrors #profileName (which existing code keeps up to date)
+   into the greeting, with a time-of-day salutation. Touches no
+   existing functions; safe no-op if elements are missing.
+   ============================================================ */
+(function () {
+  var src = document.getElementById('profileName');
+  var tEl = document.getElementById('greetTime');
+  var nEl = document.getElementById('greetName');
+  if (!src || !tEl || !nEl) return;
+  function salutation() {
+    var h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+  function sync() {
+    var full = (src.textContent || '').trim();
+    var first = (full && full !== '—') ? full.split(/\s+/)[0] : '';
+    tEl.textContent = salutation() + (first ? ', ' : '');
+    nEl.textContent = first ? first + '!' : '!';
+  }
+  new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
+  sync();
+})();
 </script>
 </body>
 </html>
