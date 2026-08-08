@@ -2075,11 +2075,14 @@
   .auth-beam::before {                 /* the cone */
     content: ''; position: absolute; left: 50%; top: -6%;
     width: min(1100px, 130vw); height: 118%; transform: translateX(-50%);
-    clip-path: polygon(44% 0%, 56% 0%, 88% 100%, 12% 100%);
-    background: linear-gradient(180deg,
-      rgba(255,229,150,.30) 0%, rgba(245,197,66,.16) 34%,
-      rgba(167,139,250,.09) 66%, transparent 92%);
-    filter: blur(28px);
+    clip-path: polygon(44% 0%, 56% 0%, 92% 100%, 8% 100%);
+    background: linear-gradient(180deg, rgba(255,229,150,.32) 0%, rgba(245,197,66,.16) 34%,
+                                        rgba(167,139,250,.09) 66%, transparent 92%);
+    /* Mask (not blend) fades the cone's sides, so the clip-path never reads as
+       two hard diagonal lines while the colour stays true. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 74%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 74%, transparent 100%);
+    filter: blur(44px);
     animation: beam-breathe 9s ease-in-out infinite alternate;
   }
   .auth-beam::after {                  /* the source + the pool it casts */
