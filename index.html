@@ -2347,6 +2347,146 @@
     .done-actions button { flex: 1 1 100%; }
   }
 
+  /* ============================================================
+     BUTTON SYSTEM — compact, flat, unmistakably a control.
+     Cards are glass; buttons are solid. Never the same material,
+     so nothing is ambiguous about what can be pressed.
+     ============================================================ */
+  button.primary, button.secondary, button.danger, button.ghost,
+  .file-import, .gt-btn, .req-actions button.rb, .acc-tabs button, .seg button {
+    height: 34px; padding: 0 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; letter-spacing: 0;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    box-shadow: none;
+    transition: background .14s ease, border-color .14s ease, color .14s ease, transform .08s ease;
+  }
+  /* Primary: one solid accent surface, no gradient wash, no glow halo */
+  button.primary {
+    background: var(--accent); background-image: none;
+    color: #17130a; border: 1px solid var(--accent);
+  }
+  button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); filter: none; }
+  button.primary:active { transform: translateY(.5px); }
+  button.primary::after { content: none; }          /* kill the old sheen sweep */
+  /* Secondary: outlined, transparent — clearly a control, not a panel */
+  button.secondary, .file-import {
+    background: rgba(255,255,255,0.045); background-image: none;
+    color: var(--text); border: 1px solid rgba(255,255,255,0.16);
+  }
+  button.secondary:hover, .file-import:hover {
+    background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.28); box-shadow: none;
+  }
+  button.ghost {
+    background: transparent; color: var(--muted); border: 1px solid transparent;
+  }
+  button.ghost:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+  button.danger {
+    background: transparent; background-image: none;
+    color: var(--bad); border: 1px solid rgba(251,113,133,0.4);
+  }
+  button.danger:hover { background: rgba(251,113,133,0.12); border-color: var(--bad); }
+  /* Icon-only controls stay square */
+  .gt-btn, .wiz-close, .bot-close, .profile-menu-btn { width: 34px; height: 34px; padding: 0; }
+
+  /* Cards must stop pretending to be pressable. Only genuinely clickable
+     cards (.purpose-card, .dept-tile, .chooser-card, .tool-item) lift. */
+  .card:hover, .kpi:hover, .accordion:hover, .qs:hover, .gs-tile:hover {
+    transform: none; box-shadow: var(--shadow-lg), var(--glass-highlight);
+  }
+  .kpi:hover { border-color: var(--glass-border); }
+
+  /* ============================================================
+     LIQUID GLASS — thin, luminous, with a specular top edge and a
+     soft inner rim, rather than a flat frosted slab.
+     ============================================================ */
+  .card, .accordion, .kpi, .tool-item, .profile-badge, .graph-summary, .qs,
+  .purpose-card, .dept-tile, .chooser-card, .bot-panel, .profile-menu, .wizard {
+    position: relative;
+    box-shadow:
+      0 24px 60px rgba(0,0,0,0.42),
+      inset 0 1px 0 rgba(255,255,255,0.16),
+      inset 0 -1px 0 rgba(255,255,255,0.04),
+      inset 0 0 26px rgba(255,255,255,0.025);
+  }
+  /* Specular sheen across the top third — the "liquid" read */
+  .card::before, .kpi::before, .purpose-card::after, .graph-summary::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 42%;
+    border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.055), transparent 78%);
+  }
+  .kpi::before { left: 3px; }   /* clear the accent bar */
+
+  /* ============================================================
+     FULL-PAGE WIZARD (normal users)
+     The wizard stops being a dialog floating over a dashboard and
+     becomes the page itself — one step, one screen, nothing else.
+     Admins keep the modal so they can edit without losing context.
+     ============================================================ */
+  /* #detailView is a sibling of the view sections inside <main>, so hiding the
+     sections leaves the wizard itself untouched. Without this the page behind
+     shows through, because the guided overlay is deliberately transparent. */
+  body[data-flow="guided"] main > section.view { display: none !important; }
+  body[data-flow="guided"] .wizard-overlay {
+    position: fixed; inset: 0; z-index: 55; padding: 0;
+    background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+    align-items: stretch; justify-content: stretch; overflow-y: auto;
+  }
+  body[data-flow="guided"] .wizard {
+    max-width: none; width: 100%; margin: 0; border: none; border-radius: 0;
+    background: transparent; box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    max-height: none; height: 100%;
+  }
+  @media (min-width: 920px) {
+    /* Sit inside the app shell, clear of the rail */
+    body[data-flow="guided"] .wizard-overlay { left: 250px; }
+  }
+  @media (min-width: 1100px) {
+    body[data-flow="guided"] .wizard-overlay { inset: 18px 18px 18px 268px; border-radius: 0 26px 26px 0; }
+  }
+  /* Head: just the step, centred, no chrome */
+  body[data-flow="guided"] .wizard-head {
+    max-width: 780px; margin: 0 auto; width: 100%;
+    padding: 34px 26px 0; border-bottom: none; text-align: center;
+  }
+  body[data-flow="guided"] .wizard-head .wh-top { justify-content: center; }
+  body[data-flow="guided"] .wizard-head h2 { font-size: 15px; color: var(--muted); font-weight: 600; }
+  body[data-flow="guided"] .wizard-head .wh-sub { display: none; }
+  body[data-flow="guided"] .wiz-close { position: absolute; top: 22px; right: 26px; }
+  /* Hide the submission-type switch — purpose was already chosen */
+  body[data-flow="guided"] #wizTagRow { display: none; }
+  /* Progress becomes a slim bar, not a row of numbered dots */
+  body[data-flow="guided"] .wiz-progress {
+    max-width: 780px; margin: 18px auto 0; gap: 5px; overflow: visible;
+  }
+  body[data-flow="guided"] .wiz-progress .ws .lbl { display: none; }
+  body[data-flow="guided"] .wiz-progress .ws .dot {
+    width: 100%; height: 4px; border-radius: 999px; font-size: 0; border: none;
+    background: rgba(255,255,255,0.10); color: transparent;
+  }
+  body[data-flow="guided"] .wiz-progress .ws { flex: 1 1 0; }
+  body[data-flow="guided"] .wiz-progress .ws.current .dot { background: var(--accent); box-shadow: none; }
+  body[data-flow="guided"] .wiz-progress .ws.done .dot { background: var(--c-emerald); }
+  body[data-flow="guided"] .wiz-progress .sep { display: none; }
+  /* Body: one generous column */
+  body[data-flow="guided"] .wizard-body {
+    max-width: 780px; margin: 0 auto; width: 100%; padding: 30px 26px 26px;
+  }
+  body[data-flow="guided"] .wizard-step .step-title {
+    font-size: clamp(22px, 2.6vw, 30px); font-weight: 800; letter-spacing: -.02em; margin-bottom: 8px;
+  }
+  body[data-flow="guided"] .wizard-step .step-help { font-size: 14px; margin-bottom: 26px; }
+  body[data-flow="guided"] .wizard-foot {
+    max-width: 780px; margin: 0 auto; width: 100%; padding: 16px 26px 30px; border-top: none;
+  }
+  @media (max-width: 919px) {
+    body[data-flow="guided"] .wizard-head { padding: 20px 18px 0; }
+    body[data-flow="guided"] .wizard-body { padding: 22px 18px; }
+    body[data-flow="guided"] .wizard-foot { padding: 14px 18px calc(22px + env(safe-area-inset-bottom)); }
+    body[data-flow="guided"] .wiz-close { top: 16px; right: 18px; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -7924,9 +8064,20 @@ function openGuidedWizard(kind) {
   clearDetailForm();
   currentTag = (kind === 'request') ? 'request' : 'report';
   const h = document.getElementById('detailHeading');
-  if (h) h.textContent = currentTag === 'request' ? 'Request an AI Tool' : 'Report a Tool You Use';
+  if (h) h.textContent = currentTag === 'request' ? 'Requesting a tool' : 'Reporting a tool';
+  document.body.setAttribute('data-flow', 'guided');   // full-page presentation
   openWizard('edit');
 }
+/* The full-page treatment only belongs to the guided flow — clear it whenever
+   the wizard closes so admin editing keeps the normal dialog. */
+(function () {
+  if (typeof closeWizard !== 'function') return;
+  const original = closeWizard;
+  window.closeWizard = function () {
+    document.body.removeAttribute('data-flow');
+    return original.apply(this, arguments);
+  };
+})();
 
 /* After the details step, continue into whatever they picked. */
 (function () {
