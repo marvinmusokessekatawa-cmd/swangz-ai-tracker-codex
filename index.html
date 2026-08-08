@@ -967,6 +967,110 @@
     .donut-wrap { justify-content: center; }
     .tt-bar { display: none; }
   }
+
+  /* ============================================================
+     MOBILE PASS — same design language as desktop, phone-native
+     layout (compact glass top bar + bottom tab nav), per the
+     phone reference. Breakpoint mirrors the desktop rail (920px).
+     ============================================================ */
+  @media (max-width: 919px) {
+    /* No page-level horizontal scroll, ever */
+    html, body { max-width: 100%; overflow-x: hidden; }
+
+    /* Compact glass top bar: badge + product tag only */
+    header {
+      padding: 10px 14px; gap: 10px;
+      justify-content: flex-start; align-items: center;
+      padding-top: calc(10px + env(safe-area-inset-top));
+    }
+    .brand { flex-direction: row; align-items: center; gap: 10px; }
+    .brand-logo { height: 26px; }
+    .brand-tag { font-size: 9.5px; letter-spacing: 1.4px; padding: 2px 8px; }
+
+    main { padding: 18px 14px calc(96px + env(safe-area-inset-bottom)); }
+
+    /* Section nav becomes a fixed bottom tab bar */
+    .view-toggle {
+      position: fixed; left: 10px; right: 10px; z-index: 40;
+      bottom: calc(10px + env(safe-area-inset-bottom));
+      display: flex; gap: 6px; padding: 6px; border-radius: 18px;
+      background: rgba(16,21,34,0.82);
+      backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 -6px 30px rgba(0,0,0,0.45), var(--glass-highlight);
+    }
+    .view-toggle button {
+      flex: 1; min-height: 46px; border-radius: 13px; font-size: 13px; padding: 8px 10px;
+    }
+
+    /* Comfortable touch targets everywhere (WCAG / iOS guidance) */
+    button.primary, button.secondary, button.danger, button.ghost,
+    .file-import, .google-signin { min-height: 46px; padding-left: 16px; padding-right: 16px; }
+    input, select, textarea { min-height: 46px; font-size: 16px; }   /* 16px stops iOS zoom-on-focus */
+    .seg button, .acc-tabs button, .req-actions button.rb { min-height: 40px; }
+    .tool-item .ti-remove, .tt-remove { width: 34px; height: 34px; }
+
+    /* Layout: one column, roomy cards */
+    .grid.cols-2, .grid.cols-3, .grid.cols-4, .overview-grid { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .card, .accordion { padding: 18px; border-radius: var(--radius-lg); }
+    .tool-list { grid-template-columns: 1fr; }
+
+    /* Hero + greeting scale down cleanly */
+    .hero { padding: 26px 20px; border-radius: var(--radius-lg); }
+    .hero h1 { font-size: 23px; }
+    .greet-hero h1 { font-size: 26px; }
+
+    /* Profile badge stacks instead of squashing */
+    .profile-badge { flex-direction: column; align-items: stretch; gap: 12px; }
+    .profile-badge > div:last-child { display: flex; gap: 8px; }
+    .profile-badge > div:last-child button { flex: 1; }
+
+    /* Filters + toolbars go full width */
+    .filters, .req-filters { flex-direction: column; align-items: stretch; }
+    .filters input, .filters select, .req-filters input, .req-filters select { max-width: none; width: 100%; }
+    .tools-head { flex-direction: column; align-items: stretch; gap: 12px; }
+    .tools-head .row-actions { justify-content: stretch; }
+    .tools-head .row-actions button { flex: 1; }
+
+    /* KPI cards: bold figures like the phone reference */
+    .kpi { padding: 14px; }
+    .kpi .val { font-size: 21px; }
+    .kpi .lbl { font-size: 10px; }
+    .kpi-spark .spark-svg { height: 24px; }
+    .kpi-delta { font-size: 10px; }
+
+    /* Charts */
+    .donut-wrap { flex-direction: column; align-items: center; }
+    .donut-legend { width: 100%; }
+    .chart-head { flex-direction: column; gap: 8px; }
+
+    /* Leaderboard rows stay readable */
+    .top-tool { gap: 10px; padding: 12px 10px; }
+    .tt-val { min-width: 0; font-size: 12.5px; }
+
+    /* Any table scrolls inside its own box, never the page */
+    table { min-width: 560px; }
+    .accordion .acc-body { padding: 0 16px 18px; overflow-x: auto; }
+    .accordion summary { padding: 16px; }
+
+    /* Cost summary + savings row stack */
+    .cost-summary, .tool-card .savings-row { grid-template-columns: 1fr; }
+    .my-history-stats > div { flex: 1 1 100%; }
+  }
+
+  /* Very small phones */
+  @media (max-width: 380px) {
+    .kpis { grid-template-columns: 1fr; }
+    .greet-hero h1 { font-size: 22px; }
+    .brand-tag { display: none; }
+  }
+
+  /* Landscape phones — keep the bottom bar from eating the view */
+  @media (max-width: 919px) and (max-height: 460px) {
+    .view-toggle { position: static; left: auto; right: auto; bottom: auto; box-shadow: none; }
+    main { padding-bottom: 28px; }
+  }
 </style>
 </head>
 <body>
