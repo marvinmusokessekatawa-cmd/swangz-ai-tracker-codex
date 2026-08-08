@@ -2627,6 +2627,13 @@
     padding: 7px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit;
   }
   .preview-bar button:hover { border-color: rgba(167,139,250,0.45); background: rgba(167,139,250,0.1); }
+  /* The "view as" switch reads as the mode it puts you in, not as another action */
+  .preview-bar .pv-asdept { border-color: rgba(245,197,66,0.35); color: var(--brand-gold); }
+  .preview-bar .pv-asdept:hover { border-color: rgba(245,197,66,0.6); background: rgba(245,197,66,0.12); }
+  .preview-bar .pv-asdept.on {
+    background: var(--brand-gold); border-color: var(--brand-gold); color: #0b0e16;
+  }
+  .preview-bar .pv-asdept.on:hover { background: #ffd75e; border-color: #ffd75e; }
   body[data-shell="auth"] .preview-bar { display: none; }
   /* It sits bottom-centre, exactly where the wizard footer lives */
   body[data-wizard="open"] .preview-bar { display: none; }
@@ -9696,6 +9703,85 @@ function syncBackendWarning() {
     window[fn] = function () {
       const out = original.apply(this, arguments);
       try { applyRoleChrome(); } catch (_) {}
+      return out;
+    };
+  });
+})();
+
+/* ============================================================
+   PREVIEW — "View as department" (staging only)
+
+   Admins are routed straight to the portal by design, which means the
+   department experience became unreachable for the very people who
+   need to review it. This adds a switch to the preview toolbar that
+   drops the reviewer into the department flow as an ordinary user,
+   and back again.
+
+   It works by lowering the ROLE, not by unhiding views: currentRole()
+   reports 'user', so canSeeAdmin(), the chrome, the department-only
+   CSS, the rail, the routing and the assistant's department scoping
+   all behave exactly as they will for a real department user. What
+   you see in this mode is what they get.
+
+   Gated by isLocalDev() — the same gate as the sign-in bypass — so it
+   cannot appear on the live host. It is scoped to the tab
+   (sessionStorage), so closing the preview tab always ends it.
+   ============================================================ */
+const PREVIEW_DEPT_KEY = 'swangz_preview_as_dept';
+const realRole = currentRole;                     // before the wrapper below
+function previewHost() { return typeof isLocalDev === 'function' && isLocalDev(); }
+function previewAsDept() {
+  if (!previewHost()) return false;
+  try { return sessionStorage.getItem(PREVIEW_DEPT_KEY) === '1'; } catch (_) { return false; }
+}
+(function () {
+  if (typeof currentRole !== 'function') return;
+  window.currentRole = function () {
+    const r = realRole.apply(this, arguments);
+    return (previewAsDept() && (r === 'super' || r === 'admin')) ? 'user' : r;
+  };
+})();
+function togglePreviewAsDept(on) {
+  if (!previewHost()) return;
+  const next = (on === undefined) ? !previewAsDept() : !!on;
+  try { sessionStorage.setItem(PREVIEW_DEPT_KEY, next ? '1' : '0'); } catch (_) {}
+  try { closeRailMenu(); } catch (_) {}
+  try { applyRoleChrome(); } catch (_) {}
+  updatePreviewDeptBtn();
+  try { routeAfterSignIn(); } catch (_) { switchView('landing'); }
+  toast(next ? 'Previewing as a department user' : 'Back in the admin portal');
+}
+function updatePreviewDeptBtn() {
+  const bar = document.querySelector('.preview-bar');
+  if (!bar) return;
+  // The toolbar only exists on preview hosts, but don't lean on that alone
+  if (!previewHost()) { bar.querySelector('.pv-asdept')?.remove(); return; }
+  // Only an actual admin needs this switch; a department user is already there.
+  const r = realRole();
+  if (r !== 'super' && r !== 'admin') { bar.querySelector('.pv-asdept')?.remove(); return; }
+  let btn = bar.querySelector('.pv-asdept');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pv-asdept';
+    btn.addEventListener('click', () => togglePreviewAsDept());
+    bar.insertBefore(btn, bar.children[1] || null);   // straight after the PREVIEW tag
+  }
+  const on = previewAsDept();
+  btn.textContent = on ? '← Back to admin' : 'View as department';
+  btn.title = on ? 'Return to the admin portal' : 'See exactly what a department user sees';
+  btn.classList.toggle('on', on);
+}
+document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDeptBtn, 0));
+/* The toolbar is built on DOMContentLoaded and the role settles after sign-in,
+   so keep the button in step with both without depending on their order. */
+(function () {
+  ['routeAfterSignIn', 'devBypassSignIn', 'signOut'].forEach(fn => {
+    if (typeof window[fn] !== 'function') return;
+    const original = window[fn];
+    window[fn] = function () {
+      const out = original.apply(this, arguments);
+      setTimeout(updatePreviewDeptBtn, 0);
       return out;
     };
   });
