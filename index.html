@@ -1290,7 +1290,11 @@
   .qs-text b { font-family: var(--font-mono); font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
   .qs-text i { font-style: normal; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
 
-  .profile-menu-wrap { position: relative; }
+  /* The cards below the profile bar carry backdrop-filter, which makes each a
+     stacking context painted after this one — they were covering the dropdown
+     and swallowing its clicks. Lifting the bar itself fixes the whole menu. */
+  .profile-badge { position: relative; z-index: 60; }
+  .profile-menu-wrap { position: relative; z-index: 61; }
   .profile-menu-btn {
     width: 38px; height: 38px; border-radius: 12px; cursor: pointer; font-size: 18px; line-height: 1;
     background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--muted);
@@ -1298,7 +1302,7 @@
   }
   .profile-menu-btn:hover { color: var(--text); border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.08); }
   .profile-menu {
-    position: absolute; right: 0; top: calc(100% + 8px); z-index: 45; display: none;
+    position: absolute; right: 0; top: calc(100% + 8px); z-index: 62; display: none;
     min-width: 196px; padding: 6px; border-radius: 14px;
     background: rgba(20,25,38,0.94);
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -1536,7 +1540,7 @@
   }
   .theme-row button[data-t="swangz"]   { background: linear-gradient(135deg,#f5c542,#b45309); }
   .theme-row button[data-t="aurora"]   { background: linear-gradient(135deg,#8b5cf6,#22d3ee); }
-  .theme-row button[data-t="midnight"] { background: linear-gradient(135deg,#1e293b,#0b1020); }
+  .theme-row button[data-t="midnight"] { background: linear-gradient(135deg,#64748b,#111827); }
   
   .theme-row button.on { outline: 2px solid var(--accent); outline-offset: 2px; }
   .theme-lbl { font-size: 9.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase;
@@ -1645,6 +1649,23 @@
   /* ============================================================
      PROFILE SETTINGS PANEL
      ============================================================ */
+  /* Roomier, better-separated settings panel */
+  #profileSettings .wizard { max-width: 760px; }
+  #profileSettings .wizard-body { padding: 22px 26px 26px; }
+  #profileSettings .section-title { margin: 26px 0 12px; }
+  #profileSettings .section-title:first-child { margin-top: 0; }
+  #profileSettings .grid { gap: 16px 18px; }
+  #profileSettings label { margin-bottom: 7px; }
+  #profileSettings .row-actions { margin-top: 14px; }
+  #profileSettings textarea { min-height: 72px; }
+  /* A hairline above each section so the groups read as distinct blocks */
+  #profileSettings .section-title:not(:first-child)::after {
+    content: ''; position: absolute; left: 0; right: 0; top: -14px; height: 1px;
+    background: var(--glass-border);
+  }
+  #profileSettings .section-title { position: relative; }
+  #profileSettings .wizard-foot { gap: 12px; }
+
   .ps-avatar-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
   .ps-avatar {
     width: 84px; height: 84px; border-radius: 24px; flex: 0 0 auto; overflow: hidden;
@@ -1689,7 +1710,7 @@
   .ps-theme-grid i { display: block; height: 34px; border-radius: 9px; margin-bottom: 9px; }
   .ps-theme-grid .sw-swangz   { background: linear-gradient(135deg,#f5c542,#b45309); }
   .ps-theme-grid .sw-aurora   { background: linear-gradient(135deg,#8b5cf6,#22d3ee); }
-  .ps-theme-grid .sw-midnight { background: linear-gradient(135deg,#1e293b,#02040a); }
+  .ps-theme-grid .sw-midnight { background: linear-gradient(135deg,#64748b,#0b1020); }
   .ps-theme-grid span { display: block; font-size: 13px; font-weight: 700; }
   .ps-theme-grid em { display: block; font-style: normal; font-size: 11px; color: var(--muted); margin-top: 1px; }
 
