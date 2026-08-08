@@ -2213,9 +2213,15 @@
     }
     .brand { flex: 0 1 auto; min-width: 0; }
 
-    /* Admin section pills must not grow the bar — they scroll on their own row */
+    /* Admin section pills must not grow the bar — they scroll on their own row.
+       Sized to hold a 44px touch target now that the pills ARE the navigation. */
     body[data-section="admin"] header { flex-wrap: wrap; row-gap: 6px; }
-    body[data-section="admin"] .admin-nav { max-height: 46px; }
+    body[data-section="admin"] .admin-nav {
+      max-height: 56px; padding: 6px 0 2px;
+      scrollbar-width: none;                 /* the strip swipes; a bar would eat the row */
+    }
+    body[data-section="admin"] .admin-nav::-webkit-scrollbar { display: none; }
+    .admin-nav button { min-height: 44px; }
 
     /* Content has to clear BOTH the bottom tab bar and the floating assistant,
        otherwise the last card sits underneath them. */
@@ -2630,18 +2636,48 @@
   body[data-shell="auth"] .tour-mask { display: none !important; }
 
   /* ============================================================
-     SETTINGS GROUP — configuration folds behind one rail entry.
-     Admin Actions, Admin Access and Backend & Sync are settings,
-     not daily work: one click on Settings, then they appear as a
-     dropdown. The originals stay in the DOM (hidden) so the
-     command palette can still find them by name.
+     RAIL GROUPS — eleven sections fold into four doors.
+     Requests · Tools · Reports · Settings. One click opens the
+     door, the sections inside appear as a dropdown. The original
+     buttons stay in the DOM (hidden) so the command palette can
+     still find every section by name.
      ============================================================ */
   .admin-nav button.is-grouped { display: none !important; }
+  .rail-group {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 11px;
+    background: transparent; border: 1px solid transparent; color: var(--muted);
+    text-align: left; padding: 9px 12px; border-radius: 10px; cursor: pointer;
+    font-size: 12.5px; font-weight: 600; font-family: inherit;
+    transition: color .15s, background .18s, border-color .18s;
+  }
+  .rail-group:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .rail-group.active {
+    color: var(--accent); background: rgba(167,139,250,0.10);
+    border-color: rgba(167,139,250,0.28); font-weight: 700;
+  }
+  .rail-group .ico { width: 17px; height: 17px; flex: 0 0 auto; }
+  .rail-group .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rail-group .nav-caret {
+    margin-left: auto; width: 13px; height: 13px; flex: 0 0 auto;
+    opacity: .5; transition: transform .18s ease, opacity .18s ease;
+  }
+  .rail-group[aria-expanded="true"] { color: var(--text); background: rgba(255,255,255,0.06); }
+  .rail-group[aria-expanded="true"] .nav-caret { transform: rotate(90deg); opacity: 1; }
+  /* Count of things waiting — the one signal worth keeping visible
+     once the inbox itself is behind a door. */
+  .rail-group .nav-badge {
+    margin-left: auto; min-width: 19px; height: 19px; padding: 0 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 800; font-family: var(--font-mono);
+    color: #0b0e16; background: var(--brand-gold); border-radius: 999px;
+  }
+  .rail-group .nav-badge + .nav-caret { margin-left: 8px; }
+
   /* Settings sits in the rail but OUTSIDE the scrolling sections list,
-     so the one entry that opens everything is always in reach. */
-  .nav-sep, .nav-settings { display: none; }
+     so the door to everything configurable is always in reach. */
+  .nav-sep, .rail-group.at-foot { display: none; }
   body[data-section="admin"] .nav-sep { display: block; }
-  body[data-section="admin"] .nav-settings { display: flex; }
+  body[data-section="admin"] .rail-group.at-foot { display: flex; }
   /* The rail is a 24px-gap flex column; pull the divider and Settings
      tight against the sections list so the group reads as one foot,
      and hand the reclaimed height back to the scrolling list. */
@@ -2649,28 +2685,14 @@
     flex: 0 0 auto; height: 1px; margin: -14px 12px -16px;
     background: var(--glass-border);
   }
-  .nav-settings {
-    flex: 0 0 auto; align-items: center; gap: 11px;
-    background: transparent; border: 1px solid transparent; color: var(--muted);
-    text-align: left; padding: 9px 12px; border-radius: 10px; cursor: pointer;
-    font-size: 12.5px; font-weight: 600; font-family: inherit;
-    transition: color .15s, background .18s, border-color .18s;
-  }
-  .nav-settings:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-  .nav-settings.active {
-    color: var(--accent); background: rgba(167,139,250,0.10);
-    border-color: rgba(167,139,250,0.28); font-weight: 700;
-  }
-  .nav-settings .ico { width: 17px; height: 17px; flex: 0 0 auto; }
-  .nav-settings .nav-caret {
-    margin-left: auto; width: 13px; height: 13px; flex: 0 0 auto;
-    opacity: .5; transition: transform .18s ease, opacity .18s ease;
-  }
-  .nav-settings[aria-expanded="true"] { color: var(--text); background: rgba(255,255,255,0.06); }
-  .nav-settings[aria-expanded="true"] .nav-caret { transform: rotate(90deg); opacity: 1; }
   @media (max-width: 919px) {
     .nav-sep { display: none !important; }
-    body[data-section="admin"] .nav-settings {
+    /* In the horizontal pill strip the group doors are pills too */
+    .admin-nav .rail-group {
+      border: 1px solid var(--glass-border); border-radius: 999px;
+      min-height: 44px; padding: 7px 13px;   /* touch target */
+    }
+    body[data-section="admin"] .rail-group.at-foot {
       width: 100%; margin-top: 7px; padding: 8px 14px; min-height: 44px;  /* touch target */
       border: 1px solid var(--glass-border); border-radius: 999px;
     }
@@ -2678,7 +2700,7 @@
 
   /* Liquid-glass dropdown. Fixed + body-level so no scrolling rail,
      card or backdrop-filter ancestor can clip or repaint over it. */
-  .settings-menu {
+  .rail-menu {
     position: fixed; z-index: 80; min-width: 246px;
     max-width: min(320px, calc(100vw - 24px));
     padding: 7px; border-radius: 16px;
@@ -2690,43 +2712,43 @@
     pointer-events: none; visibility: hidden;
     transition: opacity .17s ease, transform .17s ease, visibility 0s linear .17s;
   }
-  .settings-menu.open {
+  .rail-menu.open {
     opacity: 1; transform: none; pointer-events: auto; visibility: visible;
     transition: opacity .17s ease, transform .17s ease;
   }
   /* Specular sheen across the top edge — the liquid-glass read */
-  .settings-menu::after {
+  .rail-menu::after {
     content: ''; position: absolute; inset: 0 0 auto; height: 46%;
     border-radius: 16px 16px 0 0; pointer-events: none;
     background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,0));
   }
-  .settings-menu .sm-head {
+  .rail-menu .sm-head {
     font-size: 9.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
     color: var(--muted-2); padding: 8px 11px 9px;
   }
-  .settings-menu button {
+  .rail-menu button {
     display: flex; align-items: center; gap: 11px; width: 100%; min-height: 44px;
     text-align: left; background: transparent; border: 1px solid transparent;
     color: var(--muted); font-family: inherit; font-size: 12.5px; font-weight: 600;
     padding: 9px 11px; border-radius: 11px; cursor: pointer;
     transition: color .15s, background .18s, border-color .18s;
   }
-  .settings-menu button + button { margin-top: 2px; }
-  .settings-menu button:hover, .settings-menu button:focus-visible {
+  .rail-menu button + button { margin-top: 2px; }
+  .rail-menu button:hover, .rail-menu button:focus-visible {
     color: var(--text); background: rgba(255,255,255,0.06);
   }
-  .settings-menu button.active {
+  .rail-menu button.active {
     color: var(--accent); background: rgba(167,139,250,0.10);
     border-color: rgba(167,139,250,0.28);
   }
-  .settings-menu .ico { width: 17px; height: 17px; flex: 0 0 auto; }
-  .settings-menu .sm-txt { min-width: 0; }
-  .settings-menu .sm-sub {
+  .rail-menu .ico { width: 17px; height: 17px; flex: 0 0 auto; }
+  .rail-menu .sm-txt { min-width: 0; }
+  .rail-menu .sm-sub {
     display: block; font-size: 10.5px; font-weight: 500; color: var(--muted-2);
     margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   @media (prefers-reduced-motion: reduce) {
-    .settings-menu { transition: none; }
+    .rail-menu { transition: none; }
   }
 </style>
 </head>
@@ -3336,7 +3358,7 @@
       <div id="aiFindings" class="findings"></div>
     </div>
 
-    <div class="card">
+    <div class="card top-tools-card">
       <div class="section-title" style="margin-top:0;">Top Tools by Impact</div>
       <p class="help" style="margin:-4px 0 12px;">Ranked by net monthly savings across all departments.</p>
       <div id="topTools"></div>
@@ -8250,15 +8272,20 @@ const ICONS = {
   /* A true gear for the Settings group — the `cog` above reads as a sun at rail size */
   gear:    '<circle cx="12" cy="12" r="3.1"/><path d="M19.1 14.6a1.6 1.6 0 0 0 .32 1.77l.06.06a1.9 1.9 0 1 1-2.69 2.69l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.96 1.46V20.5a1.9 1.9 0 1 1-3.8 0v-.1a1.6 1.6 0 0 0-1.02-1.46 1.6 1.6 0 0 0-1.77.32l-.06.06a1.9 1.9 0 1 1-2.69-2.69l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.46-.96H3.5a1.9 1.9 0 1 1 0-3.8h.1a1.6 1.6 0 0 0 1.46-1.02 1.6 1.6 0 0 0-.32-1.77l-.06-.06a1.9 1.9 0 1 1 2.69-2.69l.06.06a1.6 1.6 0 0 0 1.77.32h.08a1.6 1.6 0 0 0 .96-1.46V3.5a1.9 1.9 0 1 1 3.8 0v.1a1.6 1.6 0 0 0 .96 1.46 1.6 1.6 0 0 0 1.77-.32l.06-.06a1.9 1.9 0 1 1 2.69 2.69l-.06.06a1.6 1.6 0 0 0-.32 1.77v.08a1.6 1.6 0 0 0 1.46.96h.1a1.9 1.9 0 1 1 0 3.8h-.1a1.6 1.6 0 0 0-1.46.96z"/>',
   sliders: '<path d="M5 20v-6M5 10V4M12 20v-9M12 7V4M19 20v-4M19 12V4"/><path d="M2.5 14h5M9.5 7h5M16.5 16h5"/>',
+  /* The registry is a catalogue, not another list — one glyph per row */
+  book:    '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M8 7.5h7"/>',
   db:      '<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6"/><path d="M4.5 12v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6"/>',
 };
 const svgIcon = k => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[k] || ICONS.grid) + '</svg>';
 
-/* Which overview blocks fold away, in order, with the label the admin sees. */
+/* Which overview blocks fold away, in order, with the label the admin sees.
+   The overview is the four numbers plus four quiet rows — everything else
+   is opened deliberately, not displayed by default. */
 const OVERVIEW_PANELS = [
   { sel: '.overview-grid',     icon: 'chart',   title: 'Trends & department mix', hint: 'Adoption over time, share by team' },
   { sel: '.graph-card',        icon: 'graph',   title: 'AI tools usage graph',    hint: 'Company → departments → tools' },
   { sel: '.ai-analysis-card',  icon: 'sparkle', title: 'Automatic analysis',      hint: 'Findings generated from the data' },
+  { sel: '.top-tools-card',    icon: 'trophy',  title: 'Top tools by impact',     hint: 'Ranked by net monthly savings' },
 ];
 function openPanels() {
   try { return JSON.parse(localStorage.getItem(DISCLOSE_KEY)) || []; } catch (_) { return []; }
@@ -8292,8 +8319,8 @@ function buildDisclosures() {
     wrap.addEventListener('toggle', () => setPanelOpen(id, wrap.open));
   });
 
-  // The top-tools card sits last and is light enough to leave inline, but the
-  // "always-visible tiles" note is noise now — the KPIs speak for themselves.
+  // Every panel now folds, so the only permanent content is the KPI row.
+  // The "always-visible tiles" note is noise — the numbers speak for themselves.
   host.querySelectorAll('p.help').forEach(p => {
     if (/always-visible summary tiles/i.test(p.textContent)) p.remove();
   });
@@ -8306,29 +8333,41 @@ function buildDisclosures() {
    ============================================================ */
 const SECTION_ICONS = {
   overview: 'grid', acc_requests: 'inbox', acc_tools: 'list', acc_exec: 'doc',
-  acc_rotation: 'refresh', acc_business: 'chart', acc_registry: 'list',
+  acc_rotation: 'refresh', acc_business: 'chart', acc_registry: 'book',
   acc_manage: 'users', acc_admins: 'users', acc_backend: 'db', acc_actions: 'sliders',
 };
 function paletteCommands() {
   const cmds = [];
   if (canSeeAdmin()) {
     const nav = document.getElementById('adminNav');
-    if (nav) nav.querySelectorAll('button').forEach(b => {
+    /* `button[data-sec]` skips the group doors, which carry data-group and
+       would otherwise enter the palette as sections that open nothing.
+       Sections are listed under their door, so the palette teaches the
+       structure instead of presenting one flat heap. */
+    const secs = [];
+    if (nav) nav.querySelectorAll('button[data-sec]').forEach(b => {
       const id = b.dataset.sec;
-      cmds.push({ icon: SECTION_ICONS[id] || 'grid', label: b.textContent.trim(),
-                  group: 'Admin', run: () => { switchView('admin'); setTimeout(() => showAdminSection(id), 60); } });
+      const g = typeof groupOf === 'function' ? groupOf(id) : null;
+      secs.push({ icon: SECTION_ICONS[id] || 'grid', label: (b.querySelector('.nav-label') || b).textContent.trim(),
+                  group: g ? g.label : 'Admin', rank: g ? RAIL_GROUPS.indexOf(g) + 1 : 0,
+                  run: () => { switchView('admin'); setTimeout(() => showAdminSection(id), 60); } });
     });
-    cmds.push({ icon: 'doc', label: 'Copy automatic report', group: 'Admin', run: () => copyAiReport() });
-    cmds.push({ icon: 'doc', label: 'Print automatic report', group: 'Admin', run: () => printAiReport() });
+    // The two report actions belong with the reports, not in a trailing heap
+    const repRank = RAIL_GROUPS.findIndex(g => g.label === 'Reports') + 1;
+    secs.push({ icon: 'doc', label: 'Copy automatic report',  group: 'Reports', rank: repRank + 0.1, run: () => copyAiReport() });
+    secs.push({ icon: 'doc', label: 'Print automatic report', group: 'Reports', rank: repRank + 0.2, run: () => printAiReport() });
+    secs.sort((a, b) => a.rank - b.rank);          // keep each door's items together
+    secs.forEach(c => cmds.push(c));
   } else {
     cmds.push({ icon: 'chart',  label: 'Report a tool we use', group: 'Actions', run: () => choosePurpose('report') });
     cmds.push({ icon: 'inbox',  label: 'Request a new tool',   group: 'Actions', run: () => choosePurpose('request') });
   }
+  /* Keep each heading to one appearance — Sign out sits with the rest of You */
   cmds.push({ icon: 'cog',     label: 'Profile & settings',  group: 'You', run: () => openProfileSettings() });
   cmds.push({ icon: 'sparkle', label: 'Ask the assistant',   group: 'You', run: () => botToggle(true) });
+  cmds.push({ icon: 'cog',     label: 'Sign out',            group: 'You', run: () => signOut() });
   ['swangz', 'aurora', 'midnight'].forEach(t =>
     cmds.push({ icon: 'sparkle', label: 'Theme: ' + t.charAt(0).toUpperCase() + t.slice(1), group: 'Appearance', run: () => setTheme(t) }));
-  cmds.push({ icon: 'cog', label: 'Sign out', group: 'You', run: () => signOut() });
   return cmds;
 }
 let paletteItems = [], paletteIdx = 0;
@@ -9301,116 +9340,155 @@ function botToggle(open) {
 })();
 
 /* ============================================================
-   SETTINGS GROUP — configuration hides behind one rail entry.
+   RAIL GROUPS — eleven sections fold into four doors.
 
-   Admin Actions, Admin Access and Backend & Sync are things you
-   configure once, not things you do daily, so they no longer sit
-   at the front of the rail. One "Settings" entry at the foot of
-   the sections list; click it and the three appear in a dropdown.
+   The admin rail listed every section at once, which is a table of
+   contents, not an app. Sections now sit behind four doors —
+   Requests, Tools, Reports, Settings — and Overview stays open as
+   the landing. One click opens a door; its sections appear in a
+   dropdown; the section itself fills the main area as before.
 
    The original buttons are hidden rather than removed, so the
-   command palette keeps finding them by name (discoverable when
-   searched, quiet when not).
+   command palette keeps finding every section by name (quiet by
+   default, one search away when you know what you want).
    ============================================================ */
-const SETTINGS_SECTIONS = ['acc_actions', 'acc_admins', 'acc_backend'];
-const SETTINGS_SEC = '__settings';
+const RAIL_GROUPS = [
+  { id: '__requests', label: 'Requests', icon: 'inbox',
+    sections: ['acc_requests', 'acc_manage'], badgeFrom: 'acc_requestsMeta' },
+  { id: '__tools',    label: 'Tools',    icon: 'list',
+    sections: ['acc_tools', 'acc_rotation', 'acc_registry'] },
+  { id: '__reports',  label: 'Reports',  icon: 'doc',
+    sections: ['acc_exec', 'acc_business'] },
+  /* Configuration is not daily work — it lives at the foot of the rail,
+     outside the scrolling list, so it is always in reach. */
+  { id: '__settings', label: 'Settings', icon: 'gear', atFoot: true,
+    sections: ['acc_actions', 'acc_admins', 'acc_backend'] },
+];
 const CARET_SVG =
   '<svg class="nav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
   'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
-let settingsItems = [];
+let groupItems = {};      // group id -> [{ id, label, sub }]
+let openGroup = null;     // which door is currently open
 
 /* Sub-label for each entry, taken from the accordion's own meta line
    so the menu never drifts from the section it opens. */
-function settingsSub(id) {
+function sectionSub(id) {
   const meta = document.querySelector('#' + CSS.escape(id) + ' .acc-meta');
-  return meta ? meta.textContent.trim() : '';
+  const t = meta ? meta.textContent.trim() : '';
+  return (t === '—' || t === '-') ? '' : t;      // meta before first render
+}
+function groupOf(sectionId) {
+  return RAIL_GROUPS.find(g => g.sections.includes(sectionId)) || null;
+}
+/* "3 requests · 2 new" -> 2. No match means no badge, never a wrong one. */
+function groupBadge(g) {
+  if (!g.badgeFrom) return '';
+  const el = document.getElementById(g.badgeFrom);
+  const m = el && el.textContent.match(/(\d+)\s*new/i);
+  return m && +m[1] > 0 ? m[1] : '';
 }
 
-function groupSettingsNav() {
+function buildRailGroups() {
   const nav = document.getElementById('adminNav');
   if (!nav) return;
-  settingsItems = [];
-  SETTINGS_SECTIONS.forEach(id => {
-    const btn = nav.querySelector('button[data-sec="' + id + '"]');
-    if (!btn) return;                                  // section not in this build
-    btn.classList.add('is-grouped');                   // stays for the palette
-    settingsItems.push({
-      id,
-      label: (btn.querySelector('.nav-label') || btn).textContent.trim(),
-      sub: settingsSub(id),
-    });
-  });
-  if (!settingsItems.length) return;
-  // The rail scrolls; Settings must not. It is appended to the rail itself,
-  // just after the sections list. buildAdminNav only wipes the nav's own
-  // markup, so clear any previous pair first or they would accumulate.
   const host = nav.parentNode;
-  // A rebuild replaces the anchor, so never leave a menu hanging off the old one.
-  closeSettingsMenu();
-  host.querySelectorAll(':scope > .nav-sep, :scope > .nav-settings').forEach(el => el.remove());
-  const sep = document.createElement('div');
-  sep.className = 'nav-sep';
-  sep.setAttribute('aria-hidden', 'true');
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'nav-settings';
-  btn.dataset.sec = SETTINGS_SEC;
-  btn.title = 'Settings';
-  btn.setAttribute('aria-haspopup', 'menu');
-  btn.setAttribute('aria-expanded', 'false');
-  btn.setAttribute('aria-controls', 'settingsMenu');
-  btn.innerHTML = svgIcon('gear') + '<span class="nav-label">Settings</span>' + CARET_SVG;
-  btn.addEventListener('click', function (e) { e.stopPropagation(); toggleSettingsMenu(); });
-  nav.insertAdjacentElement('afterend', sep);
-  sep.insertAdjacentElement('afterend', btn);
-  syncSettingsActive(adminSection);
+  // A rebuild replaces the anchors, so never leave a menu on a dead one.
+  closeRailMenu();
+  // buildAdminNav only wipes the nav's own markup; the footer pair lives
+  // outside it and would otherwise accumulate on every render.
+  host.querySelectorAll(':scope > .nav-sep, :scope > .rail-group').forEach(el => el.remove());
+  groupItems = {};
+
+  RAIL_GROUPS.forEach(g => {
+    const items = [];
+    let firstBtn = null;
+    g.sections.forEach(id => {
+      const btn = nav.querySelector('button[data-sec="' + id + '"]');
+      if (!btn) return;                                // section not in this build
+      if (!firstBtn) firstBtn = btn;
+      btn.classList.add('is-grouped');                 // hidden, but still in the palette
+      items.push({ id, label: (btn.querySelector('.nav-label') || btn).textContent.trim(), sub: sectionSub(id) });
+    });
+    if (!items.length) return;
+    groupItems[g.id] = items;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'rail-group' + (g.atFoot ? ' at-foot' : '');
+    btn.dataset.group = g.id;
+    btn.title = g.label;
+    btn.setAttribute('aria-haspopup', 'menu');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', 'railMenu');
+    const badge = groupBadge(g);
+    btn.innerHTML = svgIcon(g.icon) + '<span class="nav-label">' + escapeHTML(g.label) + '</span>' +
+      (badge ? '<span class="nav-badge" title="' + badge + ' new">' + badge + '</span>' : '') + CARET_SVG;
+    btn.addEventListener('click', function (e) { e.stopPropagation(); toggleRailMenu(g.id); });
+
+    if (g.atFoot) {
+      const sep = document.createElement('div');
+      sep.className = 'nav-sep';
+      sep.setAttribute('aria-hidden', 'true');
+      nav.insertAdjacentElement('afterend', sep);
+      sep.insertAdjacentElement('afterend', btn);
+    } else {
+      firstBtn.insertAdjacentElement('beforebegin', btn);   // keeps the rail in section order
+    }
+  });
+  syncGroupActive(adminSection);
 }
 
-function settingsMenuEl() {
-  let menu = document.getElementById('settingsMenu');
+function railMenuEl() {
+  let menu = document.getElementById('railMenu');
   if (!menu) {
     menu = document.createElement('div');
-    menu.id = 'settingsMenu';
-    menu.className = 'settings-menu';
+    menu.id = 'railMenu';
+    menu.className = 'rail-menu';
     menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', 'Settings');
     document.body.appendChild(menu);   // body-level: nothing can clip it
   }
   return menu;
 }
 
-function renderSettingsMenu() {
-  const menu = settingsMenuEl();
-  menu.innerHTML = '<div class="sm-head">Settings</div>' + settingsItems.map(i =>
+function renderRailMenu(groupId) {
+  const g = RAIL_GROUPS.find(x => x.id === groupId);
+  const items = groupItems[groupId] || [];
+  const menu = railMenuEl();
+  menu.setAttribute('aria-label', g ? g.label : 'Sections');
+  menu.innerHTML = '<div class="sm-head">' + escapeHTML(g ? g.label : '') + '</div>' + items.map(i =>
     '<button type="button" role="menuitem" data-sec="' + i.id + '"' +
     (i.id === adminSection ? ' class="active"' : '') + '>' +
-    svgIcon(SECTION_ICONS[i.id] || 'cog') +
+    svgIcon(SECTION_ICONS[i.id] || 'grid') +
     '<span class="sm-txt">' + escapeHTML(i.label) +
     (i.sub ? '<span class="sm-sub">' + escapeHTML(i.sub) + '</span>' : '') +
     '</span></button>').join('');
   menu.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () => chooseSettingsSection(b.dataset.sec)));
+    b.addEventListener('click', () => chooseSection(b.dataset.sec)));
   return menu;
 }
 
-function settingsMenuOpen() {
-  return document.getElementById('settingsMenu')?.classList.contains('open');
+function railMenuOpen() {
+  return !!document.getElementById('railMenu')?.classList.contains('open');
+}
+function groupButton(id) {
+  return document.querySelector('.rail-group[data-group="' + id + '"]');
 }
 
-function openSettingsMenu() {
-  if (!settingsItems.length) return;
-  const btn = document.querySelector('.nav-settings');
+function openRailMenu(groupId) {
+  if (!(groupItems[groupId] || []).length) return;
+  const btn = groupButton(groupId);
   if (!btn) return;
-  const menu = renderSettingsMenu();
+  closeRailMenu();                       // only one door open at a time
+  const menu = renderRailMenu(groupId);
   // Measurable while still invisible, so it can be placed before it appears.
   const r = btn.getBoundingClientRect();
   const m = menu.getBoundingClientRect();
   const gap = 10, edge = 12, vw = window.innerWidth, vh = window.innerHeight;
   let left, top;
-  if (vw >= 920) {                                  // desktop rail → flyout to the right
+  if (vw >= 920) {                       // desktop rail → flyout to the right
     left = r.right + gap; top = r.top;
     if (left + m.width > vw - edge) left = Math.max(edge, r.left - m.width - gap);
-  } else {                                          // phone strip → drop below
+  } else {                               // phone strip → drop below
     left = r.left; top = r.bottom + gap;
     if (left + m.width > vw - edge) left = Math.max(edge, vw - m.width - edge);
   }
@@ -9419,79 +9497,79 @@ function openSettingsMenu() {
   menu.style.top = Math.round(top) + 'px';
   menu.classList.add('open');
   btn.setAttribute('aria-expanded', 'true');
+  openGroup = groupId;
   setTimeout(() => menu.querySelector('button')?.focus(), 60);
 }
 
-function closeSettingsMenu(refocus) {
-  const menu = document.getElementById('settingsMenu');
-  if (menu) menu.classList.remove('open');
-  const btn = document.querySelector('.nav-settings');
-  if (btn) {
-    btn.setAttribute('aria-expanded', 'false');
-    if (refocus) btn.focus();
-  }
+function closeRailMenu(refocus) {
+  document.getElementById('railMenu')?.classList.remove('open');
+  const btn = openGroup ? groupButton(openGroup) : null;
+  document.querySelectorAll('.rail-group').forEach(b => b.setAttribute('aria-expanded', 'false'));
+  if (btn && refocus) btn.focus();
+  openGroup = null;
 }
 
-function toggleSettingsMenu() {
-  settingsMenuOpen() ? closeSettingsMenu() : openSettingsMenu();
+function toggleRailMenu(groupId) {
+  (railMenuOpen() && openGroup === groupId) ? closeRailMenu() : openRailMenu(groupId);
 }
 
-function chooseSettingsSection(id) {
-  closeSettingsMenu();
+function chooseSection(id) {
+  closeRailMenu();
   showAdminSection(id);
 }
 
 /* The grouped buttons are hidden, so the rail's own active state can't
-   show them — light up Settings instead when one of them is open. */
-function syncSettingsActive(id) {
-  const btn = document.querySelector('.nav-settings');
-  if (btn) btn.classList.toggle('active', SETTINGS_SECTIONS.includes(id));
-  document.querySelectorAll('#settingsMenu button').forEach(b =>
+   show them — light up the door they live behind instead. */
+function syncGroupActive(id) {
+  const g = groupOf(id);
+  document.querySelectorAll('.rail-group').forEach(b =>
+    b.classList.toggle('active', !!g && b.dataset.group === g.id));
+  document.querySelectorAll('#railMenu button').forEach(b =>
     b.classList.toggle('active', b.dataset.sec === id));
 }
 
-/* Build the group after the rail (and its icons) are in place. */
+/* Build the doors after the rail (and its icons) are in place. */
 (function () {
   if (typeof buildAdminNav !== 'function') return;
   const original = window.buildAdminNav;
   window.buildAdminNav = function () {
     const out = original.apply(this, arguments);
-    try { groupSettingsNav(); } catch (e) { console.warn('settings group skipped:', e); }
+    try { buildRailGroups(); } catch (e) { console.warn('rail groups skipped:', e); }
     return out;
   };
 })();
 
-/* "Settings" is a menu, not a section — intercept before the original
+/* A group id is a menu, not a section — intercept before the original
    tries to reveal an accordion that does not exist. */
 (function () {
   if (typeof showAdminSection !== 'function') return;
   const original = window.showAdminSection;
   window.showAdminSection = function (id) {
-    if (id === SETTINGS_SEC) { openSettingsMenu(); return; }
+    if (RAIL_GROUPS.some(g => g.id === id)) { openRailMenu(id); return; }
     const out = original.apply(this, arguments);
-    try { syncSettingsActive(id); } catch (_) {}
+    try { syncGroupActive(id); } catch (_) {}
     return out;
   };
 })();
 
 /* Dismissal: outside click, Escape, or anything that moves the anchor. */
 document.addEventListener('click', function (e) {
-  if (!settingsMenuOpen()) return;
-  if (e.target.closest('#settingsMenu') || e.target.closest('.nav-settings')) return;
-  closeSettingsMenu();
+  if (!railMenuOpen()) return;
+  if (e.target.closest('#railMenu') || e.target.closest('.rail-group')) return;
+  closeRailMenu();
 });
 document.addEventListener('keydown', function (e) {
-  if (!settingsMenuOpen()) return;
-  if (e.key === 'Escape') { e.preventDefault(); closeSettingsMenu(true); return; }
+  if (!railMenuOpen()) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeRailMenu(true); return; }
   if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-  const items = [...document.querySelectorAll('#settingsMenu button')];
+  const items = [...document.querySelectorAll('#railMenu button')];
   if (!items.length) return;
   e.preventDefault();
   const at = items.indexOf(document.activeElement);
   items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
 });
-window.addEventListener('resize', () => closeSettingsMenu());
-document.querySelector('main')?.addEventListener('scroll', () => closeSettingsMenu(), { passive: true });
+window.addEventListener('resize', () => closeRailMenu());
+document.querySelector('main')?.addEventListener('scroll', () => closeRailMenu(), { passive: true });
 </script>
 </body>
 </html>
