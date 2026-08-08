@@ -1411,6 +1411,9 @@
      flex child that scrolls internally, and labels are clamped to one line. */
   .admin-nav { display: none; flex-direction: column; gap: 3px; min-height: 0; }
   body[data-section="admin"] .admin-nav { display: flex; }
+  /* While the admin area is still locked the nav has no items — don't render
+     a bare "Sections" heading over empty space. */
+  .admin-nav:empty { display: none !important; }
   @media (min-width: 920px) {
     header { overflow: hidden; }                 /* the nav scrolls, not the rail */
     body[data-section="admin"] .admin-nav {
