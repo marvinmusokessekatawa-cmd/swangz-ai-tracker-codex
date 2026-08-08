@@ -1490,6 +1490,29 @@
       </div>
     </details>
 
+    <details class="accordion" id="acc_admins">
+      <summary>
+        <span class="chevron">▸</span>
+        <span class="acc-title">Admin Access</span>
+        <span class="acc-meta" id="acc_adminsMeta">owners &amp; admins</span>
+      </summary>
+      <div class="acc-body">
+        <p class="help">System owners always have access. Owners can grant the Admin Dashboard to other staff here — they get admin views, but cannot manage this list.</p>
+        <div id="adminsGuard" class="gate-error" style="display:none;">Only system owners can change admin access.</div>
+        <div id="adminsList"></div>
+        <div id="adminsAddRow" class="grid cols-2" style="margin-top:14px; align-items:end;">
+          <div>
+            <label>Add admin by email</label>
+            <input id="newAdminEmail" type="email" placeholder="name@example.com"
+              onkeydown="if(event.key==='Enter'){event.preventDefault(); addAdminEmail();}" />
+          </div>
+          <div class="row-actions" style="justify-content:flex-start;">
+            <button type="button" class="primary" onclick="addAdminEmail()">Grant admin access</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
     <details class="accordion" id="acc_backend">
       <summary>
         <span class="chevron">▸</span>
@@ -4958,6 +4981,159 @@ boot();
   }
   new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
   sync();
+})();
+
+/* ============================================================
+   ROLES & ADMIN ACCESS CONTROL (additive layer)
+
+   ⚠️ SECURITY NOTE — READ BEFORE RELYING ON THIS.
+   This app is a static single-page file: every visitor downloads all
+   of this code, so these checks are a DETERRENT, not real security.
+   A determined user can bypass any client-side gate via dev-tools.
+   TRUE enforcement requires the server: Supabase Row-Level Security
+   + Supabase Auth (see design-system/.../build-plan.md, Phase 2).
+   Until that is switched on, treat admin data as "protected from
+   casual access", NOT as secured against a motivated insider.
+
+   Roles:
+     super  — full access + can manage admins   (the two owners)
+     admin  — admin dashboard, added by a super via the dashboard
+     user   — department member; no admin dashboard
+   ============================================================ */
+const SUPER_ADMINS = [
+  'arnoldkigozi0@gmail.com',
+  'marvinmusokessekatawa@gmail.com',
+];
+const ADMINS_KEY = 'swangz_ai_tracker_admins_v1';
+
+function normEmail(e) { return (e || '').toLowerCase().trim(); }
+function isSuperAdmin(email) { return SUPER_ADMINS.includes(normEmail(email)); }
+function extraAdmins() {
+  try { return (JSON.parse(localStorage.getItem(ADMINS_KEY)) || []).map(normEmail); }
+  catch (_) { return []; }
+}
+function saveExtraAdmins(list) {
+  const clean = [...new Set((list || []).map(normEmail).filter(Boolean))]
+    .filter(e => !SUPER_ADMINS.includes(e));
+  localStorage.setItem(ADMINS_KEY, JSON.stringify(clean));
+  return clean;
+}
+function currentEmail() {
+  return normEmail((typeof authUser !== 'undefined' && authUser && authUser.email) || (profile && profile.email) || '');
+}
+function currentRole() {
+  const e = currentEmail();
+  if (!e) return 'guest';
+  if (isSuperAdmin(e)) return 'super';
+  if (extraAdmins().includes(e)) return 'admin';
+  return 'user';
+}
+function canSeeAdmin() { const r = currentRole(); return r === 'super' || r === 'admin'; }
+
+/* Admin gate: refuse non-admins BEFORE the password screen is shown. */
+(function () {
+  if (typeof renderAdminGate !== 'function') return;
+  const original = renderAdminGate;
+  window.renderAdminGate = function () {
+    const gate = document.getElementById('adminGate');
+    if (canSeeAdmin()) return original.apply(this, arguments);
+    if (typeof showAdminGateOnly === 'function') showAdminGateOnly();
+    if (!gate) return;
+    const who = currentEmail();
+    gate.innerHTML =
+      '<div class="card lock-card">' +
+        '<div class="lock-ico">🔒</div>' +
+        '<h2>Admin access restricted</h2>' +
+        '<p class="help">' +
+          (who
+            ? 'You are signed in as <strong>' + who + '</strong>, which is not an admin account.'
+            : 'Sign in with an authorised admin account to continue.') +
+          ' The Admin Dashboard is limited to the system owners and admins they have added.' +
+        '</p>' +
+        '<p class="help">Need access? Ask a system owner to add you from the Admin Dashboard.</p>' +
+        '<div class="row-actions" style="justify-content:center;">' +
+          '<button type="button" class="primary" onclick="goToUser()">Back to Departments</button>' +
+        '</div>' +
+      '</div>';
+  };
+})();
+
+/* ---- Admin Access management UI (owners only) ---- */
+function renderAdminsPanel() {
+  const list = document.getElementById('adminsList');
+  if (!list) return;
+  const isOwner = isSuperAdmin(currentEmail());
+  const guard   = document.getElementById('adminsGuard');
+  const addRow  = document.getElementById('adminsAddRow');
+  if (guard)  guard.style.display  = isOwner ? 'none' : 'block';
+  if (addRow) addRow.style.display = isOwner ? '' : 'none';
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const rows = SUPER_ADMINS.map(e =>
+    '<div class="reg-row read-only"><span class="rr-name">' + esc(e) + '</span>' +
+    '<span class="pill cat">System owner</span>' +
+    '<span class="rr-meta">permanent</span></div>'
+  ).concat(extraAdmins().map(e =>
+    '<div class="reg-row"><span class="rr-name">' + esc(e) + '</span>' +
+    '<span class="pill dept">Admin</span>' +
+    (isOwner ? '<span class="rr-actions"><button type="button" class="danger" onclick="removeAdminEmail(\'' + esc(e) + '\')">Remove</button></span>' : '') +
+    '</div>'
+  ));
+  list.innerHTML = rows.join('');
+  const meta = document.getElementById('acc_adminsMeta');
+  if (meta) meta.textContent = SUPER_ADMINS.length + ' owner(s) · ' + extraAdmins().length + ' admin(s)';
+}
+function addAdminEmail() {
+  if (!isSuperAdmin(currentEmail())) { toast('Only system owners can add admins', true); return; }
+  const input = document.getElementById('newAdminEmail');
+  const email = normEmail(input && input.value);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('Enter a valid email address', true); return; }
+  if (isSuperAdmin(email)) { toast('That account is already a system owner', true); return; }
+  if (extraAdmins().includes(email)) { toast('That email is already an admin', true); return; }
+  saveExtraAdmins(extraAdmins().concat(email));
+  if (input) input.value = '';
+  renderAdminsPanel();
+  toast('Admin access granted to ' + email);
+}
+function removeAdminEmail(email) {
+  if (!isSuperAdmin(currentEmail())) { toast('Only system owners can remove admins', true); return; }
+  saveExtraAdmins(extraAdmins().filter(e => e !== normEmail(email)));
+  renderAdminsPanel();
+  toast('Admin access removed');
+}
+document.addEventListener('DOMContentLoaded', function () {
+  const acc = document.getElementById('acc_admins');
+  if (acc) acc.addEventListener('toggle', function () { if (acc.open) renderAdminsPanel(); });
+});
+
+/* Close the pre-existing hole: switchView() exempted 'admin' from the
+   sign-in gate, so an unauthenticated visitor could open the admin view
+   (and, if no password was set yet, claim it). Require auth + admin role. */
+(function () {
+  if (typeof switchView !== 'function') return;
+  const original = switchView;
+  window.switchView = function (v) {
+    if (v === 'admin') {
+      const signedIn = (typeof authUser !== 'undefined' && authUser) || currentEmail();
+      if (!signedIn) { if (typeof toast === 'function') toast('Sign in to continue', true); return original.call(this, 'auth'); }
+      if (!canSeeAdmin()) { if (typeof toast === 'function') toast('Admin access is restricted', true); return original.call(this, 'tools'); }
+    }
+    return original.apply(this, arguments);
+  };
+})();
+
+/* Hide the Admin nav button entirely for non-admins. */
+(function () {
+  function applyRoleChrome() {
+    const btn = document.getElementById('btnAdmin');
+    if (btn) btn.style.display = canSeeAdmin() ? '' : 'none';
+    document.body.setAttribute('data-role', currentRole());
+  }
+  const nameEl = document.getElementById('profileName');
+  if (nameEl) new MutationObserver(applyRoleChrome).observe(nameEl, { childList: true, subtree: true, characterData: true });
+  document.addEventListener('DOMContentLoaded', applyRoleChrome);
+  setInterval(applyRoleChrome, 1500);   // cheap catch-all for sign-in/out transitions
+  applyRoleChrome();
 })();
 
 /* ============================================================
