@@ -3204,16 +3204,27 @@ async function persistDeptRoleToAuthMetadata() {
    allowed redirect URLs). It NEVER activates on a real host, so
    it stays inert in production even if accidentally left in.
    ============================================================ */
-/* Hosts (besides localhost) where the sign-in bypass is allowed — ONLY our
-   private staging site, so we can review/test the dashboards without depending
-   on Marvin's Supabase or the live site. The LIVE host
+/* Hosts (besides localhost) where the sign-in bypass is allowed — ONLY our own
+   private preview sites, so the app can be reviewed without depending on
+   Marvin's Supabase redirect config. The LIVE host
    (swangz-ai-tracker.netlify.app) is deliberately NOT listed, so production
-   stays fully gated. Remove the staging host before the final merge to live. */
-const PREVIEW_BYPASS_HOSTS = ['swangzaitracker.netlify.app'];
+   stays fully gated.
+
+   ⚠️ REMOVE THIS WHOLE BLOCK BEFORE THE FINAL MERGE TO LIVE.
+   Suffixes are matched only for our specific Cloudflare project, never a bare
+   ".pages.dev" — that would hand the bypass to every site on the platform. */
+const PREVIEW_BYPASS_HOSTS = [
+  'swangzaitracker.netlify.app',
+  'swangz-ai-tracker.pages.dev',
+];
+const PREVIEW_BYPASS_SUFFIXES = [
+  '.swangz-ai-tracker.pages.dev',   // Cloudflare branch/preview deployments
+];
 function isLocalDev() {
-  const h = window.location.hostname;
+  const h = (window.location.hostname || '').toLowerCase();
   if (h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h === '::1' || h === '') return true;
-  return PREVIEW_BYPASS_HOSTS.includes(h);
+  if (PREVIEW_BYPASS_HOSTS.includes(h)) return true;
+  return PREVIEW_BYPASS_SUFFIXES.some(s => h.endsWith(s));
 }
 function devBypassSignIn() {
   if (!isLocalDev()) { toast('Dev bypass is localhost-only', true); return; }
