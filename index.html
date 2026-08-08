@@ -736,6 +736,55 @@
 
   /* Hide section nav on the sign-in screen (nothing to navigate to yet) */
   body:has(#authView.active) .view-toggle { display: none; }
+
+  /* ============================================================
+     REDESIGN — Phase 2b: premium data-viz, KPIs & tables (CSS-only)
+     ============================================================ */
+  /* KPI cards — bigger figures + delta as a green pill */
+  .kpi .lbl { font-size: 11px; letter-spacing: .7px; }
+  .kpi .val { font-size: 26px; letter-spacing: -0.03em; margin-top: 6px; }
+  .kpi .alt {
+    display: inline-block; margin-top: 8px; padding: 3px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    background: rgba(61,220,151,0.14); color: var(--good); border: 1px solid rgba(61,220,151,0.32);
+  }
+
+  /* Horizontal progress bars — gold, taller, glowing */
+  .bar-row { padding: 10px 0; }
+  .bar-track { height: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); }
+  .bar-fill {
+    background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+    box-shadow: 0 0 16px var(--accent-glow); border-radius: 999px;
+  }
+
+  /* Status-stack chart — rounded glossy segments */
+  .status-stack { height: 34px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); }
+  .status-seg { position: relative; font-weight: 700; }
+  .status-seg::after {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: linear-gradient(rgba(255,255,255,0.18), transparent 55%);
+  }
+
+  /* Tables — premium glass */
+  thead th, table.tools-table thead th {
+    background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--glass-border); letter-spacing: .6px;
+  }
+  tbody td { border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tbody tr { transition: background .12s; }
+  tbody tr:hover, table.tools-table tbody tr:hover { background: rgba(245,197,66,0.05); }
+
+  /* Section titles — gold tick */
+  .section-title { display: flex; align-items: center; gap: 10px; }
+  .section-title::before {
+    content:''; flex: 0 0 auto; width: 4px; height: 15px; border-radius: 2px;
+    background: linear-gradient(var(--accent-strong), var(--accent-2));
+  }
+
+  /* Inner stat boxes — frosted */
+  .tool-card .sav-box, .cost-summary, .my-history-stats > div, .rate-box {
+    border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04);
+  }
+  .cost-summary .val { font-size: 20px; }
 </style>
 </head>
 <body>
