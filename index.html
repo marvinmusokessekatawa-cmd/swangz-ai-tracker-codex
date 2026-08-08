@@ -2306,14 +2306,7 @@
           <label>Official Website</label>
           <input id="f_officialUrl" type="url" placeholder="https://example.com/"
                  oninput="onDetailDirty()" />
-          <div class="field-caption">Auto-filled for known tools. For a new one, paste the official site so entries merge.</div>
-          <label class="reg-toggle">
-            <input id="f_persistInRegistry" type="checkbox" onchange="onDetailDirty()" />
-            <span>
-              <strong>Save to team registry</strong>
-              <span class="rt-help">Keeps this tool in everyone's autocomplete, even if you delete your entry.</span>
-            </span>
-          </label>
+          <div class="field-caption">Auto-filled for known tools.</div>
         </div>
         <div>
           <label>Category</label>
@@ -2349,6 +2342,15 @@
           </select>
         </div>
       </div>
+
+      <!-- Full width so it doesn't make one grid column taller than the rest -->
+      <label class="reg-toggle">
+        <input id="f_persistInRegistry" type="checkbox" onchange="onDetailDirty()" />
+        <span>
+          <strong>Save to team registry</strong>
+          <span class="rt-help">Keeps this tool in everyone's autocomplete, even if you delete your entry. Paste the official site above so entries from different people merge correctly.</span>
+        </span>
+      </label>
 
       <div class="wiz-error" id="wizErr1"></div>
       </div><!-- /step 1 -->
