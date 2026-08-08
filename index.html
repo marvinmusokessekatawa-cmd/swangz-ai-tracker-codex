@@ -825,12 +825,11 @@
   /* ============================================================
      REDESIGN — Phase 2a: brand lockup + left sidebar navigation
      ============================================================ */
-  .brand-logo { height: 34px; width: auto; display: block; filter: drop-shadow(0 4px 12px var(--accent-glow)); }
-  .brand-tag {
-    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--brand-gold);
-    margin: 0; padding: 3px 10px; border-radius: 999px;
-    background: rgba(167,139,250,0.10); border: 1px solid rgba(167,139,250,0.28); align-self: center;
-  }
+  /* One mark only: the Swangz badge beside the product name. */
+  .brand-badge { height: 32px; width: auto; display: block; flex: 0 0 auto;
+                 filter: drop-shadow(0 4px 14px var(--accent-glow)); }
+  .brand-name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.2;
+                letter-spacing: .2px; color: var(--text); }
   img.auth-logo {
     width: auto; height: 48px; background: none !important; box-shadow: none; border-radius: 0;
     margin: 0 auto 18px; display: block; filter: drop-shadow(0 6px 18px var(--accent-glow));
@@ -848,8 +847,7 @@
          which pushed the admin section list into a hidden column beside the logo. */
       flex-wrap: nowrap;
     }
-    .brand { flex-direction: column; align-items: flex-start; gap: 12px; }
-    .brand-tag { align-self: flex-start; }
+    .brand { flex-direction: row; align-items: center; gap: 11px; }
     .view-toggle {
       flex-direction: column; width: 100%; gap: 4px; padding: 0;
       background: transparent; border: none; backdrop-filter: none; -webkit-backdrop-filter: none;
@@ -1142,8 +1140,8 @@
       padding-top: calc(10px + env(safe-area-inset-top));
     }
     .brand { flex-direction: row; align-items: center; gap: 10px; }
-    .brand-logo { height: 26px; }
-    .brand-tag { font-size: 9.5px; letter-spacing: 1.4px; padding: 2px 8px; }
+    .brand-badge { height: 26px; }
+    .brand-name { font-size: 13px; }
 
     main { padding: 18px 14px calc(96px + env(safe-area-inset-bottom)); }
 
@@ -1221,7 +1219,7 @@
   @media (max-width: 380px) {
     .kpis { grid-template-columns: 1fr; }
     .greet-hero h1 { font-size: 22px; }
-    .brand-tag { display: none; }
+    .brand-name { font-size: 12px; }
   }
 
   /* Landscape phones — keep the bottom bar from eating the view */
@@ -1595,7 +1593,7 @@
                color: var(--muted-2); padding: 8px 12px 0; }
 
   /* --- Gold brand moments (kept even in the violet themes) --- */
-  .brand-tag { color: var(--brand-gold); border-color: rgba(245,197,66,0.30); background: rgba(245,197,66,0.10); }
+  .brand-name { color: var(--text); }
   .kpis .kpi:nth-child(4)::before { background: linear-gradient(var(--brand-gold), #d97706); }
   .kpis .kpi:nth-child(4) .val    { color: var(--brand-gold); }
   .quick-stats .qs:nth-child(4) .qs-ico {
@@ -2099,24 +2097,25 @@
   @media (prefers-reduced-motion: reduce) { .auth-beam::before { animation: none; } }
   .auth-wrap { position: relative; z-index: 1; width: 100%; display: grid; place-items: center; }
   .auth-brand { text-align: center; margin-bottom: 26px; }
-  .auth-mark { height: 34px; width: auto; display: block; margin: 0 auto 14px;
-               filter: drop-shadow(0 6px 24px var(--accent-glow)); }
-  .auth-lockup { display: flex; align-items: center; justify-content: center; gap: 14px; }
-  .auth-badge { height: clamp(34px, 5.6vw, 58px); width: auto;
-                filter: drop-shadow(0 6px 20px var(--accent-glow)); }
-  /* Large, wide, light gradient wordmark — the focal element in the reference */
+  .auth-lockup { display: flex; align-items: center; justify-content: center; gap: 15px; }
+  .auth-badge { height: clamp(40px, 4.6vw, 58px); width: auto;
+                filter: drop-shadow(0 6px 22px var(--accent-glow)); }
+  /* Product name beside the badge — one mark, one name. */
   .auth-wordmark {
-    margin: 0; font-size: clamp(42px, 7.2vw, 74px); font-weight: 300; letter-spacing: .17em;
-    line-height: 1; text-indent: .17em;
+    margin: 0; font-size: clamp(24px, 3.1vw, 36px); font-weight: 400; letter-spacing: .06em;
+    line-height: 1.05; white-space: nowrap;
     background: linear-gradient(180deg, #fffaf0 0%, #ffe9a8 38%, var(--accent) 68%, #a9740c 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     filter: drop-shadow(0 10px 42px var(--accent-glow));
+  }
+  @media (max-width: 520px) {
+    .auth-lockup { gap: 11px; }
+    .auth-wordmark { font-size: 24px; white-space: normal; text-align: left; }
   }
   .auth-brand p {
     margin: 14px 0 0; font-size: 12.5px; color: var(--muted); letter-spacing: .3px;
   }
   @media (max-height: 720px) {
-    .auth-mark { height: 26px; margin-bottom: 10px; }
     .auth-wordmark { font-size: clamp(34px, 6vw, 52px); }
     .auth-badge { height: clamp(28px, 4.6vw, 44px); }
   }
@@ -2144,20 +2143,6 @@
     border-color: rgba(245,197,66,.5); background: rgba(245,197,66,.09);
   }
   .auth-divider { margin: 18px 0 14px; font-size: 11px; letter-spacing: .5px; }
-
-  /* Discreet but findable admin entry */
-  .auth-admin-link {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    width: 100%; margin-top: 14px; padding: 10px 14px; border-radius: 11px; cursor: pointer;
-    background: transparent; border: 1px dashed rgba(255,255,255,0.20);
-    color: var(--muted); font-family: inherit; font-size: 12.5px; font-weight: 600;
-    transition: all .18s;
-  }
-  .auth-admin-link .ico { width: 15px; height: 15px; }
-  .auth-admin-link:hover {
-    color: var(--accent); border-color: rgba(245,197,66,.5);
-    background: rgba(245,197,66,.07); border-style: solid;
-  }
 
   .auth-foot {
     display: flex; justify-content: center; gap: 18px; flex-wrap: wrap;
@@ -2240,8 +2225,8 @@
 <div class="app-shell">
 <header>
   <div class="brand">
-    <img class="brand-logo" src="assets/swangz-logo.webp" alt="Swangz" />
-    <h1 class="brand-tag">AI&nbsp;Tracker</h1>
+    <img class="brand-badge" src="assets/swangz-badge.webp" alt="Swangz" />
+    <h1 class="brand-name">Swangz<br/>AI&nbsp;Tracker</h1>
   </div>
   <div class="view-toggle" role="tablist">
     <button id="btnUser" class="active" onclick="goToUser()">Departments</button>
@@ -2261,12 +2246,11 @@
     <div class="auth-beam" aria-hidden="true"></div>
     <div class="auth-wrap">
     <div class="auth-brand">
-      <img class="auth-mark" src="assets/swangz-logo.webp" alt="Swangz Avenue" />
       <div class="auth-lockup">
-        <img class="auth-badge" src="assets/swangz-badge.webp" alt="" aria-hidden="true" />
-        <h1 class="auth-wordmark">SWANGZ</h1>
+        <img class="auth-badge" src="assets/swangz-badge.webp" alt="Swangz" />
+        <h1 class="auth-wordmark">Swangz AI Tracker</h1>
       </div>
-      <p>AI Adoption Tracker — see what AI is really saving the company</p>
+      <p>See what AI is really saving the company</p>
     </div>
     <div class="card lock-card auth-card">
       <h2>Login</h2>
@@ -2275,13 +2259,7 @@
         <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right:10px; vertical-align:middle;"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
         Sign in with Google
       </button>
-      <div class="auth-divider">or</div>
-      <button class="secondary" style="width:100%; justify-content:center;" onclick="startPublicRequest()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/></svg> Submit a tool request without signing in</button>
-      <button type="button" class="auth-admin-link" onclick="switchView('admin')">
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-        Admin sign in
-      </button>
-      <p class="auth-legal">Team members sign in to add full tool reports. Anyone can submit a quick request — it goes to the admin inbox.</p>
+      <p class="auth-legal">Use your Swangz Avenue Google account. Your profile, tools and history are saved across devices.</p>
       <div class="auth-foot">
         <button type="button" onclick="botToggle(true)">Support</button>
         <a href="https://swangzavenue.com" target="_blank" rel="noopener noreferrer">Swangz Avenue</a>
