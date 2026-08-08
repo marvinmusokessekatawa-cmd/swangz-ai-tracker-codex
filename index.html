@@ -1244,6 +1244,99 @@
     .rings-row { justify-content: space-between; }
   }
 
+  /* ============================================================
+     USAGE GRAPH · SUMMARY PANEL · AI ANALYSIS  (reporting-spec.md)
+     ============================================================ */
+  .graph-card { overflow: hidden; }
+  .graph-tools { display: flex; gap: 6px; }
+  .gt-btn {
+    width: 32px; height: 32px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 700;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--muted);
+  }
+  .gt-btn:hover { color: var(--accent); border-color: rgba(245,197,66,0.45); }
+  .graph-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  .graph-stage {
+    position: relative; border-radius: var(--radius-lg); overflow: hidden;
+    background:
+      radial-gradient(70% 70% at 50% 50%, rgba(245,197,66,0.07), transparent 70%),
+      rgba(0,0,0,0.28);
+    border: 1px solid var(--glass-border);
+  }
+  .graph-svg { width: 100%; height: auto; display: block; transition: transform .25s cubic-bezier(.16,1,.3,1); transform-origin: center; }
+  .gnode { cursor: pointer; outline: none; }
+  .gnode circle { transition: opacity .16s ease; }
+  .gnode:hover circle, .gnode:focus-visible circle { opacity: 1; }
+  .gnode:hover > circle:first-child { opacity: .5; }
+  .gnode:focus-visible > circle:nth-child(2) { stroke: #fff; stroke-width: 2; }
+  .gnode-lbl  { fill: var(--text); font-size: 11.5px; font-weight: 700; }
+  .gnode-pct  { fill: var(--muted); font-size: 10px; font-family: var(--font-mono); }
+  .gnode-core { fill: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: 2px; }
+
+  .graph-summary {
+    background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015));
+    border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 16px;
+    box-shadow: var(--glass-highlight);
+  }
+  .gs-kicker { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent); font-weight: 700; }
+  .gs-head h3 { margin: 5px 0 9px; font-size: 17px; line-height: 1.3; }
+  .gs-rate { margin: 14px 0 12px; }
+  .gs-rate-num { font-family: var(--font-mono); font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+  .gs-rate-num i { font-style: normal; font-size: 16px; color: var(--muted); margin-left: 2px; }
+  .gs-rate-lbl { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .gs-wave { width: 100%; height: 28px; margin-top: 10px; display: block; }
+  .gs-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gs-tile {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+    border-radius: 12px; padding: 10px 11px;
+  }
+  .gs-tile .gs-ico { color: var(--accent); font-size: 12px; }
+  .gs-tile b { display: block; font-family: var(--font-mono); font-size: 15px; margin-top: 3px; letter-spacing: -.02em; }
+  .gs-tile i { font-style: normal; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+  .gs-note { margin-top: 12px; padding: 11px 12px; border-radius: 12px;
+    background: rgba(245,197,66,0.07); border: 1px solid rgba(245,197,66,0.22); }
+  .gs-note-k { font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px; color: var(--accent); text-transform: uppercase; }
+  .gs-note p { margin: 5px 0 0; font-size: 12px; line-height: 1.6; color: var(--text); }
+
+  .graph-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .lg-item {
+    display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); font-weight: 600;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+    padding: 6px 11px; border-radius: 999px;
+  }
+  .lg-item i { width: 9px; height: 9px; border-radius: 3px; }
+  .lg-item b { color: var(--text); font-family: var(--font-mono); font-size: 11.5px; }
+
+  /* AI ANALYSIS findings */
+  .ri-mark { color: var(--accent); font-weight: 800; }
+  .findings { display: grid; gap: 10px; }
+  .finding {
+    position: relative; padding: 14px 16px 14px 20px; border-radius: 14px;
+    background: rgba(255,255,255,0.035); border: 1px solid var(--glass-border);
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .finding:hover { background: rgba(255,255,255,0.06); transform: translateX(3px); }
+  .finding::before {
+    content: ''; position: absolute; left: 8px; top: 14px; bottom: 14px; width: 3px; border-radius: 2px;
+  }
+  .finding.f-critical::before { background: var(--bad); }
+  .finding.f-warn::before     { background: var(--warn); }
+  .finding.f-good::before     { background: var(--good); }
+  .finding.f-info::before     { background: var(--accent-2); }
+  .finding.f-critical { background: linear-gradient(100deg, rgba(255,92,122,0.10), rgba(255,255,255,0.02)); }
+  .finding.f-good     { background: linear-gradient(100deg, rgba(61,220,151,0.09), rgba(255,255,255,0.02)); }
+  .fd-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .fd-title { font-size: 14px; font-weight: 700; }
+  .fd-subject { font-size: 12px; color: var(--accent); font-weight: 700; font-family: var(--font-mono); }
+  .fd-subject i { font-style: normal; opacity: .7; }
+  .fd-body { margin: 7px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+  .fd-body strong { color: var(--text); }
+
+  @media (max-width: 1100px) { .graph-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 919px) {
+    .gnode-lbl { font-size: 13px; } .gnode-pct { font-size: 11px; }
+    .gs-rate-num { font-size: 28px; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -1736,6 +1829,39 @@
         </div>
         <div id="deptDonut" class="donut-wrap"></div>
       </div>
+    </div>
+
+    <div class="card graph-card">
+      <div class="chart-head">
+        <div>
+          <div class="section-title" style="margin:0;">AI Tools Usage Graph</div>
+          <p class="help" style="margin:6px 0 0;">Swangz Avenue → departments → the tools they use. Node size follows impact; click any node for its summary.</p>
+        </div>
+        <div class="graph-tools">
+          <button type="button" class="gt-btn" onclick="graphZoom(0.85)" aria-label="Zoom out">−</button>
+          <button type="button" class="gt-btn" onclick="graphZoom(1.18)" aria-label="Zoom in">+</button>
+          <button type="button" class="gt-btn" onclick="graphReset()" aria-label="Reset view">⟲</button>
+        </div>
+      </div>
+      <div class="graph-layout">
+        <div class="graph-stage" id="usageGraph"></div>
+        <aside class="graph-summary" id="graphSummary"></aside>
+      </div>
+      <div class="graph-legend" id="graphLegend"></div>
+    </div>
+
+    <div class="card ai-analysis-card">
+      <div class="chart-head">
+        <div>
+          <div class="section-title" style="margin:0;"><span class="ri-mark">AI</span> ANALYSIS</div>
+          <p class="help" style="margin:6px 0 0;">Generated automatically from the tracked data — read this before writing the human report.</p>
+        </div>
+        <div class="row-actions" style="margin:0;">
+          <button type="button" class="secondary" onclick="printAiReport()">Print / PDF</button>
+          <button type="button" class="secondary" onclick="copyAiReport()">Copy report</button>
+        </div>
+      </div>
+      <div id="aiFindings" class="findings"></div>
     </div>
 
     <div class="card">
@@ -5801,6 +5927,300 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener('DOMContentLoaded', applyRoleChrome);
   setInterval(applyRoleChrome, 1500);   // cheap catch-all for sign-in/out transitions
   applyRoleChrome();
+})();
+
+/* ============================================================
+   AI TOOLS USAGE GRAPH + SUMMARY + AI ANALYSIS
+   Built to design-system/swangz-ai-tracker/reporting-spec.md,
+   derived from the user's 632-frame reference. Three linked parts:
+     1. radial relationship graph  company → departments → tools
+     2. summary panel for whatever node is selected
+     3. AI ANALYSIS findings generated from the real data
+   ============================================================ */
+let graphScale = 1, graphSel = null;
+const STATUS_COLOR = { 'In use': '#3ddc97', 'Scaling': '#f5c542', 'Piloting': '#7c5cff', 'Requested': '#ff8a65' };
+
+function graphModel() {
+  const list = (typeof filteredEntries === 'function') ? filteredEntries() : [];
+  const depts = {};
+  list.forEach(e => {
+    const d = e.department || 'Unassigned';
+    if (!depts[d]) depts[d] = { name: d, tools: {}, net: 0, time: 0, rev: 0, count: 0 };
+    const m = monthlySavings(e);
+    const t = e.toolName || '—';
+    if (!depts[d].tools[t]) depts[d].tools[t] = { name: t, net: 0, time: 0, rev: 0, count: 0, status: e.status || '', url: e.officialUrl || '' };
+    depts[d].tools[t].net += m.netMonthlyCostSavedUSD;
+    depts[d].tools[t].time += m.timeSavedMonthly;
+    depts[d].tools[t].rev += Number(e.revenueAmount) || 0;
+    depts[d].tools[t].count++;
+    depts[d].net += m.netMonthlyCostSavedUSD; depts[d].time += m.timeSavedMonthly;
+    depts[d].rev += Number(e.revenueAmount) || 0; depts[d].count++;
+  });
+  return { list, depts: Object.values(depts).sort((a, b) => b.count - a.count) };
+}
+
+function renderUsageGraph() {
+  const host = document.getElementById('usageGraph');
+  if (!host) return;
+  const { list, depts } = graphModel();
+  if (!list.length) {
+    host.innerHTML = '<div class="empty-state" style="padding:50px 12px;"><h3>No data yet</h3><p>The usage graph maps departments to the tools they use. Add entries to see it.</p></div>';
+    const lg = document.getElementById('graphLegend'); if (lg) lg.innerHTML = '';
+    const gs = document.getElementById('graphSummary'); if (gs) gs.innerHTML = '';
+    return;
+  }
+  const W = 900, H = 620, cx = W / 2, cy = H / 2;
+  const R1 = 195;                                    // department ring
+  const maxDeptCount = Math.max(1, ...depts.map(d => d.count));
+  const totalTools = depts.reduce((s, d) => s + Object.keys(d.tools).length, 0);
+  let edges = '', deptNodes = '', toolNodes = '';
+
+  depts.forEach((d, i) => {
+    const a = (-Math.PI / 2) + (i / depts.length) * Math.PI * 2;
+    const dx = cx + Math.cos(a) * R1, dy = cy + Math.sin(a) * R1;
+    d._x = dx; d._y = dy;
+    const dr = 11 + (d.count / maxDeptCount) * 11;
+    const share = Math.round(d.count / list.length * 100);
+    // beam from centre — thickness by share
+    edges += `<path d="M${cx},${cy} Q${(cx+dx)/2 + Math.cos(a)*18},${(cy+dy)/2 + Math.sin(a)*18} ${dx},${dy}"
+       stroke="url(#beam)" stroke-width="${1 + share / 9}" fill="none" opacity=".55"/>`;
+    // satellites
+    const tools = Object.values(d.tools).sort((x, y) => y.net - x.net);
+    const spread = Math.min(Math.PI * 0.72, 0.26 * tools.length + 0.22);
+    tools.forEach((t, j) => {
+      const ta = a - spread / 2 + (tools.length === 1 ? spread / 2 : (j / (tools.length - 1)) * spread);
+      const tr = 74 + (j % 2) * 26;
+      const tx = dx + Math.cos(ta) * tr, ty = dy + Math.sin(ta) * tr;
+      const rad = 4.5 + Math.min(6, Math.abs(t.net) / 260);
+      const col = t.net < 0 ? '#ff5c7a' : (STATUS_COLOR[t.status] || '#7c5cff');
+      edges += `<line x1="${dx}" y1="${dy}" x2="${tx}" y2="${ty}" stroke="${col}" stroke-width="1" opacity=".3" stroke-dasharray="2 3"/>`;
+      toolNodes += `<g class="gnode" tabindex="0" role="button"
+          onclick="selectGraphNode('tool',${JSON.stringify(t.name).replace(/"/g,'&quot;')})"
+          onkeydown="if(event.key==='Enter')selectGraphNode('tool',${JSON.stringify(t.name).replace(/"/g,'&quot;')})">
+          <circle cx="${tx}" cy="${ty}" r="${rad + 5}" fill="${col}" opacity=".13"/>
+          <circle cx="${tx}" cy="${ty}" r="${rad}" fill="${col}"/>
+          <title>${escapeHTML(t.name)} — ${escapeHTML(d.name)} · ${fmtUSD(t.net)}/mo</title>
+        </g>`;
+    });
+    deptNodes += `<g class="gnode" tabindex="0" role="button"
+        onclick="selectGraphNode('dept',${JSON.stringify(d.name).replace(/"/g,'&quot;')})"
+        onkeydown="if(event.key==='Enter')selectGraphNode('dept',${JSON.stringify(d.name).replace(/"/g,'&quot;')})">
+        <circle cx="${dx}" cy="${dy}" r="${dr + 9}" fill="url(#deptGlow)" opacity=".5"/>
+        <circle cx="${dx}" cy="${dy}" r="${dr}" fill="url(#deptFill)" stroke="rgba(255,255,255,.32)" stroke-width="1"/>
+        <text x="${dx + (Math.cos(a) >= 0 ? dr + 9 : -(dr + 9))}" y="${dy - 1}"
+          text-anchor="${Math.cos(a) >= 0 ? 'start' : 'end'}" class="gnode-lbl">${escapeHTML(d.name)}</text>
+        <text x="${dx + (Math.cos(a) >= 0 ? dr + 9 : -(dr + 9))}" y="${dy + 12}"
+          text-anchor="${Math.cos(a) >= 0 ? 'start' : 'end'}" class="gnode-pct">${share}% · ${Object.keys(d.tools).length} tools</text>
+        <title>${escapeHTML(d.name)} — ${d.count} record(s), ${fmtUSD(d.net)}/mo</title>
+      </g>`;
+  });
+
+  host.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" class="graph-svg" style="transform:scale(${graphScale})" role="img"
+        aria-label="Usage graph: ${depts.length} departments, ${totalTools} tools">
+      <defs>
+        <radialGradient id="core"><stop offset="0%" stop-color="#fff3cf"/><stop offset="55%" stop-color="#ffd45e"/><stop offset="100%" stop-color="#c98f14"/></radialGradient>
+        <radialGradient id="deptFill"><stop offset="0%" stop-color="#ffe9ad"/><stop offset="100%" stop-color="#e0a91f"/></radialGradient>
+        <radialGradient id="deptGlow"><stop offset="0%" stop-color="#f5c542" stop-opacity=".9"/><stop offset="100%" stop-color="#f5c542" stop-opacity="0"/></radialGradient>
+        <linearGradient id="beam"><stop offset="0%" stop-color="#f5c542" stop-opacity=".85"/><stop offset="100%" stop-color="#f5c542" stop-opacity=".18"/></linearGradient>
+      </defs>
+      ${edges}${toolNodes}${deptNodes}
+      <circle cx="${cx}" cy="${cy}" r="46" fill="url(#deptGlow)" opacity=".33"/>
+      <g class="gnode" tabindex="0" role="button" onclick="selectGraphNode('company','')" onkeydown="if(event.key==='Enter')selectGraphNode('company','')">
+        <circle cx="${cx}" cy="${cy}" r="26" fill="url(#core)" stroke="rgba(255,255,255,.45)" stroke-width="1.5"/>
+        <text x="${cx}" y="${cy + 46}" text-anchor="middle" class="gnode-core">SWANGZ AVENUE</text>
+      </g>
+    </svg>`;
+
+  const legend = document.getElementById('graphLegend');
+  if (legend) {
+    const counts = {};
+    list.forEach(e => { const s = e.status || 'Unspecified'; counts[s] = (counts[s] || 0) + 1; });
+    legend.innerHTML =
+      `<div class="lg-item"><i style="background:linear-gradient(135deg,#ffe9ad,#e0a91f)"></i>Departments<b>${depts.length}</b></div>
+       <div class="lg-item"><i style="background:#7c5cff"></i>Tools<b>${totalTools}</b></div>` +
+      Object.entries(counts).map(([s, n]) =>
+        `<div class="lg-item"><i style="background:${STATUS_COLOR[s] || '#8493b4'}"></i>${escapeHTML(s)}<b>${n}</b></div>`).join('') +
+      `<div class="lg-item"><i style="background:#ff5c7a"></i>Negative ROI<b>${list.filter(e => monthlySavings(e).netMonthlyCostSavedUSD < 0).length}</b></div>`;
+  }
+  selectGraphNode(graphSel ? graphSel.type : 'company', graphSel ? graphSel.key : '');
+}
+
+function selectGraphNode(type, key) {
+  graphSel = { type, key };
+  const host = document.getElementById('graphSummary');
+  if (!host) return;
+  const { list, depts } = graphModel();
+  if (!list.length) { host.innerHTML = ''; return; }
+
+  let title, sub, statusPill, stats, rate, rateLabel, note;
+  if (type === 'dept') {
+    const d = depts.find(x => x.name === key) || depts[0];
+    if (!d) return;
+    const toolCount = Object.keys(d.tools).length;
+    title = d.name; sub = 'Department';
+    const share = Math.round(d.count / list.length * 100);
+    rate = share; rateLabel = 'share of all tracked tools';
+    statusPill = share >= 15 ? ['good', 'High adoption'] : share >= 7 ? ['warn', 'Growing'] : ['muted', 'Early'];
+    stats = [['◆', toolCount, 'Tools'], ['◷', fmtDuration(d.time), 'Saved / mo'], ['⤢', fmtUSD(d.net), 'Net / mo'], ['↗', fmtUSD(d.rev), 'Revenue']];
+    const top = Object.values(d.tools).sort((a, b) => b.net - a.net)[0];
+    note = top ? `Biggest contributor is <strong>${escapeHTML(top.name)}</strong> at ${fmtUSD(top.net)} net per month.` : '';
+  } else if (type === 'tool') {
+    const agg = { net: 0, time: 0, rev: 0, count: 0, depts: new Set(), status: '' };
+    list.forEach(e => {
+      if ((e.toolName || '') !== key) return;
+      const m = monthlySavings(e);
+      agg.net += m.netMonthlyCostSavedUSD; agg.time += m.timeSavedMonthly;
+      agg.rev += Number(e.revenueAmount) || 0; agg.count++;
+      if (e.department) agg.depts.add(e.department);
+      agg.status = e.status || agg.status;
+    });
+    title = key; sub = 'AI tool · ' + (agg.status || 'status not set');
+    rate = Math.round(agg.depts.size / Math.max(1, depts.length) * 100);
+    rateLabel = 'of departments use it';
+    statusPill = agg.net < 0 ? ['bad', 'Costs more than it saves'] : agg.depts.size > 2 ? ['good', 'Widely adopted'] : ['warn', 'Limited use'];
+    stats = [['◆', agg.count, 'Reports'], ['◷', fmtDuration(agg.time), 'Saved / mo'], ['⤢', fmtUSD(agg.net), 'Net / mo'], ['⌂', agg.depts.size, 'Departments']];
+    note = agg.depts.size > 2
+      ? `Used by ${agg.depts.size} departments — a candidate for a single company-wide licence.`
+      : `Currently limited to ${[...agg.depts].map(escapeHTML).join(', ') || 'no department'}.`;
+  } else {
+    let time = 0, net = 0, rev = 0;
+    list.forEach(e => { const m = monthlySavings(e); time += m.timeSavedMonthly; net += m.netMonthlyCostSavedUSD; rev += Number(e.revenueAmount) || 0; });
+    title = 'Swangz Avenue'; sub = 'Company-wide';
+    rate = Math.round(depts.length / 12 * 100); rateLabel = 'of departments reporting';
+    statusPill = net >= 0 ? ['good', 'Net positive'] : ['bad', 'Net negative'];
+    stats = [['◆', list.length, 'Tool records'], ['◷', fmtDuration(time), 'Saved / mo'], ['⤢', fmtUSD(net), 'Net / mo'], ['↗', fmtUSD(rev), 'Revenue']];
+    note = `${depts.length} of 12 departments have reported AI tool usage.`;
+  }
+
+  // usage waveform (deterministic bars from the rate)
+  const bars = Array.from({ length: 30 }, (_, i) => {
+    const h = 4 + ((Math.sin(i * 0.7) + 1) / 2) * (rate / 100) * 22 + (i % 3);
+    return `<rect x="${i * 6}" y="${28 - h}" width="3" height="${h}" rx="1.5" fill="${rate >= 50 ? '#3ddc97' : '#f5c542'}" opacity="${0.35 + (i / 30) * 0.65}"/>`;
+  }).join('');
+
+  host.innerHTML =
+    `<div class="gs-head">
+       <div class="gs-kicker">${escapeHTML(sub)}</div>
+       <h3>${escapeHTML(String(title))}</h3>
+       <span class="verdict-pill verdict-${statusPill[0]}">${statusPill[1]}</span>
+     </div>
+     <div class="gs-rate">
+       <div class="gs-rate-num">${rate}<i>%</i></div>
+       <div class="gs-rate-lbl">${rateLabel}</div>
+       <svg viewBox="0 0 180 28" class="gs-wave" aria-hidden="true">${bars}</svg>
+     </div>
+     <div class="gs-tiles">
+       ${stats.map(s => `<div class="gs-tile"><span class="gs-ico">${s[0]}</span><b>${escapeHTML(String(s[1]))}</b><i>${s[2]}</i></div>`).join('')}
+     </div>
+     ${note ? `<div class="gs-note"><span class="gs-note-k">AI note</span><p>${note}</p></div>` : ''}`;
+}
+function graphZoom(f) {
+  graphScale = Math.min(2.2, Math.max(0.6, graphScale * f));
+  const svg = document.querySelector('#usageGraph .graph-svg');
+  if (svg) svg.style.transform = 'scale(' + graphScale + ')';
+}
+function graphReset() { graphScale = 1; graphSel = null; renderUsageGraph(); }
+
+/* ---- AI ANALYSIS: findings generated from the real data ---- */
+function buildFindings() {
+  const { list, depts } = graphModel();
+  const out = [];
+  if (!list.length) return out;
+
+  // 1. Negative-ROI tools
+  const byTool = {};
+  list.forEach(e => {
+    const t = e.toolName || '—'; const m = monthlySavings(e);
+    if (!byTool[t]) byTool[t] = { net: 0, depts: new Set(), count: 0, rev: 0, time: 0 };
+    byTool[t].net += m.netMonthlyCostSavedUSD; byTool[t].time += m.timeSavedMonthly;
+    byTool[t].rev += Number(e.revenueAmount) || 0; byTool[t].count++;
+    if (e.department) byTool[t].depts.add(e.department);
+  });
+  const losers = Object.entries(byTool).filter(([, v]) => v.net < 0).sort((a, b) => a[1].net - b[1].net);
+  if (losers.length) out.push({ sev: 'critical', title: 'Costing more than they save', subject: losers[0][0],
+    body: `${losers.length} tool${losers.length > 1 ? 's are' : ' is'} running at a net loss — ${losers.map(l => escapeHTML(l[0]) + ' (' + fmtUSD(l[1].net) + '/mo)').slice(0,3).join(', ')}. Review the subscription tier or retire ${losers.length > 1 ? 'them' : 'it'} unless the revenue impact justifies the spend.` });
+
+  // 2. Consolidation opportunity
+  const shared = Object.entries(byTool).filter(([, v]) => v.depts.size >= 3).sort((a, b) => b[1].depts.size - a[1].depts.size);
+  if (shared.length) out.push({ sev: 'info', title: 'Consolidation opportunity', subject: shared[0][0],
+    body: `${escapeHTML(shared[0][0])} is paid for separately across ${shared[0][1].depts.size} departments (${[...shared[0][1].depts].map(escapeHTML).join(', ')}). A single company-wide licence would likely cut duplicate spend.` });
+
+  // 3. Top performer — skip whatever the consolidation finding already covered,
+  //    so the report surfaces two distinct tools rather than repeating one.
+  const consolidated = shared.length ? shared[0][0] : null;
+  const ranked = Object.entries(byTool).sort((a, b) => b[1].net - a[1].net);
+  const best = ranked.find(([n]) => n !== consolidated) || ranked[0];
+  if (best && best[1].net > 0) out.push({ sev: 'good', title: 'Scale this tool', subject: best[0],
+    body: `${escapeHTML(best[0])} delivers the strongest return at ${fmtUSD(best[1].net)} net per month and ${fmtDuration(best[1].time)} saved. Consider making it standard where the work is comparable.` });
+
+  // 4. Adoption gaps
+  const ALL_DEPTS = ['Production','Content','Digital','Finance','Strategy','HR','Record Label','Creative Tech and Innovations','Events','Academy','Sales','Marketing'];
+  const missing = ALL_DEPTS.filter(d => !depts.find(x => x.name === d));
+  if (missing.length) out.push({ sev: 'warn', title: 'Departments not yet reporting', subject: missing.length + ' departments',
+    body: `No AI tool records from ${missing.map(escapeHTML).join(', ')}. The company-wide figures understate reality until these report.` });
+
+  // 5. Pending requests
+  const pending = list.filter(e => e.tag === 'request' && (e.requestStatus === 'new' || !e.requestStatus));
+  if (pending.length) out.push({ sev: 'warn', title: 'Requests awaiting a decision', subject: pending.length + ' pending',
+    body: `${pending.length} tool request${pending.length > 1 ? 's are' : ' is'} sitting in the inbox — ${pending.slice(0,3).map(e => escapeHTML(e.toolName || '?') + ' (' + escapeHTML(e.department || '—') + ')').join(', ')}. Each is a department waiting on a decision.` });
+
+  // 6. Revenue drivers
+  const revTools = Object.entries(byTool).filter(([, v]) => v.rev > 0).sort((a, b) => b[1].rev - a[1].rev);
+  if (revTools.length) out.push({ sev: 'good', title: 'Revenue-linked tools', subject: fmtUSD(revTools.reduce((s, r) => s + r[1].rev, 0)),
+    body: `${revTools.length} tool${revTools.length > 1 ? 's are' : ' is'} tied to revenue that was enabled or protected, led by ${escapeHTML(revTools[0][0])} at ${fmtUSD(revTools[0][1].rev)}. These are the strongest items for the leadership case.` });
+
+  // 7. Stale records
+  const now = Date.now(), stale = list.filter(e => { const t = new Date(e.updatedAt || e.submittedAt || 0).getTime(); return t && (now - t) > 1000 * 60 * 60 * 24 * 60; });
+  if (stale.length) out.push({ sev: 'info', title: 'Records going stale', subject: stale.length + ' entries',
+    body: `${stale.length} record${stale.length > 1 ? 's have' : ' has'} not been updated in over 60 days. Costs and usage drift — ask the owners to confirm they are still accurate.` });
+
+  return out;
+}
+function renderAiFindings() {
+  const host = document.getElementById('aiFindings');
+  if (!host) return;
+  const f = buildFindings();
+  if (!f.length) {
+    host.innerHTML = '<div class="empty-state" style="padding:26px 12px;"><h3>Nothing to report yet</h3><p>Findings are generated once tools are recorded.</p></div>';
+    return;
+  }
+  host.innerHTML = f.map(x =>
+    `<div class="finding f-${x.sev}">
+       <div class="fd-head">
+         <span class="fd-title">${escapeHTML(x.title)}</span>
+         <span class="fd-subject">${escapeHTML(String(x.subject))} <i>↗</i></span>
+       </div>
+       <p class="fd-body">${x.body}</p>
+     </div>`).join('');
+}
+function aiReportText() {
+  const f = buildFindings();
+  const strip = t => String(t).replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+  return 'SWANGZ AVENUE — AI TRACKER · AUTOMATED ANALYSIS\n' +
+    new Date().toLocaleString() + '\n\n' +
+    f.map((x, i) => `${i + 1}. [${x.sev.toUpperCase()}] ${x.title} — ${strip(x.subject)}\n   ${strip(x.body)}`).join('\n\n');
+}
+function copyAiReport() {
+  const t = aiReportText();
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast('Report copied to clipboard'), () => toast('Copy failed', true));
+  else toast('Clipboard unavailable', true);
+}
+function printAiReport() {
+  const w = window.open('', '_blank');
+  if (!w) { toast('Allow pop-ups to print the report', true); return; }
+  w.document.write('<pre style="font:13px/1.6 ui-monospace,monospace; padding:28px; white-space:pre-wrap;">' +
+    escapeHTML(aiReportText()) + '</pre>');
+  w.document.close(); w.focus(); w.print();
+}
+(function () {
+  if (typeof renderAdmin !== 'function') return;
+  const original = window.renderAdmin;
+  window.renderAdmin = function () {
+    const out = original.apply(this, arguments);
+    try { renderUsageGraph(); renderAiFindings(); } catch (err) { console.warn('usage graph skipped:', err); }
+    return out;
+  };
 })();
 
 /* ============================================================
