@@ -35,13 +35,23 @@
     /* Redesign tokens */
     --accent-strong: #ffd45e;
     --accent-glow: rgba(245,197,66,0.32);
-    /* Glass recipe matched to educore.site.ug (user's own reference build):
-       lighter fill, brighter 0.14 border, deep 24/60 shadow + inset hairline. */
-    --glass-bg: rgba(255,255,255,0.06);
-    --glass-bg-2: rgba(255,255,255,0.075);
-    --glass-border: rgba(255,255,255,0.14);
-    --glass-highlight: inset 0 0 0 1px rgba(255,255,255,0.04);
-    --blur: 15px;
+    /* iOS-style glass: light fill, heavy blur, strong saturation boost and a
+       bright hairline edge — the frosted look of Control Centre / iOS sheets.
+       All six accent hues below verified ≥4.5:1 on both the page and glass. */
+    --glass-bg: rgba(255,255,255,0.055);
+    --glass-bg-2: rgba(255,255,255,0.085);
+    --glass-border: rgba(255,255,255,0.18);
+    --glass-highlight: inset 0 1px 0 rgba(255,255,255,0.14);
+    --blur: 30px;
+    --sat: 180%;
+
+    /* Accent spectrum — gold is now one voice among several, not the whole palette */
+    --c-amber:   #f5c542;
+    --c-violet:  #a78bfa;
+    --c-cyan:    #22d3ee;
+    --c-emerald: #34d399;
+    --c-rose:    #fb7185;
+    --c-sky:     #60a5fa;
     --radius-sm: 8px;
     --radius-lg: 18px;
     --radius-xl: 24px;
@@ -1397,8 +1407,20 @@
   }
 
   /* ---- Admin section tabs in the sidebar ---- */
-  .admin-nav { display: none; flex-direction: column; gap: 3px; }
+  /* Fix: with 11 sections the rail overflowed and stretched. The nav is now a
+     flex child that scrolls internally, and labels are clamped to one line. */
+  .admin-nav { display: none; flex-direction: column; gap: 3px; min-height: 0; }
   body[data-section="admin"] .admin-nav { display: flex; }
+  @media (min-width: 920px) {
+    header { overflow: hidden; }                 /* the nav scrolls, not the rail */
+    body[data-section="admin"] .admin-nav {
+      flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+      padding-right: 4px; margin-right: -4px;
+    }
+    .admin-nav button {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+  }
   .admin-nav::before {
     content: 'Sections'; font-size: 9.5px; font-weight: 800; letter-spacing: 1.4px;
     text-transform: uppercase; color: var(--muted-2); padding: 0 12px 7px;
@@ -1421,6 +1443,70 @@
     .admin-nav button { flex: 0 0 auto; white-space: nowrap; border: 1px solid var(--glass-border); border-radius: 999px; }
     body[data-section="admin"] header { flex-wrap: wrap; }
   }
+
+  /* ============================================================
+     PREMIUM GLASS + MULTI-HUE COLOUR SYSTEM
+     Gold stays the brand voice for primary actions; everything
+     else is colour-coded by meaning so the UI reads richer.
+     ============================================================ */
+  .card, .hero, header, .accordion, .graph-summary, .qs, .gs-tile,
+  .bot-panel, .tour-pop, .profile-menu, .preview-bar, .view-toggle {
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat));
+    backdrop-filter: blur(var(--blur)) saturate(var(--sat));
+  }
+  /* Frosted surfaces: lighter, more translucent, brighter edge */
+  .card, .accordion, .kpi, .tool-item, .profile-badge, .graph-summary, .qs {
+    background-color: var(--glass-bg);
+    background-image: linear-gradient(155deg, rgba(255,255,255,0.09), rgba(255,255,255,0.015));
+    border-color: var(--glass-border);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45), var(--glass-highlight);
+  }
+  .app-shell { background: rgba(8,11,20,0.26) !important; }
+
+  /* --- KPI cards: one hue each --- */
+  .kpis .kpi:nth-child(1)::before { background: linear-gradient(var(--c-cyan), var(--c-sky)); }
+  .kpis .kpi:nth-child(2)::before { background: linear-gradient(var(--c-violet), #7c5cff); }
+  .kpis .kpi:nth-child(3)::before { background: linear-gradient(var(--c-emerald), #10b981); }
+  .kpis .kpi:nth-child(4)::before { background: linear-gradient(var(--c-amber), #e0a91f); }
+  .kpis .kpi:nth-child(1) .val { color: var(--c-cyan); }
+  .kpis .kpi:nth-child(2) .val { color: var(--c-violet); }
+  .kpis .kpi:nth-child(3) .val { color: var(--c-emerald); }
+  .kpis .kpi:nth-child(4) .val { color: var(--c-amber); }
+  .kpis .kpi:nth-child(1):hover { border-color: rgba(34,211,238,0.45); box-shadow: 0 26px 64px rgba(0,0,0,.5), 0 0 0 1px rgba(34,211,238,.25); }
+  .kpis .kpi:nth-child(2):hover { border-color: rgba(167,139,250,0.45); box-shadow: 0 26px 64px rgba(0,0,0,.5), 0 0 0 1px rgba(167,139,250,.25); }
+  .kpis .kpi:nth-child(3):hover { border-color: rgba(52,211,153,0.45); box-shadow: 0 26px 64px rgba(0,0,0,.5), 0 0 0 1px rgba(52,211,153,.25); }
+  .kpis .kpi:nth-child(4):hover { border-color: rgba(245,197,66,0.45); }
+
+  /* --- Quick-stat pills: cycle hues --- */
+  .quick-stats .qs:nth-child(1) .qs-ico { background: rgba(34,211,238,0.14);  color: var(--c-cyan);    border-color: rgba(34,211,238,0.3); }
+  .quick-stats .qs:nth-child(2) .qs-ico { background: rgba(167,139,250,0.14); color: var(--c-violet);  border-color: rgba(167,139,250,0.3); }
+  .quick-stats .qs:nth-child(3) .qs-ico { background: rgba(52,211,153,0.14);  color: var(--c-emerald); border-color: rgba(52,211,153,0.3); }
+  .quick-stats .qs:nth-child(4) .qs-ico { background: rgba(245,197,66,0.14);  color: var(--c-amber);   border-color: rgba(245,197,66,0.3); }
+
+  /* --- Section title markers cycle through the spectrum --- */
+  .card:nth-of-type(3n+1) .section-title::before { background: linear-gradient(var(--c-cyan), var(--c-sky)); }
+  .card:nth-of-type(3n+2) .section-title::before { background: linear-gradient(var(--c-violet), #7c5cff); }
+  .card:nth-of-type(3n+3) .section-title::before { background: linear-gradient(var(--c-amber), var(--c-rose)); }
+
+  /* --- Sidebar section tabs: a hue per item, gold reserved for the active one --- */
+  .admin-nav button:nth-child(6n+1):hover { color: var(--c-cyan); }
+  .admin-nav button:nth-child(6n+2):hover { color: var(--c-violet); }
+  .admin-nav button:nth-child(6n+3):hover { color: var(--c-emerald); }
+  .admin-nav button:nth-child(6n+4):hover { color: var(--c-sky); }
+  .admin-nav button:nth-child(6n+5):hover { color: var(--c-rose); }
+  .admin-nav button:nth-child(6n+6):hover { color: var(--c-amber); }
+
+  /* --- Pills recoloured across the spectrum --- */
+  .pill.dept { background: linear-gradient(135deg, rgba(167,139,250,0.26), rgba(167,139,250,0.08));
+               color: var(--c-violet); border-color: rgba(167,139,250,0.38); }
+  .pill.cat  { background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(34,211,238,0.06));
+               color: var(--c-cyan); border-color: rgba(34,211,238,0.34); }
+  .pill.good { background: linear-gradient(135deg, rgba(52,211,153,0.26), rgba(52,211,153,0.07));
+               color: var(--c-emerald); border-color: rgba(52,211,153,0.36); }
+
+  /* Donut/graph legends inherit the same spectrum via JS palette */
+  .verdict-good  { background: rgba(52,211,153,0.18);  color: var(--c-emerald); border-color: rgba(52,211,153,0.4); }
+  .verdict-bad   { background: rgba(251,113,133,0.18); color: var(--c-rose);    border-color: rgba(251,113,133,0.4); }
 
   /* Staging preview toolbar */
   .preview-bar {
@@ -5754,7 +5840,10 @@ function canSeeAdmin() { const r = currentRole(); return r === 'super' || r === 
    Every chart also prints its numbers as text (accessibility:
    never rely on colour/position alone).
    ============================================================ */
-const CHART_GOLD = '#f5c542', CHART_VIOLET = '#7c5cff', CHART_GREEN = '#3ddc97';
+/* Chart spectrum — matches the CSS accent tokens (all ≥4.5:1 on our surfaces) */
+const CHART_GOLD = '#f5c542', CHART_VIOLET = '#a78bfa', CHART_GREEN = '#34d399';
+const CHART_CYAN = '#22d3ee', CHART_ROSE = '#fb7185', CHART_SKY = '#60a5fa';
+const CHART_SET = [CHART_CYAN, CHART_VIOLET, CHART_GREEN, CHART_GOLD, CHART_ROSE, CHART_SKY];
 
 function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 function monthLabel(key) {
@@ -5846,7 +5935,7 @@ function renderDeptDonut(list) {
   const rows = Object.entries(agg).sort((a, b) => b[1] - a[1]);
   if (!rows.length) { host.innerHTML = '<div class="empty-state" style="padding:34px 12px;"><h3>No departments yet</h3></div>'; return; }
   const total = rows.reduce((s, r) => s + r[1], 0);
-  const palette = [CHART_GOLD, CHART_VIOLET, CHART_GREEN, '#ff8a65', '#5cc8ff', '#ff5c7a', '#c7bcff', '#ffd45e'];
+  const palette = CHART_SET.concat(['#c4b5fd', '#fbbf24']);
   const R = 52, C = 2 * Math.PI * R;
   let offset = 0;
   const ring = rows.map((r, i) => {
