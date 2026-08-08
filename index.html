@@ -1071,6 +1071,100 @@
     .view-toggle { position: static; left: auto; right: auto; bottom: auto; box-shadow: none; }
     main { padding-bottom: 28px; }
   }
+
+  /* ============================================================
+     GUIDED TOUR (one-time, per department)
+     ============================================================ */
+  .tour-mask { position: fixed; inset: 0; z-index: 90; pointer-events: auto; display: none; }
+  .tour-mask.open { display: block; animation: fade-in .2s ease both; }
+  .tour-hole {
+    position: absolute; border-radius: 14px; pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(4,7,14,0.76), 0 0 0 2px var(--accent), 0 0 34px var(--accent-glow);
+    transition: all .32s cubic-bezier(.16,1,.3,1);
+  }
+  .tour-pop {
+    position: absolute; width: min(340px, calc(100vw - 32px)); z-index: 91;
+    background: var(--glass-bg-2);
+    backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), var(--glass-highlight); padding: 18px;
+    transition: top .32s cubic-bezier(.16,1,.3,1), left .32s cubic-bezier(.16,1,.3,1);
+  }
+  .tour-pop h3 { margin: 0 0 6px; font-size: 16px; }
+  .tour-pop p  { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .tour-foot { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+  .tour-dots { display: flex; gap: 5px; flex: 1; }
+  .tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border-2); transition: all .2s; }
+  .tour-dots i.on { background: var(--accent); width: 18px; border-radius: 999px; }
+  .tour-foot button { padding: 8px 14px; font-size: 12.5px; border-radius: 9px; }
+  .tour-skip { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12.5px; font-weight: 600; }
+  .tour-skip:hover { color: var(--text); }
+
+  /* ============================================================
+     AI HELP ASSISTANT
+     ============================================================ */
+  .bot-fab {
+    position: fixed; right: 22px; bottom: 22px; z-index: 70;
+    width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22);
+    background: linear-gradient(135deg, #ffe08a, var(--accent-strong) 50%, #e0a91f);
+    color: #141200; font-size: 22px; cursor: pointer; display: grid; place-items: center;
+    box-shadow: 0 10px 30px var(--accent-glow), var(--glass-highlight);
+    transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s;
+  }
+  .bot-fab:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 16px 40px var(--accent-glow); }
+  .bot-fab:active { transform: scale(.95); }
+  .bot-panel {
+    position: fixed; right: 22px; bottom: 90px; z-index: 71;
+    width: min(390px, calc(100vw - 32px)); height: min(560px, calc(100vh - 140px));
+    display: none; flex-direction: column; overflow: hidden;
+    background: var(--glass-bg-2);
+    backdrop-filter: blur(22px) saturate(150%); -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), var(--glass-highlight);
+  }
+  .bot-panel.open { display: flex; animation: rise-in .3s cubic-bezier(.16,1,.3,1) both; }
+  .bot-head {
+    display: flex; align-items: center; gap: 11px; padding: 14px 16px;
+    border-bottom: 1px solid var(--glass-border);
+    background: linear-gradient(135deg, rgba(245,197,66,0.10), transparent);
+  }
+  .bot-avatar {
+    width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto;
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent-2)); color: #141200; font-weight: 800; font-size: 14px;
+  }
+  .bot-head .bh-name { font-weight: 700; font-size: 14px; }
+  .bot-head .bh-sub  { font-size: 11px; color: var(--muted); }
+  .bot-head .bh-sub b { color: var(--accent); font-weight: 700; }
+  .bot-close { margin-left: auto; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+    color: var(--text); width: 30px; height: 30px; border-radius: 9px; cursor: pointer; font-size: 16px; line-height: 1; }
+  .bot-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .bot-msg { max-width: 86%; padding: 11px 14px; border-radius: 14px; font-size: 13px; line-height: 1.6; animation: rise-in .28s cubic-bezier(.16,1,.3,1) both; }
+  .bot-msg.bot { align-self: flex-start; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); border-bottom-left-radius: 5px; }
+  .bot-msg.me  { align-self: flex-end; background: linear-gradient(135deg, rgba(245,197,66,0.92), rgba(224,169,31,0.92)); color: #141200; font-weight: 600; border-bottom-right-radius: 5px; }
+  .bot-msg strong { color: var(--accent); }
+  .bot-msg.me strong { color: #141200; }
+  .bot-msg ul { margin: 8px 0 0; padding-left: 18px; }
+  .bot-msg li { margin: 4px 0; }
+  .bot-chips { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 16px 12px; }
+  .bot-chips button {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--muted);
+    padding: 7px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .bot-chips button:hover { color: var(--text); border-color: rgba(245,197,66,0.45); background: rgba(245,197,66,0.08); }
+  .bot-input { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--glass-border); }
+  .bot-input input { flex: 1; }
+  .bot-input button {
+    flex: 0 0 auto; width: 42px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent)); color: #141200; font-size: 15px; font-weight: 800;
+  }
+  @media (max-width: 919px) {
+    .bot-fab { right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); width: 52px; height: 52px; }
+    .bot-panel { right: 12px; left: 12px; width: auto; bottom: calc(146px + env(safe-area-inset-bottom)); height: min(60vh, 460px); }
+  }
+  /* Assistant and tour belong to the signed-in app, not the sign-in screen */
+  body[data-shell="auth"] .bot-fab,
+  body[data-shell="auth"] .bot-panel,
+  body[data-shell="auth"] .tour-mask { display: none !important; }
 </style>
 </head>
 <body>
@@ -5159,6 +5253,37 @@ function boot() {
 }
 boot();
 </script>
+<!-- Guided tour overlay -->
+<div class="tour-mask" id="tourMask" aria-hidden="true">
+  <div class="tour-hole" id="tourHole"></div>
+  <div class="tour-pop" id="tourPop" role="dialog" aria-label="Guided tour"></div>
+</div>
+
+<!-- AI help assistant -->
+<button class="bot-fab" id="botFab" onclick="botToggle()" title="Ask the AI Tracker assistant" aria-label="Open help assistant">✦</button>
+<div class="bot-panel" id="botPanel" role="dialog" aria-label="AI Tracker assistant">
+  <div class="bot-head">
+    <div class="bot-avatar">✦</div>
+    <div>
+      <div class="bh-name">AI Tracker Assistant</div>
+      <div class="bh-sub">Scoped to <b id="botDeptLabel">your department</b></div>
+    </div>
+    <button class="bot-close" onclick="botToggle(false)" aria-label="Close assistant">×</button>
+  </div>
+  <div class="bot-body" id="botBody"></div>
+  <div class="bot-chips">
+    <button type="button" onclick="botSend('How do I add a tool?')">Add a tool</button>
+    <button type="button" onclick="botSend('How are savings calculated?')">How savings work</button>
+    <button type="button" onclick="botSend('Show my department stats')">My numbers</button>
+    <button type="button" onclick="botSend('Show me around')">Take the tour</button>
+  </div>
+  <div class="bot-input">
+    <input id="botInput" type="text" placeholder="Ask about the tracker…" autocomplete="off"
+      onkeydown="if(event.key==='Enter'){event.preventDefault(); botSend();}" />
+    <button type="button" onclick="botSend()" aria-label="Send">➤</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    REDESIGN — greeting hero sync (fully additive).
@@ -5537,6 +5662,223 @@ document.addEventListener('DOMContentLoaded', function () {
   setInterval(applyRoleChrome, 1500);   // cheap catch-all for sign-in/out transitions
   applyRoleChrome();
 })();
+
+/* ============================================================
+   GUIDED TOUR — one-time, department-aware.
+   Shown once per department per browser; never repeats after it
+   is completed or skipped. Purely additive.
+   ============================================================ */
+const TOUR_KEY = 'swangz_tour_done_v1';
+function tourDoneFor(dept) {
+  try { return (JSON.parse(localStorage.getItem(TOUR_KEY)) || []).includes(dept); }
+  catch (_) { return false; }
+}
+function markTourDone(dept) {
+  let done = [];
+  try { done = JSON.parse(localStorage.getItem(TOUR_KEY)) || []; } catch (_) {}
+  if (!done.includes(dept)) done.push(dept);
+  localStorage.setItem(TOUR_KEY, JSON.stringify(done));
+}
+function tourSteps(dept) {
+  const d = dept || 'your department';
+  const steps = [
+    { sel: '.greet-hero', title: 'Welcome to the AI Tracker',
+      body: 'This is the home of <strong>' + escapeHTML(d) + '</strong>. Everything you record here builds the business case leadership sees for AI at Swangz Avenue.' },
+    { sel: '.profile-badge', title: 'This is you',
+      body: 'Your name, role and department. Entries you add are attributed to <strong>' + escapeHTML(d) + '</strong> — use “Change profile” if anything is wrong.' },
+    { sel: '.tools-head', title: 'Add the tools you use',
+      body: 'Record any AI tool you use or want. You can file a full report, or a quick request for a tool you would like the company to get.' },
+    { sel: '#toolsList', title: 'Your tools live here',
+      body: 'Each tool you add appears in this list. Click one to fill in time saved, costs and revenue impact — that is what turns into savings figures.' },
+    { sel: '.view-toggle', title: 'Getting around',
+      body: 'Switch between your department view and — if you are an admin — the dashboard with company-wide analytics.' },
+  ];
+  return steps.filter(s => document.querySelector(s.sel));
+}
+let tourIdx = 0, tourList = [], tourDept = '';
+function startTour(dept, force) {
+  tourDept = dept || (typeof profile !== 'undefined' && profile.department) || '';
+  if (!force && tourDoneFor(tourDept)) return;
+  tourList = tourSteps(tourDept);
+  if (!tourList.length) return;
+  tourIdx = 0;
+  document.getElementById('tourMask').classList.add('open');
+  paintTourStep();
+  window.addEventListener('resize', paintTourStep);
+}
+function paintTourStep() {
+  const mask = document.getElementById('tourMask');
+  if (!mask.classList.contains('open')) return;
+  const step = tourList[tourIdx];
+  const el = document.querySelector(step.sel);
+  if (!el) return nextTourStep();
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(function () {
+    const r = el.getBoundingClientRect(), pad = 8;
+    const hole = document.getElementById('tourHole');
+    hole.style.top = (r.top - pad) + 'px'; hole.style.left = (r.left - pad) + 'px';
+    hole.style.width = (r.width + pad * 2) + 'px'; hole.style.height = (r.height + pad * 2) + 'px';
+
+    const pop = document.getElementById('tourPop');
+    pop.innerHTML =
+      '<h3>' + step.title + '</h3><p>' + step.body + '</p>' +
+      '<div class="tour-foot">' +
+        '<div class="tour-dots">' + tourList.map((_, i) => '<i class="' + (i === tourIdx ? 'on' : '') + '"></i>').join('') + '</div>' +
+        (tourIdx > 0 ? '<button type="button" class="secondary" onclick="prevTourStep()">Back</button>' : '<button type="button" class="tour-skip" onclick="endTour()">Skip</button>') +
+        '<button type="button" class="primary" onclick="nextTourStep()">' + (tourIdx === tourList.length - 1 ? 'Finish' : 'Next') + '</button>' +
+      '</div>';
+    const pw = pop.offsetWidth || 340, ph = pop.offsetHeight || 170;
+    let top = r.bottom + 14, left = r.left;
+    if (top + ph > window.innerHeight - 12) top = Math.max(12, r.top - ph - 14);
+    if (left + pw > window.innerWidth - 12) left = Math.max(12, window.innerWidth - pw - 12);
+    pop.style.top = top + 'px'; pop.style.left = Math.max(12, left) + 'px';
+  }, 260);
+}
+function nextTourStep() { if (tourIdx >= tourList.length - 1) return endTour(); tourIdx++; paintTourStep(); }
+function prevTourStep() { if (tourIdx > 0) { tourIdx--; paintTourStep(); } }
+function endTour() {
+  document.getElementById('tourMask').classList.remove('open');
+  window.removeEventListener('resize', paintTourStep);
+  if (tourDept) markTourDone(tourDept);
+}
+/* Auto-start once the user reaches their department view with a department set */
+(function () {
+  let tried = false;
+  setInterval(function () {
+    if (tried) return;
+    const tools = document.getElementById('toolsView');
+    const dept = (typeof profile !== 'undefined' && profile.department) || '';
+    if (tools && tools.classList.contains('active') && dept && !tourDoneFor(dept)) {
+      tried = true;
+      setTimeout(function () { startTour(dept); }, 700);
+    }
+  }, 1200);
+})();
+
+/* ============================================================
+   AI HELP ASSISTANT — department-aware, offline & private.
+   Runs entirely in the browser with no API key and no network
+   call, so nothing typed here can leak outside the device and it
+   costs nothing to run. It answers only about the signed-in
+   user's own department unless they are an admin.
+   ============================================================ */
+function botDept() { return (typeof profile !== 'undefined' && profile.department) || ''; }
+function botMyEntries() {
+  const all = (typeof entries !== 'undefined' && Array.isArray(entries)) ? entries : [];
+  if (canSeeAdmin()) return all;
+  const d = botDept();
+  return d ? all.filter(e => e.department === d) : [];
+}
+function botStats() {
+  const list = botMyEntries();
+  let time = 0, net = 0, rev = 0;
+  list.forEach(e => { const m = monthlySavings(e); time += m.timeSavedMonthly; net += m.netMonthlyCostSavedUSD; rev += Number(e.revenueAmount) || 0; });
+  return { count: list.length, time, net, rev, tools: [...new Set(list.map(e => e.toolName).filter(Boolean))] };
+}
+function botAnswer(qRaw) {
+  const q = (qRaw || '').toLowerCase().trim();
+  const dept = botDept() || 'your department';
+  const has = (...ws) => ws.some(w => q.includes(w));
+
+  // Guard: refuse cross-department data for non-admins
+  const DEPTS = ['production','content','digital','finance','strategy','hr','record label','creative tech','events','academy','sales','marketing'];
+  const asked = DEPTS.find(d => q.includes(d));
+  if (asked && !canSeeAdmin() && asked !== (botDept() || '').toLowerCase()) {
+    return 'I can only show information for <strong>' + escapeHTML(dept) + '</strong>, the department on your profile. ' +
+           'Company-wide and other-department figures are limited to admins. If you need a tool another department uses, ' +
+           'add it as a <strong>request</strong> and it goes to the admin inbox for review.';
+  }
+  if (has('stat', 'my numbers', 'how are we doing', 'our savings', 'my savings', 'summary', 'how much', 'how many tools', 'my department')) {
+    const s = botStats();
+    if (!s.count) return 'No tools are recorded for <strong>' + escapeHTML(dept) + '</strong> yet. Add your first with <strong>+ Add Tool</strong> and figures will appear here and on the dashboard.';
+    return 'Here is where <strong>' + escapeHTML(dept) + '</strong> stands right now:<ul>' +
+      '<li><strong>' + s.count + '</strong> tool record' + (s.count > 1 ? 's' : '') + '</li>' +
+      '<li><strong>' + fmtDuration(s.time) + '</strong> saved per month</li>' +
+      '<li><strong>' + fmtUSD(s.net) + '</strong> net monthly cost saving</li>' +
+      (s.rev ? '<li><strong>' + fmtUSD(s.rev) + '</strong> revenue enabled or protected</li>' : '') +
+      '</ul>';
+  }
+  if (has('add', 'new tool', 'report a tool', 'submit')) {
+    return 'To add a tool: click <strong>+ Add Tool</strong> on your department page, then choose:<ul>' +
+      '<li><strong>Full report</strong> — a tool you already use. You will enter time and cost before vs. with AI, plus any revenue impact.</li>' +
+      '<li><strong>Request</strong> — a tool you would like the company to get. It goes to the admin inbox.</li></ul>' +
+      'Tip: fill in frequency per month — that is what turns a single task saving into a monthly figure.';
+  }
+  if (has('saving', 'net', 'calculat', 'how is', 'formula', 'work out')) {
+    return 'Savings are worked out per tool, per month:<ul>' +
+      '<li><strong>Time saved</strong> = (traditional time − AI time) × how many times per month</li>' +
+      '<li><strong>Net cost saved</strong> = traditional cost − (AI cost + subscription + extra credits)</li></ul>' +
+      'A negative figure is not a failure — it means the tool costs more than it saves today, which is useful for leadership to know.';
+  }
+  if (has('other department', 'another department', 'permission', 'access to', 'request access')) {
+    return 'You work within <strong>' + escapeHTML(dept) + '</strong>, so your tools are recorded there. ' +
+           'If you need a tool that belongs to another department, add it as a <strong>request</strong> — explain the need, and an admin reviews it. ' +
+           'That keeps a clean record of why cross-department access was needed.';
+  }
+  if (has('admin', 'dashboard', 'who can', 'permission level', 'role')) {
+    return canSeeAdmin()
+      ? 'You have admin access. The <strong>Admin Dashboard</strong> holds company-wide KPIs, the savings trend, department mix, the top-tools leaderboard, the requests inbox and the executive report. System owners can also grant admin to others under <strong>Admin Access</strong>.'
+      : 'The Admin Dashboard is limited to system owners and admins they appoint — it holds company-wide figures across every department. Your department view has everything you need for <strong>' + escapeHTML(dept) + '</strong>. If you need admin access, ask a system owner.';
+  }
+  if (has('report', 'weekly', 'sheet', 'export', 'pdf', 'print')) {
+    return 'Reports come in a few forms:<ul>' +
+      '<li>The tracker builds an <strong>executive summary</strong> automatically from the entries.</li>' +
+      '<li>Admins can <strong>export</strong> data or print a tool report.</li>' +
+      '<li>A <strong>weekly automatic report</strong> to Google Sheets is planned — it is set up on the backend by the project lead.</li></ul>';
+  }
+  if (has('privacy', 'private', 'secure', 'safe', 'who sees', 'data')) {
+    return 'What you enter is attributed to you and your department, and admins can see it to build the company-wide picture. ' +
+           'This chat is private: it runs entirely inside your browser, sends nothing to any server, and has no access to other departments\' data.';
+  }
+  if (has('what is', 'what does', 'purpose', 'why', 'about this app', 'help')) {
+    return 'The <strong>Swangz AI Tracker</strong> records which AI tools each department uses, what they cost, and what they save in time and money. ' +
+           'That builds an evidence-based case for what to keep, scale, or drop. Your part: record the tools <strong>' + escapeHTML(dept) + '</strong> uses, as accurately as you can.';
+  }
+  if (has('tour', 'show me around', 'walkthrough', 'guide')) {
+    setTimeout(() => startTour(botDept(), true), 350);
+    return 'Starting the tour now — I will walk you through your department page.';
+  }
+  // Whole-word match only — substring matching would fire on "this", "which", etc.
+  if (/\b(hi|hey|hello|yo|thanks|thank you|good (morning|afternoon|evening))\b/.test(q)) {
+    return 'Hello! I can help with anything in the tracker — adding tools, how savings are worked out, or where to find things. What do you need?';
+  }
+  return 'I am not sure about that one. I can help with:<ul>' +
+    '<li>Adding a tool or filing a request</li>' +
+    '<li>How savings and revenue figures are calculated</li>' +
+    '<li>Your department\'s current numbers</li>' +
+    '<li>Reports, access levels and privacy</li></ul>' +
+    'For anything outside the tracker, contact the project lead.';
+}
+function botPush(html, who) {
+  const body = document.getElementById('botBody');
+  if (!body) return;
+  const div = document.createElement('div');
+  div.className = 'bot-msg ' + (who || 'bot');
+  div.innerHTML = html;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+function botSend(preset) {
+  const input = document.getElementById('botInput');
+  const text = (preset || (input && input.value) || '').trim();
+  if (!text) return;
+  botPush(escapeHTML(text), 'me');
+  if (input && !preset) input.value = '';
+  setTimeout(function () { botPush(botAnswer(text), 'bot'); }, 260);
+}
+function botToggle(open) {
+  const panel = document.getElementById('botPanel');
+  if (!panel) return;
+  const willOpen = (open === undefined) ? !panel.classList.contains('open') : open;
+  panel.classList.toggle('open', willOpen);
+  const sub = document.getElementById('botDeptLabel');
+  if (sub) sub.textContent = botDept() || (canSeeAdmin() ? 'All departments' : 'No department set');
+  if (willOpen && !document.getElementById('botBody').children.length) {
+    botPush('Hello! I am the <strong>AI Tracker assistant</strong>. I can explain how the tracker works and show figures for <strong>' +
+      escapeHTML(botDept() || 'your department') + '</strong>. Ask me anything.', 'bot');
+  }
+  if (willOpen) setTimeout(() => document.getElementById('botInput')?.focus(), 120);
+}
 
 /* ============================================================
    REDESIGN — chrome state flag (additive).
