@@ -659,10 +659,16 @@
   /* ---- App shell: a floating glass panel over the live background ---- */
   @media (min-width: 1100px) {
     body { padding: 18px; }
-    .app-shell {
-      position: relative; border-radius: 26px; overflow: hidden;
-      min-height: calc(100vh - 36px);
-      background: rgba(8,11,20,0.34);
+    /* IMPORTANT: the shell must NOT carry backdrop-filter (or transform/filter).
+       Any of those make it the containing block for position:fixed children,
+       which sized the sidebar to the full scroll height instead of the
+       viewport — the "sidebar extends" bug. The glass is painted by a
+       separate fixed layer instead, so the fixed sidebar stays viewport-sized. */
+    .app-shell { position: relative; min-height: calc(100vh - 36px); }
+    .app-shell::before {
+      content: ''; position: fixed; inset: 18px; z-index: -1; pointer-events: none;
+      border-radius: 26px;
+      background: rgba(8,11,20,0.26);
       backdrop-filter: blur(16px) saturate(130%); -webkit-backdrop-filter: blur(16px) saturate(130%);
       border: 1px solid rgba(255,255,255,0.10);
       box-shadow: 0 40px 120px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.09);
@@ -1471,7 +1477,8 @@
     border-color: var(--glass-border);
     box-shadow: 0 24px 60px rgba(0,0,0,0.45), var(--glass-highlight);
   }
-  .app-shell { background: rgba(8,11,20,0.26) !important; }
+  /* (Shell glass is painted by .app-shell::before — see the shell rule above.
+     Do not put a background or backdrop-filter on .app-shell itself.) */
 
   /* --- KPI cards: one hue each --- */
   .kpis .kpi:nth-child(1)::before { background: linear-gradient(var(--c-cyan), var(--c-sky)); }
