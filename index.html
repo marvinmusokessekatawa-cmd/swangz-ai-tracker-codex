@@ -2628,6 +2628,8 @@
   }
   .preview-bar button:hover { border-color: rgba(167,139,250,0.45); background: rgba(167,139,250,0.1); }
   body[data-shell="auth"] .preview-bar { display: none; }
+  /* It sits bottom-centre, exactly where the wizard footer lives */
+  body[data-wizard="open"] .preview-bar { display: none; }
   @media (max-width: 919px) { .preview-bar { bottom: calc(150px + env(safe-area-inset-bottom)); } }
 
   /* Assistant and tour belong to the signed-in app, not the sign-in screen */
@@ -2672,6 +2674,12 @@
     color: #0b0e16; background: var(--brand-gold); border-radius: 999px;
   }
   .rail-group .nav-badge + .nav-caret { margin-left: 8px; }
+  /* Backend rejecting writes — the one thing that must not stay behind a door */
+  .rail-group .nav-warn {
+    margin-left: auto; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--danger, #f87171); box-shadow: 0 0 0 3px rgba(248,113,113,.16);
+  }
+  .rail-group .nav-warn + .nav-caret { margin-left: 9px; }
 
   /* Settings sits in the rail but OUTSIDE the scrolling sections list,
      so the door to everything configurable is always in reach. */
@@ -7688,6 +7696,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btn) btn.style.display = canSeeAdmin() ? '' : 'none';
     document.body.setAttribute('data-role', currentRole());
   }
+  window.applyRoleChrome = applyRoleChrome;   // callable at sign-in/out, not only polled
   const nameEl = document.getElementById('profileName');
   if (nameEl) new MutationObserver(applyRoleChrome).observe(nameEl, { childList: true, subtree: true, characterData: true });
   document.addEventListener('DOMContentLoaded', applyRoleChrome);
@@ -8508,6 +8517,18 @@ function openGuidedWizard(kind) {
   if (h) h.textContent = currentTag === 'request' ? 'Requesting a tool' : 'Reporting a tool';
   document.body.setAttribute('data-flow', 'guided');   // full-page presentation
   openWizard('edit');
+  /* The purpose is already known, so don't open with a status that contradicts
+     it. This is not cosmetic: the entry's tag is derived from the status
+     (`status === REQUESTING ? 'request' : 'report'`), so a report left on the
+     old default was filed as a new REQUEST and landed in the Requests Inbox. */
+  const st = document.getElementById('f_status');
+  if (st) {
+    const want = (currentTag === 'request') ? REQUESTING : 'In Active Use';
+    if ([...st.options].some(o => o.value === want)) {
+      st.value = want;
+      st.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
 }
 /* The full-page treatment only belongs to the guided flow — clear it whenever
    the wizard closes so admin editing keeps the normal dialog. */
@@ -9436,6 +9457,7 @@ function buildRailGroups() {
     }
   });
   syncGroupActive(adminSection);
+  try { syncBackendWarning(); } catch (_) {}
 }
 
 function railMenuEl() {
@@ -9570,6 +9592,129 @@ document.addEventListener('keydown', function (e) {
 });
 window.addEventListener('resize', () => closeRailMenu());
 document.querySelector('main')?.addEventListener('scroll', () => closeRailMenu(), { passive: true });
+
+/* ============================================================
+   QA FIXES — found by sweeping the signed-in flows end to end.
+   ============================================================ */
+
+/* 1. A failing backend must not be a console-only event.
+   The status line dumped the raw Supabase error object into the UI
+   ("✗ supabase · {"code":"42501","details":null,...}"), which reads as
+   a crash rather than as the configuration problem it is. Translate the
+   ones we can name and keep the raw text for anything unknown. */
+function humanBackendMsg(msg) {
+  const t = String(msg || '');
+  if (/row-level security/i.test(t))
+    return 'Rejected by the database: row-level security blocks writes from the app. The Supabase policy has to allow inserts before entries leave this browser.';
+  if (/\b401\b|not authorized|invalid api key/i.test(t))
+    return 'Rejected by the database: the key was not accepted (401).';
+  if (/\b404\b/.test(t)) return 'Table not found — check the table name in this panel.';
+  if (/failed to fetch|networkerror/i.test(t)) return 'Could not reach the backend — check the URL or the connection.';
+  return t.replace(/\s*\{[\s\S]*\}\s*$/, '').trim() || t;   // drop a trailing JSON blob
+}
+(function () {
+  if (typeof renderBackendStatus !== 'function') return;
+  const original = renderBackendStatus;
+  window.renderBackendStatus = function () {
+    const out = original.apply(this, arguments);
+    const el = document.getElementById('backendStatus');
+    const b = settings.backend || {};
+    if (el && b.mode && b.mode !== 'local' && b.lastSyncAt && b.lastSyncOk === false) {
+      el.textContent = '✗ ' + b.mode + ' · ' + humanBackendMsg(b.lastSyncMsg) +
+                       ' · ' + new Date(b.lastSyncAt).toLocaleString();
+    }
+    try { syncBackendWarning(); } catch (_) {}
+    return out;
+  };
+})();
+/* Entries are saved locally first and pushed after, so a push that fails is
+   invisible — the person sees "Thank you" either way. Record it like every
+   other sync result so the panel and the rail can show it. */
+(function () {
+  if (typeof backendSyncDebounced !== 'function' || typeof backendPushAll !== 'function') return;
+  let timer = null;
+  window.backendSyncDebounced = function () {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      backendPushAll().then(() => {
+        settings.backend.lastSyncOk = true;
+        settings.backend.lastSyncMsg = 'Pushed ' + entries.length + ' entries';
+        settings.backend.lastSyncAt = new Date().toISOString();
+      }).catch(e => {
+        console.warn('Backend push failed', e);
+        settings.backend.lastSyncOk = false;
+        settings.backend.lastSyncMsg = e && e.message ? e.message : String(e);
+        settings.backend.lastSyncAt = new Date().toISOString();
+      }).then(() => {
+        try { saveSettings(); renderBackendStatus(); } catch (_) {}
+      });
+    }, 500);
+  };
+})();
+/* The one signal worth surfacing once Backend & Sync sits behind a door. */
+function syncBackendWarning() {
+  const btn = document.querySelector('.rail-group[data-group="__settings"]');
+  if (!btn) return;
+  const b = settings.backend || {};
+  const bad = b.mode && b.mode !== 'local' && b.lastSyncOk === false;
+  let dot = btn.querySelector('.nav-warn');
+  if (bad && !dot) {
+    dot = document.createElement('span');
+    dot.className = 'nav-warn';
+    dot.title = 'The backend rejected the last sync — open Backend & Sync';
+    dot.setAttribute('aria-label', 'Backend sync failing');
+    btn.querySelector('.nav-caret')?.insertAdjacentElement('beforebegin', dot);
+  } else if (!bad && dot) { dot.remove(); }
+}
+
+/* 2. The staging toolbar is fixed to the bottom centre, which is exactly where
+   the wizard puts "Step n of 6" and its Back/Next buttons. Mark the body while
+   any overlay wizard is open and let CSS pull the toolbar out of the way. */
+(function () {
+  if (typeof openWizard !== 'function') return;
+  const openOriginal = openWizard, closeOriginal = window.closeWizard;
+  window.openWizard = function () {
+    const out = openOriginal.apply(this, arguments);
+    document.body.setAttribute('data-wizard', 'open');
+    return out;
+  };
+  window.closeWizard = function () {
+    document.body.removeAttribute('data-wizard');
+    return closeOriginal.apply(this, arguments);
+  };
+})();
+
+/* 3. Role chrome (the Admin tab, the Add-tool button, the department-only CSS)
+   was applied by a 1.5s poll, so for up to a second and a half after signing in
+   a department user could see admin-only chrome. Apply it at the transitions
+   and leave the poll as the backstop it was meant to be. */
+(function () {
+  if (typeof applyRoleChrome !== 'function') return;
+  ['routeAfterSignIn', 'signOut', 'devBypassSignIn'].forEach(fn => {
+    if (typeof window[fn] !== 'function') return;
+    const original = window[fn];
+    window[fn] = function () {
+      const out = original.apply(this, arguments);
+      try { applyRoleChrome(); } catch (_) {}
+      return out;
+    };
+  });
+})();
+
+/* 4. "Change password" in Admin Actions fired three chained native prompt()s —
+   each one freezes the page, and the password is typed in clear text. Profile &
+   Settings already carries a proper form for this, so send them there. */
+(function () {
+  if (typeof changeAdminPassword !== 'function' || typeof openProfileSettings !== 'function') return;
+  window.changeAdminPassword = function () {
+    openProfileSettings();
+    setTimeout(() => {
+      const f = document.getElementById('psPwdOld') || document.getElementById('psPwdNew');
+      if (!f) return;
+      try { f.scrollIntoView({ block: 'center', behavior: 'smooth' }); f.focus(); } catch (_) {}
+    }, 220);
+  };
+})();
 </script>
 </body>
 </html>
