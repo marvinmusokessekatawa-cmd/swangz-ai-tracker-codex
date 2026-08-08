@@ -585,12 +585,15 @@
      the corners (ref: SPECTRA/stadium frames), a cool violet counter-light, a
      faint dot-grid for texture and an edge vignette for depth. Static layers =
      no per-frame GPU cost. */
-  /* Base colour lives on <body>; the animated .aurora layer sits above it.
-     (An opaque ::before here would hide the aurora entirely.) */
-  body { background-color: #05070d; }
+  /* Base colour lives on <html>, NOT <body>. A background-color on body
+     propagates to the page canvas and paints over anything at a negative
+     z-index — which silently hid the aurora. Layer order is therefore:
+     html colour → .aurora (z0) → #starfield (z0) → texture (z0) → app (z1). */
+  html { background-color: #05070d; }
+  body { background-color: transparent; }
   /* Texture + vignette layer */
   body::after {
-    content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
     background-image:
       radial-gradient(circle at center, rgba(255,255,255,0.03) 1px, transparent 1px),
       radial-gradient(140% 120% at 50% 50%, transparent 68%, rgba(0,0,0,0.34) 100%);
@@ -603,34 +606,34 @@
      paint), so it stays smooth on low-end machines. Disabled
      entirely under prefers-reduced-motion.
      ============================================================ */
-  .aurora { position: fixed; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; }
-  /* mix-blend-mode: screen makes the glows read as light rather than paint —
-     this is what gives the reference build its luminous depth. */
-  .aurora span {
-    position: absolute; inset: -8%; display: block;
-    mix-blend-mode: screen; will-change: transform;
-  }
+  .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  /* NOTE: no mix-blend-mode here. Screen blending does not composite against
+     the page canvas at this layer — it renders the glows invisible. Plain
+     alpha over the html base colour gives the same luminous result. */
+  .aurora span { position: absolute; inset: -8%; display: block; will-change: transform; }
   .aurora .a1 {
-    background: radial-gradient(at 16% 18%, rgba(245,197,66,0.75), transparent 52%),
-                radial-gradient(at 86% 80%, rgba(245,150,40,0.55), transparent 52%);
+    background: radial-gradient(at 14% 16%, rgba(245,197,66,0.30), transparent 50%),
+                radial-gradient(at 88% 84%, rgba(245,150,40,0.22), transparent 50%);
     animation: aurora-a 26s ease-in-out infinite alternate;
   }
   .aurora .a2 {
-    background: radial-gradient(at 84% 14%, rgba(124,92,255,0.62), transparent 52%),
-                radial-gradient(at 22% 86%, rgba(150,110,255,0.40), transparent 52%);
+    background: radial-gradient(at 86% 12%, rgba(124,92,255,0.26), transparent 50%),
+                radial-gradient(at 20% 88%, rgba(150,110,255,0.16), transparent 50%);
     animation: aurora-b 34s ease-in-out infinite alternate;
   }
   .aurora .a3 {
-    background: radial-gradient(at 50% 110%, rgba(61,220,151,0.34), transparent 50%),
-                radial-gradient(at 6% 58%, rgba(255,138,101,0.30), transparent 50%);
+    background: radial-gradient(at 50% 112%, rgba(61,220,151,0.13), transparent 48%),
+                radial-gradient(at 4% 56%, rgba(255,138,101,0.12), transparent 48%);
     animation: aurora-c 42s ease-in-out infinite alternate;
   }
   .aurora .a4 { display: none; }
+  /* App content always sits above the background layers (all breakpoints). */
+  .app-shell { position: relative; z-index: 1; }
   @keyframes aurora-a { from { transform: translate3d(-2%,-1%,0) scale(1); }    to { transform: translate3d(2%,1%,0) scale(1.06); } }
   @keyframes aurora-b { from { transform: translate3d(2%,1%,0) scale(1.05); }   to { transform: translate3d(-2%,-1.5%,0) scale(1); } }
   @keyframes aurora-c { from { transform: translate3d(1%,-1%,0) scale(1.02); }  to { transform: translate3d(-2%,1.5%,0) scale(1.08); } }
   /* Particle starfield */
-  #starfield { position: fixed; inset: 0; z-index: -2; pointer-events: none; opacity: .55; }
+  #starfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .55; }
   @media (prefers-reduced-motion: reduce) {
     .aurora span { animation: none !important; }
     #starfield { display: none; }
