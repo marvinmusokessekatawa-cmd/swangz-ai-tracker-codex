@@ -899,6 +899,74 @@
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.18); box-shadow: var(--shadow-lg);
   }
+
+  /* ============================================================
+     RICH DASHBOARD — charts, donut, leaderboard, sparklines
+     ============================================================ */
+  .overview-grid { align-items: stretch; margin-bottom: 16px; }
+  .chart-card { display: flex; flex-direction: column; }
+  .chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chart-legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .chart-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+  .chart-legend .dot-gold   { background: var(--accent); }
+  .chart-legend .dot-violet { background: var(--accent-2); }
+  .chart-wrap { flex: 1; min-height: 0; }
+  .chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .grid-line { stroke: rgba(255,255,255,0.07); stroke-width: 1; }
+  .axis-txt  { fill: var(--muted); font-size: 10px; font-family: var(--font-mono); }
+  .chart-foot {
+    display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--glass-border); font-size: 12px; color: var(--muted);
+  }
+  .chart-foot strong { color: var(--text); font-family: var(--font-mono); font-size: 13px; }
+
+  /* Line draw-on animation */
+  .spark-draw { stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: draw 1.1s cubic-bezier(.16,1,.3,1) .15s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  /* Donut */
+  .donut-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .donut-svg { width: 140px; height: 140px; flex: 0 0 auto; }
+  .donut-svg circle { transition: stroke-width .18s ease; }
+  .donut-svg circle:hover { stroke-width: 21; }
+  .donut-num { fill: var(--text); font-size: 26px; font-weight: 800; font-family: var(--font-mono); }
+  .donut-lbl { fill: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .donut-legend { flex: 1; min-width: 180px; display: grid; gap: 7px; }
+  .donut-legend > div { display: flex; align-items: center; gap: 9px; font-size: 12.5px; }
+  .donut-legend i { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+  .donut-legend .dl-name { flex: 1; color: var(--text); }
+  .donut-legend .dl-val { color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; }
+
+  /* Top-tools leaderboard */
+  .top-tool {
+    display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 12px;
+    border: 1px solid transparent; transition: background .15s, border-color .15s, transform .15s;
+  }
+  .top-tool:hover { background: rgba(255,255,255,0.04); border-color: var(--glass-border); transform: translateX(3px); }
+  .tt-rank {
+    flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+    font-size: 12px; font-weight: 800; color: var(--accent);
+    background: rgba(245,197,66,0.12); border: 1px solid rgba(245,197,66,0.28);
+  }
+  .top-tool:nth-child(1) .tt-rank { background: linear-gradient(135deg, var(--accent-strong), var(--accent)); color: #141200; border-color: transparent; }
+  .tt-name { flex: 1 1 160px; min-width: 0; font-weight: 700; font-size: 13.5px; }
+  .tt-sub  { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .tt-bar  { flex: 1 1 90px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; min-width: 60px; }
+  .tt-bar i { display: block; height: 100%; border-radius: 999px; box-shadow: 0 0 12px var(--accent-glow); animation: grow-x .8s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes grow-x { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); } }
+  .tt-val  { flex: 0 0 auto; font-family: var(--font-mono); font-size: 13px; font-weight: 700; min-width: 74px; text-align: right; }
+
+  /* KPI sparkline + delta */
+  .kpi-spark { margin-top: 10px; }
+  .spark-svg { width: 100%; height: 30px; display: block; }
+  .kpi-delta { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 700; }
+  .kpi-delta.up   { color: var(--good); }
+  .kpi-delta.down { color: var(--warn); }
+
+  @media (max-width: 900px) {
+    .donut-wrap { justify-content: center; }
+    .tt-bar { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -1307,6 +1375,38 @@
         <div class="val" id="k_revenue">$0</div>
         <div class="alt" id="k_revenueAlt">≈ 0 UGX</div>
       </div>
+    </div>
+
+    <div class="grid cols-2 overview-grid">
+      <div class="card chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="section-title" style="margin:0;">Adoption &amp; Savings Trend</div>
+            <p class="help" style="margin:6px 0 0;">Cumulative tools tracked and monthly net savings, by month reported.</p>
+          </div>
+          <div class="chart-legend">
+            <span><i class="dot-gold"></i>Net savings</span>
+            <span><i class="dot-violet"></i>Tools</span>
+          </div>
+        </div>
+        <div id="trendChart" class="chart-wrap"></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="section-title" style="margin:0;">Department Mix</div>
+            <p class="help" style="margin:6px 0 0;">Share of tracked tools by department.</p>
+          </div>
+        </div>
+        <div id="deptDonut" class="donut-wrap"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">Top Tools by Impact</div>
+      <p class="help" style="margin:-4px 0 12px;">Ranked by net monthly savings across all departments.</p>
+      <div id="topTools"></div>
     </div>
 
     <p class="help" style="margin: -2px 0 14px;">Click a tab below to expand it. The KPI cards above are always-visible summary tiles.</p>
@@ -5055,6 +5155,204 @@ function canSeeAdmin() { const r = currentRole(); return r === 'super' || r === 
           '<button type="button" class="primary" onclick="goToUser()">Back to Departments</button>' +
         '</div>' +
       '</div>';
+  };
+})();
+
+/* ============================================================
+   RICH DASHBOARD — SVG charts bound to real entry data.
+   Additive: wraps renderAdmin() instead of modifying it. No
+   external chart library (keeps load light on low-end machines).
+   Every chart also prints its numbers as text (accessibility:
+   never rely on colour/position alone).
+   ============================================================ */
+const CHART_GOLD = '#f5c542', CHART_VIOLET = '#7c5cff', CHART_GREEN = '#3ddc97';
+
+function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function monthLabel(key) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' });
+}
+function lastMonths(n) {
+  const out = [], now = new Date();
+  for (let i = n - 1; i >= 0; i--) out.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+  return out;
+}
+/* Smooth path through points (Catmull-Rom → cubic bezier) */
+function smoothPath(pts) {
+  if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : '';
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
+
+function renderTrendChart(list) {
+  const host = document.getElementById('trendChart');
+  if (!host) return;
+  const months = lastMonths(6);
+  const byMonth = {};
+  months.forEach(m => byMonth[m] = { tools: 0, net: 0 });
+  list.forEach(e => {
+    const stamp = e.submittedAt || e.updatedAt;
+    if (!stamp) return;
+    const k = monthKey(new Date(stamp));
+    if (byMonth[k]) { byMonth[k].tools++; byMonth[k].net += monthlySavings(e).netMonthlyCostSavedUSD; }
+  });
+  let cT = 0, cN = 0;
+  const series = months.map(m => { cT += byMonth[m].tools; cN += byMonth[m].net; return { m, tools: cT, net: cN }; });
+
+  if (!list.length) {
+    host.innerHTML = '<div class="empty-state" style="padding:34px 12px;"><h3>No data yet</h3><p>Charts appear as departments add tools.</p></div>';
+    return;
+  }
+  const W = 620, H = 210, PL = 46, PR = 14, PT = 16, PB = 26;
+  const maxNet = Math.max(1, ...series.map(s => s.net));
+  const maxTools = Math.max(1, ...series.map(s => s.tools));
+  const x = i => PL + i * ((W - PL - PR) / Math.max(1, series.length - 1));
+  const yN = v => PT + (1 - v / maxNet) * (H - PT - PB);
+  const yT = v => PT + (1 - v / maxTools) * (H - PT - PB);
+  const ptsN = series.map((s, i) => [x(i), yN(s.net)]);
+  const ptsT = series.map((s, i) => [x(i), yT(s.tools)]);
+  const areaD = smoothPath(ptsN) + ` L${x(series.length - 1)},${H - PB} L${PL},${H - PB} Z`;
+
+  host.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img"
+          aria-label="Cumulative net savings ${fmtUSD(series[series.length-1].net)} across ${series[series.length-1].tools} tools over ${series.length} months">
+      <defs>
+        <linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${CHART_GOLD}" stop-opacity="0.42"/>
+          <stop offset="100%" stop-color="${CHART_GOLD}" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="gLine" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffe08a"/><stop offset="100%" stop-color="${CHART_GOLD}"/>
+        </linearGradient>
+      </defs>
+      ${[0, .25, .5, .75, 1].map(f => {
+        const gy = PT + f * (H - PT - PB);
+        return `<line x1="${PL}" y1="${gy}" x2="${W - PR}" y2="${gy}" class="grid-line"/>`;
+      }).join('')}
+      <text x="6" y="${PT + 4}" class="axis-txt">${fmtUSD(maxNet)}</text>
+      <text x="6" y="${H - PB + 4}" class="axis-txt">$0</text>
+      <path d="${areaD}" fill="url(#gArea)"/>
+      <path d="${smoothPath(ptsN)}" fill="none" stroke="url(#gLine)" stroke-width="2.5" stroke-linecap="round" class="spark-draw"/>
+      <path d="${smoothPath(ptsT)}" fill="none" stroke="${CHART_VIOLET}" stroke-width="2" stroke-dasharray="4 4" opacity=".85" class="spark-draw"/>
+      ${series.map((s, i) => `<circle cx="${x(i)}" cy="${yN(s.net)}" r="3.5" fill="${CHART_GOLD}"><title>${monthLabel(s.m)}: ${fmtUSD(s.net)} · ${s.tools} tools</title></circle>`).join('')}
+      ${series.map((s, i) => `<text x="${x(i)}" y="${H - 8}" class="axis-txt" text-anchor="middle">${monthLabel(s.m)}</text>`).join('')}
+    </svg>
+    <div class="chart-foot">
+      <span><strong>${fmtUSD(series[series.length - 1].net)}</strong> cumulative net savings</span>
+      <span><strong>${series[series.length - 1].tools}</strong> tools tracked</span>
+    </div>`;
+}
+
+function renderDeptDonut(list) {
+  const host = document.getElementById('deptDonut');
+  if (!host) return;
+  const agg = {};
+  list.forEach(e => { const d = e.department || 'Unassigned'; agg[d] = (agg[d] || 0) + 1; });
+  const rows = Object.entries(agg).sort((a, b) => b[1] - a[1]);
+  if (!rows.length) { host.innerHTML = '<div class="empty-state" style="padding:34px 12px;"><h3>No departments yet</h3></div>'; return; }
+  const total = rows.reduce((s, r) => s + r[1], 0);
+  const palette = [CHART_GOLD, CHART_VIOLET, CHART_GREEN, '#ff8a65', '#5cc8ff', '#ff5c7a', '#c7bcff', '#ffd45e'];
+  const R = 52, C = 2 * Math.PI * R;
+  let offset = 0;
+  const ring = rows.map((r, i) => {
+    const frac = r[1] / total, len = frac * C;
+    const seg = `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${palette[i % palette.length]}"
+      stroke-width="18" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}"
+      transform="rotate(-90 70 70)"><title>${escapeHTML(r[0])}: ${r[1]} (${Math.round(frac * 100)}%)</title></circle>`;
+    offset += len; return seg;
+  }).join('');
+  host.innerHTML =
+    `<svg viewBox="0 0 140 140" class="donut-svg" role="img" aria-label="Tools by department">
+       <circle cx="70" cy="70" r="${R}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="18"/>
+       ${ring}
+       <text x="70" y="66" text-anchor="middle" class="donut-num">${total}</text>
+       <text x="70" y="82" text-anchor="middle" class="donut-lbl">tools</text>
+     </svg>
+     <div class="donut-legend">
+       ${rows.map((r, i) => `<div><i style="background:${palette[i % palette.length]}"></i>
+         <span class="dl-name">${escapeHTML(r[0])}</span>
+         <span class="dl-val">${r[1]} · ${Math.round(r[1] / total * 100)}%</span></div>`).join('')}
+     </div>`;
+}
+
+function renderTopTools(list) {
+  const host = document.getElementById('topTools');
+  if (!host) return;
+  const agg = {};
+  list.forEach(e => {
+    const n = e.toolName || '—';
+    if (!agg[n]) agg[n] = { net: 0, time: 0, count: 0, depts: new Set(), url: e.officialUrl };
+    const m = monthlySavings(e);
+    agg[n].net += m.netMonthlyCostSavedUSD; agg[n].time += m.timeSavedMonthly;
+    agg[n].count++; if (e.department) agg[n].depts.add(e.department);
+  });
+  const rows = Object.entries(agg).sort((a, b) => b[1].net - a[1].net).slice(0, 8);
+  if (!rows.length) { host.innerHTML = '<div class="empty-state" style="padding:24px 12px;"><h3>No tools yet</h3></div>'; return; }
+  const max = Math.max(1, ...rows.map(r => Math.abs(r[1].net)));
+  host.innerHTML = rows.map(([name, v], i) =>
+    `<div class="top-tool">
+       <span class="tt-rank">${i + 1}</span>
+       <span class="tt-name">${escapeHTML(name)}
+         <span class="tt-sub">${v.count} report${v.count > 1 ? 's' : ''} · ${v.depts.size} dept${v.depts.size > 1 ? 's' : ''} · ${fmtDuration(v.time)} saved</span>
+       </span>
+       <span class="tt-bar"><i style="width:${Math.max(3, Math.abs(v.net) / max * 100)}%; background:${v.net >= 0 ? 'linear-gradient(90deg,#ffe08a,' + CHART_GOLD + ')' : 'linear-gradient(90deg,#ff8aa0,#ff5c7a)'}"></i></span>
+       <span class="tt-val ${v.net >= 0 ? 'savings-pos' : 'savings-neg'}">${fmtUSD(v.net)}</span>
+     </div>`).join('');
+}
+
+/* KPI sparklines — injected, no markup changes */
+function renderKpiSparks(list) {
+  const months = lastMonths(6);
+  const buckets = {};
+  months.forEach(m => buckets[m] = { tools: 0, time: 0, net: 0, rev: 0 });
+  list.forEach(e => {
+    const stamp = e.submittedAt || e.updatedAt; if (!stamp) return;
+    const k = monthKey(new Date(stamp)); if (!buckets[k]) return;
+    const m = monthlySavings(e);
+    buckets[k].tools++; buckets[k].time += m.timeSavedMonthly;
+    buckets[k].net += m.netMonthlyCostSavedUSD; buckets[k].rev += Number(e.revenueAmount) || 0;
+  });
+  const cum = key => { let c = 0; return months.map(m => (c += buckets[m][key])); };
+  const map = { k_tools: cum('tools'), k_timeSaved: cum('time'), k_costSaved: cum('net'), k_revenue: cum('rev') };
+  Object.entries(map).forEach(([id, vals]) => {
+    const valEl = document.getElementById(id);
+    const card = valEl && valEl.closest('.kpi');
+    if (!card) return;
+    let host = card.querySelector('.kpi-spark');
+    if (!host) { host = document.createElement('div'); host.className = 'kpi-spark'; card.appendChild(host); }
+    const max = Math.max(1, ...vals.map(Math.abs));
+    const W = 120, H = 30;
+    const pts = vals.map((v, i) => [i * (W / Math.max(1, vals.length - 1)), H - (Math.abs(v) / max) * (H - 4) - 2]);
+    const prev = vals[vals.length - 2] || 0, now = vals[vals.length - 1] || 0;
+    const growth = prev > 0 ? Math.round(((now - prev) / prev) * 100) : (now > 0 ? 100 : 0);
+    host.innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="spark-svg" aria-hidden="true">
+         <defs><linearGradient id="sp${id}" x1="0" y1="0" x2="0" y2="1">
+           <stop offset="0%" stop-color="${CHART_GOLD}" stop-opacity=".45"/>
+           <stop offset="100%" stop-color="${CHART_GOLD}" stop-opacity="0"/></linearGradient></defs>
+         <path d="${smoothPath(pts)} L${W},${H} L0,${H} Z" fill="url(#sp${id})"/>
+         <path d="${smoothPath(pts)}" fill="none" stroke="${CHART_GOLD}" stroke-width="2" stroke-linecap="round"/>
+       </svg>
+       ${growth !== 0 ? `<span class="kpi-delta ${growth > 0 ? 'up' : 'down'}">${growth > 0 ? '▲' : '▼'} ${Math.abs(growth)}% vs last month</span>` : ''}`;
+  });
+}
+
+(function () {
+  if (typeof renderAdmin !== 'function') return;
+  const original = renderAdmin;
+  window.renderAdmin = function () {
+    const out = original.apply(this, arguments);
+    try {
+      const list = (typeof filteredEntries === 'function') ? filteredEntries() : [];
+      renderTrendChart(list); renderDeptDonut(list); renderTopTools(list); renderKpiSparks(list);
+    } catch (err) { console.warn('rich dashboard render skipped:', err); }
+    return out;
   };
 })();
 
