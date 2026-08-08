@@ -2022,6 +2022,21 @@
   }
   @media (max-width: 420px) { .dept-picker { grid-template-columns: 1fr; } }
 
+  /* ============================================================
+     SIDEBAR "ADD TOOL" CTA
+     ============================================================ */
+  .sidebar-add {
+    display: none; width: 100%; justify-content: center; align-items: center;
+    padding: 12px 14px; border-radius: 12px; font-size: 13.5px; flex: 0 0 auto;
+  }
+  .sidebar-add .ico { width: 16px; height: 16px; margin-right: 8px; }
+  @media (min-width: 920px) {
+    /* Shown on the department side; the admin view has no use for it */
+    body:not([data-shell="auth"]):not([data-section="admin"]) .sidebar-add { display: inline-flex; }
+    /* Avoid duplicating the CTA — the in-page one is for mobile */
+    .tools-head .row-actions .primary { display: none; }
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -2064,6 +2079,10 @@
     <button id="btnUser" class="active" onclick="goToUser()">Departments</button>
     <button id="btnAdmin" onclick="switchView('admin')">Admin Dashboard</button>
   </div>
+  <button type="button" class="primary sidebar-add" id="sidebarAdd" onclick="openAddChooser()">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    Add tool
+  </button>
   <nav class="admin-nav" id="adminNav" aria-label="Admin sections"></nav>
 </header>
 
