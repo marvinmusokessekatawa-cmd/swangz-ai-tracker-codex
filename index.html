@@ -23,7 +23,7 @@
     --border-2: #3a4666;
     --text: #eef1f7;
     --muted: #9aa4bd;
-    --muted-2: #5f6a82;
+    --muted-2: #8493b4;   /* QA: was #5f6a82 (3.64:1 = fails WCAG AA); now ≥4.5:1 on every surface */
     --accent: #f5c542;
     --accent-2: #7c5cff;
     --good: #3ddc97;
@@ -603,9 +603,17 @@
     backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
     border-bottom: 1px solid var(--glass-border);
   }
-  .card, .accordion {
+  .card {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--blur)) saturate(130%); -webkit-backdrop-filter: blur(var(--blur)) saturate(130%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-lg), var(--glass-highlight);
+    border-radius: var(--radius-lg);
+  }
+  /* QA/perf: accordions are numerous (11 in the admin view) — frosted, but no
+     backdrop-filter, so a low-end GPU isn't compositing 11 blur layers at once. */
+  .accordion {
+    background: var(--glass-bg-2);
     border: 1px solid var(--glass-border);
     box-shadow: var(--shadow-lg), var(--glass-highlight);
     border-radius: var(--radius-lg);
@@ -648,9 +656,10 @@
     color:#141200; box-shadow: 0 6px 20px var(--accent-glow);
   }
   button.primary:hover { box-shadow: 0 10px 30px var(--accent-glow); filter: brightness(1.03); }
+  /* QA/perf: no backdrop-filter on buttons — they are small and numerous,
+     so the blur cost is high and the visual gain negligible. */
   button.secondary {
     background: rgba(255,255,255,0.05); border:1px solid var(--glass-border);
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
   button.secondary:hover { background: rgba(255,255,255,0.10); }
   button.primary:active, button.secondary:active, button.danger:active, button.ghost:active { transform: scale(.97); }
