@@ -2261,7 +2261,14 @@
   /* Normal users never see the dashboard shortcut either */
   body:not([data-role="super"]):not([data-role="admin"]) .sidebar-add { display: none !important; }
 
-  .flow-head { text-align: center; max-width: 680px; margin: 0 auto 30px; }
+  .flow-head { text-align: center; max-width: 680px; margin: 0 auto 34px; }
+  .flow-hello {
+    margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: .3px;
+  }
+  .flow-hello span {
+    background: linear-gradient(100deg, var(--accent-strong), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700;
+  }
   .flow-step {
     display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 2px;
     text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
@@ -2581,6 +2588,22 @@
   }
   @media (max-width: 919px) { .rail-hint { display: none; } }
 
+  /* ============================================================
+     DEPARTMENT SIDE = LAYERS ONLY (no dashboard for normal users)
+     ============================================================ */
+  body:not([data-role="super"]):not([data-role="admin"]) #toolsView { display: none !important; }
+  /* The details step becomes a centred layer, matching the flow */
+  body:not([data-role="super"]):not([data-role="admin"]) #landingView .hero { display: none; }
+  body:not([data-role="super"]):not([data-role="admin"]) #landingView .card {
+    max-width: 760px; margin: 0 auto;
+  }
+  #purposeView, #doneView { display: none; }
+  #purposeView.active, #doneView.active { display: block; }
+  /* Give every flow layer room to breathe, centred in the shell */
+  #purposeView.active, #doneView.active, body[data-flow="guided"] .wizard-body {
+    padding-top: 22px;
+  }
+
   /* Staging preview toolbar */
   .preview-bar {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 65;
@@ -2673,9 +2696,8 @@
   <!-- PURPOSE VIEW — asked on every sign-in. Layer 1 of the guided flow. -->
   <section id="purposeView" class="view">
     <div class="flow-head">
-      <span class="flow-step">Step 1 of 3</span>
-      <h1>What brings you here<span id="purposeName"></span>?</h1>
-      <p>Choose one to begin. It only takes a few minutes.</p>
+      <p class="flow-hello">Hello<span id="purposeName"></span></p>
+      <h1>What brings you here today?</h1>
     </div>
     <div class="purpose-grid">
       <button type="button" class="purpose-card" onclick="choosePurpose('report')">
@@ -8422,6 +8444,19 @@ function routeAfterSignIn() {
     if (canSeeAdmin()) { switchView('admin'); return; }
     if (!profile.department || !profile.name) { switchView('landing'); return; }
     startPurpose();
+  };
+})();
+
+/* The preview bypass used to drop straight onto the old tools dashboard.
+   With the section tabs gone that left an admin stranded with no way into
+   the portal — route by role instead, exactly like a real sign-in. */
+(function () {
+  if (typeof devBypassSignIn !== 'function') return;
+  const original = devBypassSignIn;
+  window.devBypassSignIn = function () {
+    const out = original.apply(this, arguments);
+    setTimeout(routeAfterSignIn, 80);
+    return out;
   };
 })();
 
