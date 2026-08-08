@@ -24,12 +24,13 @@
     --text: #eef1f7;
     --muted: #9aa4bd;
     --muted-2: #8493b4;   /* QA: was #5f6a82 (3.64:1 = fails WCAG AA); now ≥4.5:1 on every surface */
-    /* Primary accent is VIOLET (cyan secondary). Gold is retired from general
-       UI and background use — it now appears only as a rare brand moment
-       beside the Swangz logo. All values contrast-checked ≥4.5:1. */
-    --accent: #a78bfa;
-    --accent-2: #22d3ee;
-    --brand-gold: var(--accent);
+    /* DEFAULT = the "Swangz" theme: brand gold leads, violet carries secondary
+       accents, and the --c-* spectrum below colours the data. Alternative
+       themes (Aurora, Midnight) override these via html[data-theme].
+       All values contrast-checked ≥4.5:1 on page and glass. */
+    --accent: #f5c542;
+    --accent-2: #a78bfa;
+    --brand-gold: #f5c542;
     --good: #3ddc97;
     --warn: #ff8a65;
     --bad: #ff5c7a;
@@ -37,8 +38,8 @@
     --shadow: 0 10px 30px rgba(0,0,0,0.35);
 
     /* Redesign tokens */
-    --accent-strong: #c4b5fd;
-    --accent-glow: rgba(167,139,250,0.34);
+    --accent-strong: #ffd970;
+    --accent-glow: rgba(245,197,66,0.32);
     /* iOS-style glass: light fill, heavy blur, strong saturation boost and a
        bright hairline edge — the frosted look of Control Centre / iOS sheets.
        All six accent hues below verified ≥4.5:1 on both the page and glass. */
@@ -628,19 +629,21 @@
   /* Background palette: violet → indigo → cyan on near-black. No gold — it
      fought the glass and read as heavy. Cool hues let frosted surfaces feel
      like glass rather than tinted plastic. */
+  /* Default (Swangz) background: warm brand gold anchored by a cool violet
+     counter-light, so the glass still reads cleanly. */
   .aurora .a1 {
-    background: radial-gradient(at 12% 14%, rgba(139,92,246,0.34), transparent 52%),
-                radial-gradient(at 88% 86%, rgba(99,102,241,0.24), transparent 52%);
+    background: radial-gradient(at 12% 14%, rgba(245,197,66,0.26), transparent 52%),
+                radial-gradient(at 88% 86%, rgba(217,119,6,0.18), transparent 52%);
     animation: aurora-a 26s ease-in-out infinite alternate;
   }
   .aurora .a2 {
-    background: radial-gradient(at 88% 10%, rgba(34,211,238,0.20), transparent 50%),
-                radial-gradient(at 18% 90%, rgba(129,140,248,0.20), transparent 52%);
+    background: radial-gradient(at 88% 10%, rgba(139,92,246,0.24), transparent 50%),
+                radial-gradient(at 18% 90%, rgba(124,58,237,0.16), transparent 52%);
     animation: aurora-b 34s ease-in-out infinite alternate;
   }
   .aurora .a3 {
-    background: radial-gradient(at 52% 112%, rgba(56,189,248,0.14), transparent 50%),
-                radial-gradient(at 2% 54%, rgba(167,139,250,0.16), transparent 50%);
+    background: radial-gradient(at 52% 112%, rgba(34,211,238,0.10), transparent 50%),
+                radial-gradient(at 2% 54%, rgba(245,197,66,0.12), transparent 50%);
     animation: aurora-c 42s ease-in-out infinite alternate;
   }
   .aurora .a4 { display: none; }
@@ -1507,25 +1510,23 @@
   html[data-theme="midnight"] #starfield { opacity: .32; }
   html[data-theme="midnight"] .app-shell::before { background: rgba(4,6,12,0.55); }
 
-  html[data-theme="gold"] {
-    --accent: #f5c542; --accent-strong: #ffd970; --accent-2: #ff9f43;
-    --accent-glow: rgba(245,197,66,0.32);
-    --bg: #0a0803;
-    background-color: #0a0803;
+  /* AURORA — the cool violet/cyan alternative */
+  html[data-theme="aurora"] {
+    --accent: #a78bfa; --accent-strong: #c4b5fd; --accent-2: #22d3ee;
+    --accent-glow: rgba(167,139,250,0.34);
   }
-  html[data-theme="gold"] .aurora .a1 {
-    background: radial-gradient(at 12% 14%, rgba(245,197,66,0.30), transparent 52%),
-                radial-gradient(at 88% 86%, rgba(217,119,6,0.22), transparent 52%);
+  html[data-theme="aurora"] .aurora .a1 {
+    background: radial-gradient(at 12% 14%, rgba(139,92,246,0.34), transparent 52%),
+                radial-gradient(at 88% 86%, rgba(99,102,241,0.24), transparent 52%);
   }
-  html[data-theme="gold"] .aurora .a2 {
-    background: radial-gradient(at 88% 10%, rgba(251,191,36,0.18), transparent 50%),
-                radial-gradient(at 18% 90%, rgba(180,83,9,0.20), transparent 52%);
+  html[data-theme="aurora"] .aurora .a2 {
+    background: radial-gradient(at 88% 10%, rgba(34,211,238,0.20), transparent 50%),
+                radial-gradient(at 18% 90%, rgba(129,140,248,0.20), transparent 52%);
   }
-  html[data-theme="gold"] .aurora .a3 {
-    background: radial-gradient(at 52% 112%, rgba(255,159,67,0.14), transparent 50%),
-                radial-gradient(at 2% 54%, rgba(245,197,66,0.14), transparent 50%);
+  html[data-theme="aurora"] .aurora .a3 {
+    background: radial-gradient(at 52% 112%, rgba(56,189,248,0.14), transparent 50%),
+                radial-gradient(at 2% 54%, rgba(167,139,250,0.16), transparent 50%);
   }
-  html[data-theme="gold"] .app-shell::before { background: rgba(14,10,4,0.32); }
 
   /* Theme picker inside the profile menu */
   .theme-row { display: flex; gap: 6px; padding: 8px 10px 4px; }
@@ -1533,9 +1534,10 @@
     flex: 1; display: block; height: 30px; border-radius: 9px; cursor: pointer;
     border: 1px solid var(--glass-border); padding: 0; position: relative;
   }
+  .theme-row button[data-t="swangz"]   { background: linear-gradient(135deg,#f5c542,#b45309); }
   .theme-row button[data-t="aurora"]   { background: linear-gradient(135deg,#8b5cf6,#22d3ee); }
   .theme-row button[data-t="midnight"] { background: linear-gradient(135deg,#1e293b,#0b1020); }
-  .theme-row button[data-t="gold"]     { background: linear-gradient(135deg,#f5c542,#b45309); }
+  
   .theme-row button.on { outline: 2px solid var(--accent); outline-offset: 2px; }
   .theme-lbl { font-size: 9.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase;
                color: var(--muted-2); padding: 8px 12px 0; }
@@ -1639,6 +1641,57 @@
     .insight-card { gap: 12px; }
     .insight-card .ins-act, .insight-card .ins-act button { width: 100%; }
   }
+
+  /* ============================================================
+     PROFILE SETTINGS PANEL
+     ============================================================ */
+  .ps-avatar-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .ps-avatar {
+    width: 84px; height: 84px; border-radius: 24px; flex: 0 0 auto; overflow: hidden;
+    display: grid; place-items: center; font-size: 28px; font-weight: 800; color: #0b0616;
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    box-shadow: 0 10px 30px var(--accent-glow);
+  }
+  .ps-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ps-avatar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ps-avatar-actions .field-caption { flex: 1 1 100%; margin: 0; }
+
+  .ps-dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+  .ps-dept {
+    display: flex; align-items: center; gap: 9px; cursor: pointer; margin: 0;
+    padding: 10px 12px; border-radius: 11px; font-size: 12.5px; font-weight: 600;
+    text-transform: none; letter-spacing: 0; color: var(--text);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+    transition: border-color .15s, background .15s;
+  }
+  .ps-dept:hover { border-color: rgba(245,197,66,0.4); }
+  .ps-dept input { width: auto; min-height: 0; margin: 0; flex: 0 0 auto; accent-color: var(--accent); }
+  .ps-dept .pd-name { flex: 1; min-width: 0; }
+  .ps-dept .pd-tag {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--glass-border);
+  }
+  .ps-dept.own     { border-color: rgba(245,197,66,0.35); background: rgba(245,197,66,0.08); }
+  .ps-dept.own .pd-tag     { color: var(--brand-gold); border-color: rgba(245,197,66,0.35); }
+  .ps-dept.granted .pd-tag { color: var(--c-emerald); border-color: rgba(52,211,153,0.35); }
+  .ps-dept.pending .pd-tag { color: var(--c-violet);  border-color: rgba(167,139,250,0.35); }
+  .ps-dept.own, .ps-dept.granted, .ps-dept.pending { cursor: default; }
+
+  .ps-theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .ps-theme-grid button {
+    display: block; text-align: left; cursor: pointer; padding: 12px; border-radius: 14px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+    color: var(--text); font-family: inherit; transition: border-color .15s, transform .15s;
+  }
+  .ps-theme-grid button:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.28); }
+  .ps-theme-grid button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .ps-theme-grid i { display: block; height: 34px; border-radius: 9px; margin-bottom: 9px; }
+  .ps-theme-grid .sw-swangz   { background: linear-gradient(135deg,#f5c542,#b45309); }
+  .ps-theme-grid .sw-aurora   { background: linear-gradient(135deg,#8b5cf6,#22d3ee); }
+  .ps-theme-grid .sw-midnight { background: linear-gradient(135deg,#1e293b,#02040a); }
+  .ps-theme-grid span { display: block; font-size: 13px; font-weight: 700; }
+  .ps-theme-grid em { display: block; font-style: normal; font-size: 11px; color: var(--muted); margin-top: 1px; }
 
   /* Staging preview toolbar */
   .preview-bar {
@@ -1763,13 +1816,13 @@
         <div class="profile-menu" id="profileMenu" role="menu">
           <div class="theme-lbl">Theme</div>
           <div class="theme-row" id="themeRow">
-            <button type="button" data-t="aurora"   title="Aurora — violet &amp; cyan"  aria-label="Aurora theme"   onclick="setTheme('aurora')"></button>
+            <button type="button" data-t="swangz"   title="Swangz — brand gold"        aria-label="Swangz theme"   onclick="setTheme('swangz')"></button>
             <button type="button" data-t="midnight" title="Midnight — true dark"        aria-label="Midnight theme" onclick="setTheme('midnight')"></button>
-            <button type="button" data-t="gold"     title="Swangz Gold"                 aria-label="Gold theme"     onclick="setTheme('gold')"></button>
+            <button type="button" data-t="aurora"   title="Aurora — violet &amp; cyan"  aria-label="Aurora theme"   onclick="setTheme('aurora')"></button>
           </div>
           <div class="pm-sep"></div>
-          <button role="menuitem" onclick="closeProfileMenu(); switchView('landing');">
-            <span class="pm-ico">◎</span> Change profile
+          <button role="menuitem" onclick="closeProfileMenu(); openProfileSettings();">
+            <span class="pm-ico">◎</span> Profile &amp; settings
           </button>
           <button role="menuitem" onclick="closeProfileMenu(); startTour(botDept(), true);">
             <span class="pm-ico">✦</span> Replay tour
@@ -5853,6 +5906,107 @@ function boot() {
 }
 boot();
 </script>
+<!-- ============================================================
+     PROFILE SETTINGS — photo, nickname, role, department,
+     cross-department access requests, password, theme.
+     ============================================================ -->
+<div class="wizard-overlay" id="profileSettings" aria-hidden="true" onclick="if(event.target===this)closeProfileSettings()">
+  <div class="wizard" role="dialog" aria-modal="true" aria-label="Profile settings">
+    <div class="wizard-head">
+      <div class="wh-top">
+        <div>
+          <h2>Profile &amp; Settings</h2>
+          <p class="wh-sub">Your details, access and appearance.</p>
+        </div>
+        <button type="button" class="wiz-close" onclick="closeProfileSettings()" aria-label="Close">×</button>
+      </div>
+    </div>
+
+    <div class="wizard-body">
+      <div class="section-title" style="margin-top:0;">Your photo</div>
+      <div class="ps-avatar-row">
+        <div class="ps-avatar" id="psAvatarPreview">?</div>
+        <div class="ps-avatar-actions">
+          <label class="file-import" for="psPhoto">Upload photo</label>
+          <input id="psPhoto" type="file" accept="image/*" style="display:none;" onchange="onProfilePhoto(event)" />
+          <button type="button" class="ghost" onclick="clearProfilePhoto()">Remove</button>
+          <p class="field-caption">Square images work best. Stored on this device only.</p>
+        </div>
+      </div>
+
+      <div class="section-title">Your details</div>
+      <div class="grid cols-2">
+        <div>
+          <label for="psName">Full name</label>
+          <input id="psName" type="text" placeholder="e.g. Ivan Musoke" />
+        </div>
+        <div>
+          <label for="psNick">Nickname / display name</label>
+          <input id="psNick" type="text" placeholder="What the team calls you" />
+        </div>
+        <div>
+          <label for="psRole">Role / title</label>
+          <input id="psRole" type="text" placeholder="e.g. Senior Editor" />
+        </div>
+        <div>
+          <label for="psDept">Primary department</label>
+          <select id="psDept"></select>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <label for="psEmail">Email</label>
+        <input id="psEmail" type="email" readonly />
+        <p class="field-caption">Set by your sign-in account — it can't be edited here.</p>
+      </div>
+
+      <div class="section-title">Access to other departments</div>
+      <p class="help" style="margin:-4px 0 12px;">You can always see your own department. Request access to another if your work spans teams — an admin reviews it.</p>
+      <div id="psDeptAccess" class="ps-dept-grid"></div>
+      <div style="margin-top:12px;">
+        <label for="psAccessReason">Why do you need it?</label>
+        <textarea id="psAccessReason" placeholder="e.g. I edit content for both Digital and Marketing campaigns"></textarea>
+      </div>
+      <div class="row-actions" style="justify-content:flex-start; margin-top:12px;">
+        <button type="button" class="secondary" onclick="submitAccessRequest()">Send access request</button>
+      </div>
+      <div id="psAccessStatus"></div>
+
+      <div class="section-title">Appearance</div>
+      <div class="ps-theme-grid" id="psThemeGrid">
+        <button type="button" data-t="swangz"   onclick="setTheme('swangz')"><i class="sw-swangz"></i><span>Swangz</span><em>Brand gold</em></button>
+        <button type="button" data-t="aurora"   onclick="setTheme('aurora')"><i class="sw-aurora"></i><span>Aurora</span><em>Violet &amp; cyan</em></button>
+        <button type="button" data-t="midnight" onclick="setTheme('midnight')"><i class="sw-midnight"></i><span>Midnight</span><em>True dark</em></button>
+      </div>
+
+      <div id="psAdminBlock" style="display:none;">
+        <div class="section-title">Admin password</div>
+        <p class="help" style="margin:-4px 0 12px;">Changes the password that unlocks the Admin Dashboard for everyone.</p>
+        <div class="grid cols-3">
+          <div><label for="psPwdOld">Current</label><input id="psPwdOld" type="password" placeholder="Current password" /></div>
+          <div><label for="psPwdNew">New</label><input id="psPwdNew" type="password" placeholder="New password" /></div>
+          <div><label for="psPwdNew2">Confirm</label><input id="psPwdNew2" type="password" placeholder="Repeat new" /></div>
+        </div>
+        <div class="row-actions" style="justify-content:flex-start; margin-top:12px;">
+          <button type="button" class="secondary" onclick="changePasswordFromProfile()">Update password</button>
+        </div>
+      </div>
+
+      <div class="section-title">Session</div>
+      <div class="row-actions" style="justify-content:flex-start;">
+        <button type="button" class="ghost" onclick="closeProfileSettings(); startTour(botDept(), true);">Replay the tour</button>
+        <button type="button" class="danger" onclick="closeProfileSettings(); signOut();">Sign out</button>
+      </div>
+    </div>
+
+    <div class="wizard-foot">
+      <span class="wf-count" id="psSavedHint"></span>
+      <span class="spacer"></span>
+      <button type="button" class="secondary" onclick="closeProfileSettings()">Close</button>
+      <button type="button" class="primary" onclick="saveProfileSettings()">Save changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Guided tour overlay -->
 <div class="tour-mask" id="tourMask" aria-hidden="true">
   <div class="tour-hole" id="tourHole"></div>
@@ -6744,19 +6898,207 @@ function showAdminSection(id) {
    PROFILE MENU — replaces the two large buttons with a discreet
    ⋯ menu (change profile / replay tour / sign out).
    ============================================================ */
+/* ============================================================
+   PROFILE SETTINGS — everything a user manages about themselves.
+   Additive: reads/writes the existing `profile` object and saves
+   through the app's own saveProfile(), so nothing else changes.
+   ============================================================ */
+const ALL_DEPARTMENTS = ['Production','Content','Digital','Finance','Strategy','HR',
+  'Record Label','Creative Tech and Innovations','Events','Academy','Sales','Marketing'];
+const DEPT_ACCESS_KEY = 'swangz_dept_access_v1';
+
+function deptAccessState() {
+  try { return JSON.parse(localStorage.getItem(DEPT_ACCESS_KEY)) || { granted: [], pending: [] }; }
+  catch (_) { return { granted: [], pending: [] }; }
+}
+function saveDeptAccess(s) { localStorage.setItem(DEPT_ACCESS_KEY, JSON.stringify(s)); }
+
+function openProfileSettings() {
+  const ov = document.getElementById('profileSettings');
+  if (!ov) return;
+  const nameEl = document.getElementById('psName');
+  if (nameEl) nameEl.value = profile.name || '';
+  const nick = document.getElementById('psNick');
+  if (nick) nick.value = profile.nickname || '';
+  const role = document.getElementById('psRole');
+  if (role) role.value = profile.role || '';
+  const email = document.getElementById('psEmail');
+  if (email) email.value = profile.email || currentEmail() || '';
+  const dept = document.getElementById('psDept');
+  if (dept) {
+    dept.innerHTML = '<option value="">Select department…</option>' +
+      ALL_DEPARTMENTS.map(d => `<option ${d === profile.department ? 'selected' : ''}>${escapeHTML(d)}</option>`).join('');
+  }
+  renderProfileAvatar();
+  renderDeptAccess();
+  const row = document.getElementById('psThemeGrid');
+  const cur = document.documentElement.getAttribute('data-theme') || 'swangz';
+  if (row) row.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === cur));
+  const adminBlock = document.getElementById('psAdminBlock');
+  if (adminBlock) adminBlock.style.display = canSeeAdmin() ? '' : 'none';
+  ov.classList.add('open');
+  ov.setAttribute('aria-hidden', 'false');
+}
+function closeProfileSettings() {
+  const ov = document.getElementById('profileSettings');
+  if (!ov) return;
+  ov.classList.remove('open');
+  ov.setAttribute('aria-hidden', 'true');
+}
+function renderProfileAvatar() {
+  const box = document.getElementById('psAvatarPreview');
+  if (!box) return;
+  const url = profile.avatarUrl || '';
+  const initials = ((profile.nickname || profile.name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2) || '?').toUpperCase();
+  box.innerHTML = url ? `<img src="${escapeHTML(url)}" alt="Your photo" />` : escapeHTML(initials);
+}
+function onProfilePhoto(ev) {
+  const file = ev.target && ev.target.files && ev.target.files[0];
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { toast('Please choose an image file', true); return; }
+  if (file.size > 3 * 1024 * 1024) { toast('Image is larger than 3 MB — pick a smaller one', true); return; }
+  const reader = new FileReader();
+  reader.onload = function () {
+    // Downscale to 256px so localStorage stays small
+    const img = new Image();
+    img.onload = function () {
+      const size = 256, c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      const side = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+      profile.avatarUrl = c.toDataURL('image/jpeg', 0.85);
+      renderProfileAvatar();
+      toast('Photo ready — press Save changes');
+    };
+    img.onerror = function () { toast('Could not read that image', true); };
+    img.src = reader.result;
+  };
+  reader.onerror = function () { toast('Could not read that file', true); };
+  reader.readAsDataURL(file);
+}
+function clearProfilePhoto() {
+  profile.avatarUrl = '';
+  renderProfileAvatar();
+  toast('Photo removed — press Save changes');
+}
+function renderDeptAccess() {
+  const host = document.getElementById('psDeptAccess');
+  if (!host) return;
+  const st = deptAccessState();
+  const mine = profile.department || '';
+  const isAdmin = canSeeAdmin();
+  host.innerHTML = ALL_DEPARTMENTS.map(d => {
+    let state = 'none', label = '';
+    if (d === mine)            { state = 'own';     label = 'Your department'; }
+    else if (isAdmin)          { state = 'granted'; label = 'Admin access'; }
+    else if (st.granted.includes(d)) { state = 'granted'; label = 'Granted'; }
+    else if (st.pending.includes(d)) { state = 'pending'; label = 'Requested'; }
+    const disabled = (state === 'own' || state === 'granted');
+    return `<label class="ps-dept ${state}">
+      <input type="checkbox" value="${escapeHTML(d)}" ${disabled ? 'disabled' : ''} ${state === 'pending' ? 'checked disabled' : ''} />
+      <span class="pd-name">${escapeHTML(d)}</span>
+      ${label ? `<span class="pd-tag">${label}</span>` : ''}
+    </label>`;
+  }).join('');
+  const status = document.getElementById('psAccessStatus');
+  if (status) {
+    status.innerHTML = st.pending.length
+      ? `<div class="backend-status" style="margin-top:10px;">Awaiting review: <strong style="color:var(--text)">${st.pending.map(escapeHTML).join(', ')}</strong></div>`
+      : '';
+  }
+}
+function submitAccessRequest() {
+  const host = document.getElementById('psDeptAccess');
+  if (!host) return;
+  const picked = [...host.querySelectorAll('input[type=checkbox]:checked:not([disabled])')].map(i => i.value);
+  if (!picked.length) { toast('Tick the departments you need access to', true); return; }
+  const reason = (document.getElementById('psAccessReason') || {}).value || '';
+  if (!reason.trim()) { toast('Add a short reason so an admin can decide', true); return; }
+  const st = deptAccessState();
+  st.pending = [...new Set(st.pending.concat(picked))];
+  saveDeptAccess(st);
+  // File it into the normal requests inbox so admins actually see it
+  try {
+    const rec = {
+      id: 'access-' + Date.now().toString(36),
+      kind: 'access', tag: 'request', requestStatus: 'new', adminNote: '',
+      department: profile.department || '', submittedBy: profile.nickname || profile.name || '',
+      submittedByEmail: profile.email || currentEmail() || '', role: profile.role || '',
+      toolName: 'Department access: ' + picked.join(', '),
+      toolNameRaw: 'Department access request', officialUrl: '', persistInRegistry: false,
+      category: 'Access', status: 'Requested', reason: reason.trim(), impact: reason.trim(),
+      projects: [], tradTime: 0, tradTimeUnit: 'h', aiTime: 0, aiTimeUnit: 'h',
+      tradCost: 0, currency: 'USD', frequency: 0, revenueDesc: '', revenueAmount: 0,
+      toolMonthlyCost: 0, extraCredits: 0,
+      submittedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    entries.push(rec);
+    if (typeof saveEntries === 'function') saveEntries();
+  } catch (err) { console.warn('access request not filed to inbox:', err); }
+  renderDeptAccess();
+  const r = document.getElementById('psAccessReason'); if (r) r.value = '';
+  toast('Access request sent to the admin inbox');
+}
+/* Uses the same sha256 + settings the app already uses, but with proper form
+   fields instead of the legacy prompt() dialogs (which block the whole page). */
+async function changePasswordFromProfile() {
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const oldV = val('psPwdOld'), n1 = val('psPwdNew'), n2 = val('psPwdNew2');
+  if (!canSeeAdmin())  { toast('Only admins can change this password', true); return; }
+  if (n1.length < 4)   { toast('New password must be at least 4 characters', true); return; }
+  if (n1 !== n2)       { toast('New passwords do not match', true); return; }
+  try {
+    if (settings.adminPasswordHash) {
+      const curHash = await sha256(oldV);
+      if (curHash !== settings.adminPasswordHash) { toast('Current password is wrong', true); return; }
+    }
+    settings.adminPasswordHash = await sha256(n1);
+    if (typeof saveSettings === 'function') saveSettings();
+    ['psPwdOld', 'psPwdNew', 'psPwdNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    toast('Admin password updated');
+  } catch (err) {
+    console.warn('password change failed', err);
+    toast('Could not update the password', true);
+  }
+}
+function saveProfileSettings() {
+  const v = id => (document.getElementById(id) || {}).value || '';
+  profile.name       = v('psName').trim() || profile.name;
+  profile.nickname   = v('psNick').trim();
+  profile.role       = v('psRole').trim();
+  const newDept      = v('psDept');
+  const deptChanged  = newDept && newDept !== profile.department;
+  if (newDept) profile.department = newDept;
+  if (typeof saveProfile === 'function') saveProfile();
+  if (typeof syncProfileUI === 'function') syncProfileUI();
+  if (typeof renderProfileBadge === 'function') renderProfileBadge();
+  if (typeof renderToolsList === 'function') renderToolsList();
+  try { renderQuickStats(); renderDeptOverview(); renderDeptExtra(); } catch (_) {}
+  const hint = document.getElementById('psSavedHint');
+  if (hint) { hint.textContent = 'Saved'; setTimeout(() => { hint.textContent = ''; }, 2200); }
+  toast(deptChanged ? 'Profile saved — now showing ' + profile.department : 'Profile saved');
+  closeProfileSettings();
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeProfileSettings();
+});
+
 /* ---- Theme switching (persisted per browser) ---- */
 const THEME_KEY = 'swangz_theme_v1';
 function setTheme(name) {
-  const t = ['aurora', 'midnight', 'gold'].includes(name) ? name : 'aurora';
+  const t = ['swangz', 'aurora', 'midnight'].includes(name) ? name : 'swangz';
   document.documentElement.setAttribute('data-theme', t);
   try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
-  const row = document.getElementById('themeRow');
-  if (row) row.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
-  if (typeof toast === 'function' && document.readyState === 'complete') toast(t.charAt(0).toUpperCase() + t.slice(1) + ' theme');
+  ['themeRow', 'psThemeGrid'].forEach(id => {
+    const row = document.getElementById(id);
+    if (row) row.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  });
+  if (typeof toast === 'function' && document.readyState === 'complete') toast(t.charAt(0).toUpperCase() + t.slice(1) + ' theme applied');
 }
 (function () {
-  let saved = 'aurora';
-  try { saved = localStorage.getItem(THEME_KEY) || 'aurora'; } catch (_) {}
+  let saved = 'swangz';
+  try { saved = localStorage.getItem(THEME_KEY) || 'swangz'; } catch (_) {}
   document.documentElement.setAttribute('data-theme', saved);
   document.addEventListener('DOMContentLoaded', function () {
     const row = document.getElementById('themeRow');
