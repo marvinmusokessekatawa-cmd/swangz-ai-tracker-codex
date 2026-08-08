@@ -825,6 +825,10 @@
       flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 24px;
       padding: 26px 16px; border-bottom: none; border-right: 1px solid var(--glass-border);
       overflow-y: auto;
+      /* MUST be nowrap: the base header rule sets flex-wrap:wrap, and a wrapping
+         COLUMN flex container spills overflowing children into a second column —
+         which pushed the admin section list into a hidden column beside the logo. */
+      flex-wrap: nowrap;
     }
     .brand { flex-direction: column; align-items: flex-start; gap: 12px; }
     .brand-tag { align-self: flex-start; }
@@ -1435,7 +1439,11 @@
     }
     .admin-nav button {
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+      /* Keep full height — without this, flex shrinks the buttons and squashes
+         the labels instead of letting the nav scroll. */
+      flex: 0 0 auto;
     }
+    .admin-nav::before { flex: 0 0 auto; }
   }
   .admin-nav::before {
     content: 'Sections'; font-size: 9.5px; font-weight: 800; letter-spacing: 1.4px;
