@@ -944,7 +944,7 @@
     background:
       radial-gradient(120% 90% at 50% -10%, rgba(167,139,250,0.12), transparent 60%),
       var(--glass-bg);
-    animation: rise-in .85s cubic-bezier(.22,1,.36,1) both;
+    animation: rise-in .55s cubic-bezier(.22,1,.36,1) both;
   }
   body[data-shell="auth"] .auth-card::before {
     content:''; position:absolute; left:0; right:0; top:0; height:1px;
@@ -959,41 +959,42 @@
   /* ---- Cinematic reveal: content rises, sharpens and settles ----
      Eased with easeOutQuint (0.22,1,0.36,1) rather than a sharp expo, and
      given room to breathe — a fast reveal reads as a flicker, not a reveal. */
+  /* transform + opacity ONLY — these are composited on the GPU. Animating
+     filter: blur() repaints every frame and is the main source of jank on
+     low-end machines, so it is deliberately not used here. */
   @keyframes cine-in {
-    0%   { opacity: 0; transform: translateY(26px) scale(.978); filter: blur(9px); }
-    45%  { opacity: .85; }
-    70%  { filter: blur(0); }
-    100% { opacity: 1; transform: none; filter: blur(0); }
+    0%   { opacity: 0; transform: translate3d(0, 20px, 0) scale(.985); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
   @keyframes cine-sweep {
     0%   { opacity: 0; transform: translateX(-35%) skewX(-14deg); }
     40%  { opacity: .5; }
     100% { opacity: 0; transform: translateX(135%) skewX(-14deg); }
   }
-  .view.active > * { animation: cine-in 1.05s cubic-bezier(.22,1,.36,1) both; }
+  .view.active > * { animation: cine-in .6s cubic-bezier(.22,1,.36,1) both; }
   /* A single slow light sweep across the view as it reveals */
   .view.active::before {
     content: ''; position: absolute; inset: 0; z-index: 5; pointer-events: none;
     background: linear-gradient(100deg, transparent, rgba(255,255,255,0.06) 45%, transparent 72%);
-    animation: cine-sweep 1.7s cubic-bezier(.33,.6,.2,1) both;
+    animation: cine-sweep 1.05s cubic-bezier(.33,.6,.2,1) both;
   }
   .view { position: relative; }
   /* Admin sections replay the same reveal when a sidebar tab is chosen */
-  .cine-reveal { animation: cine-in .95s cubic-bezier(.22,1,.36,1) both !important; }
+  .cine-reveal { animation: cine-in .55s cubic-bezier(.22,1,.36,1) both !important; }
   /* Staggered reveal — first 8 blocks cascade, rest fade together */
-  .view.active > *:nth-child(1) { animation-delay: .04s; }
-  .view.active > *:nth-child(2) { animation-delay: .13s; }
-  .view.active > *:nth-child(3) { animation-delay: .22s; }
-  .view.active > *:nth-child(4) { animation-delay: .31s; }
-  .view.active > *:nth-child(5) { animation-delay: .40s; }
-  .view.active > *:nth-child(6) { animation-delay: .49s; }
-  .view.active > *:nth-child(7) { animation-delay: .58s; }
-  .view.active > *:nth-child(8) { animation-delay: .67s; }
-  .tool-list > *, .kpis > * { animation: cine-in .9s cubic-bezier(.22,1,.36,1) both; }
-  .kpis > *:nth-child(2), .tool-list > *:nth-child(2) { animation-delay: .10s; }
-  .kpis > *:nth-child(3), .tool-list > *:nth-child(3) { animation-delay: .20s; }
-  .kpis > *:nth-child(4), .tool-list > *:nth-child(4) { animation-delay: .30s; }
-  .tool-list > *:nth-child(n+5) { animation-delay: .38s; }
+  .view.active > *:nth-child(1) { animation-delay: .03s; }
+  .view.active > *:nth-child(2) { animation-delay: .09s; }
+  .view.active > *:nth-child(3) { animation-delay: .15s; }
+  .view.active > *:nth-child(4) { animation-delay: .21s; }
+  .view.active > *:nth-child(5) { animation-delay: .27s; }
+  .view.active > *:nth-child(6) { animation-delay: .33s; }
+  .view.active > *:nth-child(7) { animation-delay: .39s; }
+  .view.active > *:nth-child(8) { animation-delay: .45s; }
+  .tool-list > *, .kpis > * { animation: cine-in .55s cubic-bezier(.22,1,.36,1) both; }
+  .kpis > *:nth-child(2), .tool-list > *:nth-child(2) { animation-delay: .06s; }
+  .kpis > *:nth-child(3), .tool-list > *:nth-child(3) { animation-delay: .12s; }
+  .kpis > *:nth-child(4), .tool-list > *:nth-child(4) { animation-delay: .18s; }
+  .tool-list > *:nth-child(n+5) { animation-delay: .24s; }
 
   /* ---- Buttons: gradient, glass, artistic (not solid slabs) ---- */
   button.primary {
@@ -1078,7 +1079,7 @@
   .chart-foot strong { color: var(--text); font-family: var(--font-mono); font-size: 13px; }
 
   /* Line draw-on animation */
-  .spark-draw { stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: draw 1.8s cubic-bezier(.22,1,.36,1) .25s forwards; }
+  .spark-draw { stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: draw 1.25s cubic-bezier(.22,1,.36,1) .15s forwards; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
 
   /* Donut */
@@ -1109,7 +1110,7 @@
   .tt-name { flex: 1 1 160px; min-width: 0; font-weight: 700; font-size: 13.5px; }
   .tt-sub  { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
   .tt-bar  { flex: 1 1 90px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; min-width: 60px; }
-  .tt-bar i { display: block; height: 100%; border-radius: 999px; box-shadow: 0 0 12px var(--accent-glow); animation: grow-x 1.15s cubic-bezier(.22,1,.36,1) both; }
+  .tt-bar i { display: block; height: 100%; border-radius: 999px; box-shadow: 0 0 12px var(--accent-glow); animation: grow-x .8s cubic-bezier(.22,1,.36,1) both; }
   @keyframes grow-x { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); } }
   .tt-val  { flex: 0 0 auto; font-family: var(--font-mono); font-size: 13px; font-weight: 700; min-width: 74px; text-align: right; }
 
@@ -7224,7 +7225,7 @@ function showAdminSection(id) {
   shown.forEach((el, i) => {
     el.classList.remove('cine-reveal');
     void el.offsetWidth;                       // restart the animation
-    el.style.animationDelay = (i * 0.11) + 's';
+    el.style.animationDelay = (i * 0.06) + 's';
     el.classList.add('cine-reveal');
   });
   appScrollTop();
