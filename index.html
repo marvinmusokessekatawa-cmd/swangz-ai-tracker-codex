@@ -3542,6 +3542,47 @@
     font-size: 12px; color: var(--muted-2); font-weight: 600; line-height: 1.6;
   }
   .filter-note b { color: var(--text); font-weight: 800; }
+  /* ---- Pricing, per tool ---- */
+  .tp-warn {
+    display: flex; align-items: flex-start; gap: 10px; margin: 4px 0 14px;
+    padding: 11px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.55; color: var(--muted);
+    background: rgba(245,197,66,0.09); border: 1px solid rgba(245,197,66,0.26);
+  }
+  .tp-warn .ico { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 2px; color: var(--brand-gold, #f5c542); }
+  .tp-warn b { color: var(--text); font-weight: 750; }
+  .tp-split { font-style: normal; color: var(--brand-gold, #f5c542); font-weight: 700; }
+
+  /* ---- Profile and Settings: dropdowns, not one long form ---- */
+  #psStash { display: none !important; }
+  .ps-panes { display: flex; flex-direction: column; gap: 9px; }
+  .ps-pane {
+    border-radius: 14px; overflow: hidden;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+    transition: border-color .18s, background .18s;
+  }
+  .ps-pane[open] { border-color: rgba(167,139,250,0.28); background: rgba(255,255,255,0.045); }
+  .ps-pane > summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 12px; padding: 13px 15px;
+  }
+  .ps-pane > summary::-webkit-details-marker { display: none; }
+  .ps-pane > summary:hover { background: rgba(255,255,255,0.04); }
+  .pp-ico {
+    flex: 0 0 auto; width: 32px; height: 32px; border-radius: 10px;
+    display: grid; place-items: center; color: var(--accent);
+    background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.2);
+  }
+  .pp-ico .ico { width: 16px; height: 16px; }
+  .pp-text { min-width: 0; flex: 1; }
+  .pp-text b { display: block; font-size: 13.5px; font-weight: 700; }
+  .pp-text i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted-2); margin-top: 2px; font-weight: 600; }
+  .pp-caret { flex: 0 0 auto; color: var(--muted-2); display: grid; place-items: center; transition: transform .28s cubic-bezier(.16,.84,.32,1); }
+  .pp-caret .ico { width: 16px; height: 16px; }
+  .ps-pane[open] > summary .pp-caret { transform: rotate(180deg); color: var(--accent); }
+  .pp-body { padding: 4px 15px 17px; animation: pp-open .32s cubic-bezier(.16,.84,.32,1) both; }
+  @keyframes pp-open { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .pp-body > .ps-group > .help:first-child { margin-top: 0; }
+  .pp-body .row-actions { margin-bottom: 0; }
   .afb-on { color: var(--brand-gold, #f5c542); font-weight: 700; }
   .deck-row.here { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.09); }
   @media (max-width: 760px) {
@@ -3579,6 +3620,113 @@
     body[data-print="exec"] .exec-sec { break-inside: avoid; }
     body[data-print="exec"] .table-wrap { overflow: visible !important; }
     body[data-print="exec"] .exec-table { min-width: 0 !important; font-size: 10.5px !important; }
+  }
+
+  /* ============================================================
+     SMALL SCREENS — LAST WORD
+     ------------------------------------------------------------
+     Written last so it outranks the desktop rules it corrects,
+     and scoped entirely inside max-width queries so nothing here
+     can reach a desktop.
+
+     Three sizes, and each is a different idea rather than the
+     same layout squeezed:
+       ≥ 920px  the desk — a rail, and tiles you arrange yourself
+       761–919  the tablet — a top bar, tiles still arrangeable
+       ≤ 760px  the phone — one thing at a time, as a sheet
+     ============================================================ */
+
+  /* ---- Tablet: the desk still works, but at arm's length ---- */
+  @media (min-width: 761px) and (max-width: 919px) {
+    /* Tiles are still moved and sized, so the targets have to suit a finger */
+    .dp-btn { width: 38px; height: 38px; }
+    .dp-rs[data-rs="se"], .dp-rs[data-rs="sw"] { width: 28px; height: 28px; }
+    .dp-rs[data-rs="e"], .dp-rs[data-rs="w"] { width: 11px; }
+    .dp-rs[data-rs="n"], .dp-rs[data-rs="s"] { height: 11px; }
+    /* The dock sits clear of the bottom tab bar */
+    .deck-dock { top: auto; bottom: calc(96px + env(safe-area-inset-bottom)); transform: none; }
+    .deck-dock:not(.on) { transform: translateX(24px); }
+    /* Two-up grids have no room for three */
+    .grid.cols-3 { grid-template-columns: 1fr 1fr; }
+    .admin-sec-head { padding: 10px 12px; }
+    .ash-name i { max-width: 42vw; }
+  }
+
+  /* ---- Phone: one thing at a time ---- */
+  @media (max-width: 760px) {
+    /* --- the sheet --- */
+    /* A sheet is dragged by its own grip, not by a header that has to stay
+       still while a finger scrolls the body under it. */
+    .dp-head { touch-action: auto; }
+    .dp-btn { width: 40px; height: 40px; border-radius: 11px; }
+    .dp-btn .ico { width: 17px; height: 17px; }
+    .dp-body { -webkit-overflow-scrolling: touch; }
+    .dp-foot {
+      flex-wrap: wrap; gap: 8px;
+      /* A footer of five buttons cannot sit on one row at 360px */
+      padding: 11px 14px calc(14px + env(safe-area-inset-bottom));
+    }
+    .dp-foot button { flex: 1 1 auto; min-height: 44px; }
+    .dp-foot .spacer { display: none; }
+    .dp-foot .doc-note { flex: 1 1 100%; order: -1; }
+    /* A tile that opened from another has nowhere to go beside it */
+    .deck-panel { box-shadow: 0 -18px 60px -12px rgba(0,0,0,0.8); }
+
+    /* --- the header of a section --- */
+    .ash-btn { min-height: 40px; }
+    .ash-btn span { display: none; }          /* the icon is the button here */
+    .ash-btn em { display: grid; }
+    .ash-back { width: 40px; height: 40px; }
+    .ash-ico { display: none; }               /* the back arrow already anchors the row */
+
+    /* --- forms and tables inside a sheet --- */
+    .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+    .table-wrap { -webkit-overflow-scrolling: touch; }
+    .deck-row { padding: 13px 14px; gap: 11px; }
+    .deck-row:hover { transform: none; }      /* nothing hovers on a phone */
+    .dr-stat b { font-size: 13px; }
+    .sub-tile { min-height: 56px; }
+
+    /* --- the assistant must not sit on top of the dock --- */
+    .bot-fab { bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+    /* --- profile and settings panes --- */
+    .ps-pane > summary { padding: 14px; min-height: 56px; }
+    .pp-body { padding: 2px 14px 15px; }
+    .ps-theme-grid { grid-template-columns: 1fr; }
+    .ps-avatar-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+
+    /* --- the workbook: a grid is a grid, so it scrolls in its own box --- */
+    .sheet-tabs { gap: 4px; }
+    .sheet-tab { height: 34px; padding: 0 11px; font-size: 11.5px; }
+
+    /* --- pricing --- */
+    .tp-warn { font-size: 12px; }
+  }
+
+  /* ---- Very narrow: 360px and below ---- */
+  @media (max-width: 380px) {
+    .ash-count { display: none; }             /* the filter tile still states it */
+    .dp-title b { font-size: 15px; }
+    .dp-title i { display: none; }
+    .sheet-tab { padding: 0 9px; }
+    .doc-paper { padding: 20px 14px 24px; }
+  }
+
+  /* ---- A phone on its side: almost no height to spend ---- */
+  @media (max-width: 919px) and (max-height: 480px) {
+    .deck-panel, .deck-panel.wide, .deck-panel.slim { max-height: 96dvh; }
+    .dp-head { padding: 10px 14px 9px; }
+    .dp-body { padding: 12px 14px 16px; }
+    .doc-stage { padding: 10px 8px 14px; }
+    .sheet-grid-wrap { max-height: 40vh; }
+  }
+
+  /* ---- Touch, at any width: a hover state that sticks is worse than none ---- */
+  @media (hover: none) {
+    .deck-row:hover, .sub-tile:hover { transform: none; }
+    .deck-chip .chip-close { opacity: 1; transform: scale(1); }
+    .dp-rs[data-rs="se"]::after { border-color: rgba(167,139,250,0.5); }
   }
 </style>
 </head>
@@ -7884,65 +8032,72 @@ boot();
       </div>
     </div>
 
+    <!-- Each block is a self-contained group. The Profile and Settings tiles
+         MOVE these nodes into their own disclosure panes, so every existing
+         reader (saveProfileSettings, renderDeptAccess, the theme sync) keeps
+         finding its fields by id and there is never a second copy. -->
     <div class="wizard-body">
-      <div class="section-title" style="margin-top:0;">Your photo</div>
-      <div class="ps-avatar-row">
-        <div class="ps-avatar" id="psAvatarPreview">?</div>
-        <div class="ps-avatar-actions">
-          <label class="file-import" for="psPhoto">Upload photo</label>
-          <input id="psPhoto" type="file" accept="image/*" style="display:none;" onchange="onProfilePhoto(event)" />
-          <button type="button" class="ghost" onclick="clearProfilePhoto()">Remove</button>
-          <p class="field-caption">Square images work best. Stored on this device only.</p>
+      <div class="ps-group" id="psg_photo" data-title="Your photo" data-hint="A face on your entries" data-icon="user" data-of="profile">
+        <div class="ps-avatar-row">
+          <div class="ps-avatar" id="psAvatarPreview">?</div>
+          <div class="ps-avatar-actions">
+            <label class="file-import" for="psPhoto">Upload photo</label>
+            <input id="psPhoto" type="file" accept="image/*" style="display:none;" onchange="onProfilePhoto(event)" />
+            <button type="button" class="ghost" onclick="clearProfilePhoto()">Remove</button>
+            <p class="field-caption">Square images work best. Stored on this device only.</p>
+          </div>
         </div>
       </div>
 
-      <div class="section-title">Your details</div>
-      <div class="grid cols-2">
-        <div>
-          <label for="psName">Full name</label>
-          <input id="psName" type="text" placeholder="e.g. Ivan Musoke" />
+      <div class="ps-group" id="psg_details" data-title="Your details" data-hint="Name, role and department" data-icon="user" data-of="profile" data-open="1">
+        <div class="grid cols-2">
+          <div>
+            <label for="psName">Full name</label>
+            <input id="psName" type="text" placeholder="e.g. Ivan Musoke" />
+          </div>
+          <div>
+            <label for="psNick">Nickname / display name</label>
+            <input id="psNick" type="text" placeholder="What the team calls you" />
+          </div>
+          <div>
+            <label for="psRole">Role / title</label>
+            <input id="psRole" type="text" placeholder="e.g. Senior Editor" />
+          </div>
+          <div>
+            <label for="psDept">Primary department</label>
+            <select id="psDept"></select>
+          </div>
         </div>
-        <div>
-          <label for="psNick">Nickname / display name</label>
-          <input id="psNick" type="text" placeholder="What the team calls you" />
+        <div style="margin-top:14px;">
+          <label for="psEmail">Email</label>
+          <input id="psEmail" type="email" readonly />
+          <p class="field-caption">Set by your sign-in account — it can't be edited here.</p>
         </div>
-        <div>
-          <label for="psRole">Role / title</label>
-          <input id="psRole" type="text" placeholder="e.g. Senior Editor" />
-        </div>
-        <div>
-          <label for="psDept">Primary department</label>
-          <select id="psDept"></select>
-        </div>
-      </div>
-      <div style="margin-top:14px;">
-        <label for="psEmail">Email</label>
-        <input id="psEmail" type="email" readonly />
-        <p class="field-caption">Set by your sign-in account — it can't be edited here.</p>
       </div>
 
-      <div class="section-title">Access to other departments</div>
-      <p class="help" style="margin:-4px 0 12px;">You can always see your own department. Request access to another if your work spans teams — an admin reviews it.</p>
-      <div id="psDeptAccess" class="ps-dept-grid"></div>
-      <div style="margin-top:12px;">
-        <label for="psAccessReason">Why do you need it?</label>
-        <textarea id="psAccessReason" placeholder="e.g. I edit content for both Digital and Marketing campaigns"></textarea>
-      </div>
-      <div class="row-actions" style="justify-content:flex-start; margin-top:12px;">
-        <button type="button" class="secondary" onclick="submitAccessRequest()">Send access request</button>
-      </div>
-      <div id="psAccessStatus"></div>
-
-      <div class="section-title">Appearance</div>
-      <div class="ps-theme-grid" id="psThemeGrid">
-        <button type="button" data-t="swangz"   onclick="setTheme('swangz')"><i class="sw-swangz"></i><span>Swangz</span><em>Brand gold</em></button>
-        <button type="button" data-t="aurora"   onclick="setTheme('aurora')"><i class="sw-aurora"></i><span>Aurora</span><em>Violet &amp; cyan</em></button>
-        <button type="button" data-t="midnight" onclick="setTheme('midnight')"><i class="sw-midnight"></i><span>Midnight</span><em>True dark</em></button>
+      <div class="ps-group" id="psg_access" data-title="Access to other departments" data-hint="Ask to see another team's work" data-icon="users" data-of="profile">
+        <p class="help" style="margin:0 0 12px;">You can always see your own department. Request access to another if your work spans teams — an admin reviews it.</p>
+        <div id="psDeptAccess" class="ps-dept-grid"></div>
+        <div style="margin-top:12px;">
+          <label for="psAccessReason">Why do you need it?</label>
+          <textarea id="psAccessReason" placeholder="e.g. I edit content for both Digital and Marketing campaigns"></textarea>
+        </div>
+        <div class="row-actions" style="justify-content:flex-start; margin-top:12px;">
+          <button type="button" class="secondary" onclick="submitAccessRequest()">Send access request</button>
+        </div>
+        <div id="psAccessStatus"></div>
       </div>
 
-      <div id="psAdminBlock" style="display:none;">
-        <div class="section-title">Admin password</div>
-        <p class="help" style="margin:-4px 0 12px;">Changes the password that unlocks the Admin Dashboard for everyone.</p>
+      <div class="ps-group" id="psg_theme" data-title="Appearance" data-hint="How the tracker looks" data-icon="sparkle" data-of="settings" data-open="1">
+        <div class="ps-theme-grid" id="psThemeGrid">
+          <button type="button" data-t="swangz"   onclick="setTheme('swangz')"><i class="sw-swangz"></i><span>Swangz</span><em>Brand gold</em></button>
+          <button type="button" data-t="aurora"   onclick="setTheme('aurora')"><i class="sw-aurora"></i><span>Aurora</span><em>Violet &amp; cyan</em></button>
+          <button type="button" data-t="midnight" onclick="setTheme('midnight')"><i class="sw-midnight"></i><span>Midnight</span><em>True dark</em></button>
+        </div>
+      </div>
+
+      <div class="ps-group" id="psAdminBlock" data-title="Admin password" data-hint="Unlocks the dashboard for everyone" data-icon="gear" data-of="settings" style="display:none;">
+        <p class="help" style="margin:0 0 12px;">Changes the password that unlocks the Admin Dashboard for everyone.</p>
         <div class="grid cols-3">
           <div><label for="psPwdOld">Current</label><input id="psPwdOld" type="password" placeholder="Current password" /></div>
           <div><label for="psPwdNew">New</label><input id="psPwdNew" type="password" placeholder="New password" /></div>
@@ -7953,10 +8108,11 @@ boot();
         </div>
       </div>
 
-      <div class="section-title">Session</div>
-      <div class="row-actions" style="justify-content:flex-start;">
-        <button type="button" class="ghost" onclick="closeProfileSettings(); startTour(botDept(), true);">Replay the tour</button>
-        <button type="button" class="danger" onclick="closeProfileSettings(); signOut();">Sign out</button>
+      <div class="ps-group" id="psg_session" data-title="Session" data-hint="The tour, and signing out" data-icon="eye" data-of="settings">
+        <div class="row-actions" style="justify-content:flex-start;">
+          <button type="button" class="ghost" onclick="closeProfileSettings(); startTour(botDept(), true);">Replay the tour</button>
+          <button type="button" class="danger" onclick="closeProfileSettings(); signOut();">Sign out</button>
+        </div>
       </div>
     </div>
 
@@ -11453,7 +11609,8 @@ DECK.register('money', function (entryId) {
           '<div class="field-caption" id="mny_tradCap">≈ —</div></div>' +
         '<div><label for="mny_sub">Monthly subscription / licence (USD)</label>' +
           '<input id="mny_sub" type="number" min="0" step="1" value="' + (Number(e.toolMonthlyCost) || '') + '" oninput="previewMoney(\'' + escapeAttr(entryId) + '\')" />' +
-          '<div class="field-caption" id="mny_subCap">≈ —</div></div>' +
+          '<div class="field-caption" id="mny_subCap">≈ —</div>' +
+          '<div class="field-caption">Set once for the whole tool under its pricing tile — changing it here affects this entry only.</div></div>' +
         '<div><label for="mny_extra">Extra credits / tokens (USD, monthly)</label>' +
           '<input id="mny_extra" type="number" min="0" step="1" value="' + (Number(e.extraCredits) || '') + '" oninput="previewMoney(\'' + escapeAttr(entryId) + '\')" /></div>' +
         '<div><label for="mny_rev">Revenue enabled / protected (USD, monthly)</label>' +
@@ -11608,6 +11765,10 @@ function injectAdminSections() {
       '<div class="cs-line"><input id="c_expr" placeholder="e.g. (2500 - 100) * 4 / 3" oninput="runScratch()" /><span id="c_exprOut" class="cs-res">—</span></div>' +
       '<div class="field-caption">Plus, minus, times, divide, brackets and percentages. Results convert to shillings automatically.</div>' +
     '</div>');
+
+  finance.querySelector('.help').textContent =
+    'Every figure in money lives here, and it lives on the tool. The team reports the work and the hours; ' +
+    'you set the licence once per tool and it applies to every entry for it.';
 
   const notify = make('acc_notify', 'Notifications &amp; Documents', '—',
     'Who is written to when something is filed or decided, and who else is quietly copied. Recipients you add here go in BCC — the person who filed it never sees them.',
@@ -11773,6 +11934,157 @@ function saveFinanceSettings() {
   clearTimeout(saveFinanceSettings._t);
   saveFinanceSettings._t = setTimeout(() => { try { renderAdmin(); } catch (_) {} }, 600);
 }
+/* ============================================================
+   PRICING BELONGS TO THE TOOL, NOT TO EACH ENTRY
+   ------------------------------------------------------------
+   A subscription is a property of the tool: ChatGPT costs what
+   ChatGPT costs, whoever files the entry. Asking for it once per
+   submission invited three different answers for the same
+   licence, and the admin had to type it again every time.
+
+   Money & Pricing therefore lists tools. Setting the licence
+   writes it to every entry for that tool at once. What genuinely
+   differs per entry — what the old way cost that particular
+   team, and what revenue is attributed to it — stays on the
+   entry, on its own row underneath.
+   ============================================================ */
+function toolPricingRows() {
+  const groups = _toolGroups(pricedEntries());
+  groups.forEach(g => {
+    let ai = 0, trad = 0, net = 0, rev = 0, time = 0;
+    /* One licence per tool: if the entries disagree, say so rather than
+       silently reporting one of them. */
+    const subs = new Set(), creds = new Set();
+    g.entries.forEach(e => {
+      const m = monthlySavings(e);
+      ai += m.aiMonthlyUSD; trad += m.tradMonthlyUSD; net += m.netMonthlyCostSavedUSD;
+      rev += Number(e.revenueAmount) || 0; time += m.timeSavedMonthly;
+      subs.add(Number(e.toolMonthlyCost) || 0);
+      creds.add(Number(e.extraCredits) || 0);
+    });
+    g.ai = ai; g.trad = trad; g.net = net; g.rev = rev; g.time = time;
+    g.sub = subs.size === 1 ? [...subs][0] : null;      // null = they disagree
+    g.credits = creds.size === 1 ? [...creds][0] : null;
+    g.split = subs.size > 1 || creds.size > 1;
+    g.unpriced = g.entries.filter(needsPricing).length;
+  });
+  return groups;
+}
+
+DECK.register('toolPricing', function (groupKey) {
+  const g = toolPricingRows().find(x => x.key === groupKey);
+  if (!g) return { title: 'Tool', icon: 'money', html: '<div class="empty-state"><h3>No entries for this tool</h3></div>' };
+  const reg = findToolInRegistry(g.name || '');
+  const plans = (reg && Array.isArray(reg.plans)) ? reg.plans : [];
+  const arg = escapeAttr(JSON.stringify(groupKey));
+  const me = 'toolPricing|' + JSON.stringify(groupKey);
+  return {
+    title: g.name, icon: 'money', size: '', noAutofocus: true,
+    sub: g.entries.length + ' entr' + (g.entries.length === 1 ? 'y' : 'ies') + ' · ' +
+         g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's') +
+         (g.unpriced ? ' · ' + g.unpriced + ' not costed' : ''),
+    html:
+      '<div class="section-title" style="margin-top:0;">What this tool costs</div>' +
+      '<p class="help" style="margin-top:-2px;">One licence, one figure. Saving here writes it to all ' +
+        g.entries.length + ' entr' + (g.entries.length === 1 ? 'y' : 'ies') + ' for ' + escapeHTML(g.name) + '.</p>' +
+      (g.split
+        ? '<div class="tp-warn">' + svgIcon('flag') +
+          '<span>These entries currently carry <b>different</b> figures for the same tool. Saving below settles them on one.</span></div>'
+        : '') +
+      (plans.length
+        ? '<div><label for="tp_plan">Published plan</label>' +
+          '<select id="tp_plan" onchange="onToolPlanPick()">' +
+            '<option value="">— choose a plan, or type an amount below —</option>' +
+            plans.map(p => '<option value="' + Number(p.monthlyUSD || 0) + '">' + escapeHTML(p.name) + ' — ' + fmtUSD(p.monthlyUSD || 0) + '/mo</option>').join('') +
+            '<option value="__custom">Other — enter the amount manually</option>' +
+          '</select>' +
+          (reg && reg.pricingUrl ? '<div class="field-caption"><a class="tool-link plain" href="' + escapeAttr(safeUrl(reg.pricingUrl)) + '" target="_blank" rel="noopener">Check current pricing →</a></div>' : '') +
+          '</div>'
+        : '') +
+      '<div class="grid cols-2" style="margin-top:14px;">' +
+        '<div><label for="tp_sub">Monthly subscription / licence (USD)</label>' +
+          '<input id="tp_sub" type="number" min="0" step="1" value="' + (g.sub || '') + '" oninput="previewToolPricing(' + arg + ')" />' +
+          '<div class="field-caption" id="tp_subCap">≈ —</div></div>' +
+        '<div><label for="tp_credits">Extra credits / tokens (USD, monthly)</label>' +
+          '<input id="tp_credits" type="number" min="0" step="1" value="' + (g.credits || '') + '" oninput="previewToolPricing(' + arg + ')" />' +
+          '<div class="field-caption" id="tp_credCap">≈ —</div></div>' +
+      '</div>' +
+      '<div id="tp_out" class="mny-out"></div>' +
+      '<div class="section-title" style="margin-top:22px;">What it replaces, entry by entry</div>' +
+      '<p class="help" style="margin-top:-2px;">The cost of the old way and the revenue attributed differ by team and by task, so they stay with the entry.</p>' +
+      '<div class="deck-list">' + g.entries.map(e => {
+        const m = monthlySavings(e);
+        const open = needsPricing(e);
+        return '<button type="button" class="deck-row" onclick="DECK.openFrom(\'' + escapeAttr(me) + '\', \'money\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
+          '<span class="dr-ico">' + svgIcon(open ? 'flag' : 'money') + '</span>' +
+          '<span class="dr-text"><b>' + escapeHTML(e.department || 'Unassigned') + '</b>' +
+            '<i>' + escapeHTML(e.submittedBy || 'someone') + ' · ' +
+            fmtEntryTime(e.tradTime, e.tradTimeUnit) + ' → ' + fmtEntryTime(e.aiTime, e.aiTimeUnit) +
+            ' × ' + (Number(e.frequency) || 0) + '/mo</i></span>' +
+          '<span class="dr-stat">' + (open
+            ? '<b class="needs">Not costed</b><span>old way unset</span>'
+            : '<b class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</b><span>net / mo</span>') +
+          '</span><span class="dr-go">' + svgIcon('expand') + '</span></button>';
+      }).join('') + '</div>',
+    foot:
+      '<span class="doc-note">Applies to every entry for this tool</span>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="primary" onclick="saveToolPricing(' + arg + ')">Save the licence</button>',
+    mount() { setTimeout(() => previewToolPricing(groupKey), 0); },
+  };
+});
+function onToolPlanPick() {
+  const sel = document.getElementById('tp_plan');
+  const sub = document.getElementById('tp_sub');
+  if (!sel || !sub) return;
+  if (sel.value === '__custom') { sub.focus(); sub.select(); return; }
+  if (sel.value !== '') sub.value = sel.value;
+  sub.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function previewToolPricing(groupKey) {
+  const g = toolPricingRows().find(x => x.key === groupKey);
+  if (!g) return;
+  const n = id => { const v = parseFloat((document.getElementById(id) || {}).value); return isFinite(v) ? v : 0; };
+  const sub = n('tp_sub'), cred = n('tp_credits');
+  const sc = document.getElementById('tp_subCap');
+  const cc = document.getElementById('tp_credCap');
+  if (sc) sc.textContent = '≈ ' + fmtUGX(sub);
+  if (cc) cc.textContent = '≈ ' + fmtUGX(cred);
+  const out = document.getElementById('tp_out');
+  if (!out) return;
+  /* What the whole tool looks like once this licence applies everywhere */
+  let trad = 0, net = 0;
+  g.entries.forEach(e => {
+    const m = monthlySavings(Object.assign({}, e, { toolMonthlyCost: sub, extraCredits: cred }));
+    trad += m.tradMonthlyUSD; net += m.netMonthlyCostSavedUSD;
+  });
+  const spend = (sub + cred) * g.entries.length;
+  const roi = spend > 0 ? net / spend : null;
+  out.innerHTML =
+    '<div class="mo-row"><span>Old way, per month, all teams</span><b>' + fmtUSD(trad) + '</b></div>' +
+    '<div class="mo-row"><span>This tool, per month, all teams</span><b>' + fmtUSD(spend) + '</b></div>' +
+    '<div class="mo-row total"><span>Net saved per month</span><b class="' + (net >= 0 ? 'savings-pos' : 'savings-neg') + '">' +
+      fmtUSD(net) + ' <i>≈ ' + fmtUGX(net) + '</i></b></div>' +
+    (roi !== null ? '<div class="mo-row"><span>Return per $1 spent</span><b>$' + (1 + roi).toFixed(2) + '</b></div>' : '');
+}
+function saveToolPricing(groupKey) {
+  const g = toolPricingRows().find(x => x.key === groupKey);
+  if (!g) { toast('That tool is no longer in view', true); return; }
+  const n = id => { const v = parseFloat((document.getElementById(id) || {}).value); return isFinite(v) ? v : 0; };
+  const sub = n('tp_sub'), cred = n('tp_credits');
+  const now = new Date().toISOString();
+  const who = currentEmail() || 'admin';
+  g.entries.forEach(e => {
+    e.toolMonthlyCost = sub;
+    e.extraCredits    = cred;
+    e.pricedBy = who; e.pricedAt = now; e.updatedAt = now;
+  });
+  saveEntries();
+  toast(fmtUSD(sub + cred) + ' a month set for ' + g.name + ' across ' +
+        g.entries.length + ' entr' + (g.entries.length === 1 ? 'y' : 'ies'));
+  try { renderAdmin(); } catch (_) {}
+}
+
 function renderFinance() {
   const host  = document.getElementById('finList');
   const strip = document.getElementById('finStrip');
@@ -11802,32 +12114,32 @@ function renderFinance() {
     stat('Revenue / mo', fmtUSD(rev), 'enabled or protected') +
     stat('Hours saved / mo', fmtDuration(time), hourlyRate() ? 'worth ' + fmtUSD(time * hourlyRate()) : 'no hourly rate set');
 
-  const rows = financeTab === 'todo' ? todo
-             : financeTab === 'done' ? all.filter(e => !needsPricing(e))
-             : all;
+  /* One row per tool. A tool is "waiting on you" while any of its entries
+     is uncosted, because the tool's figure is not settled until they all are. */
+  let rows = toolPricingRows();
+  if (financeTab === 'todo')      rows = rows.filter(g => g.unpriced > 0);
+  else if (financeTab === 'done') rows = rows.filter(g => g.unpriced === 0);
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state" style="padding:26px;"><h3>' +
       (financeTab === 'todo' ? 'Nothing is waiting on you' : 'Nothing here yet') + '</h3>' +
-      '<p>' + (financeTab === 'todo' ? 'Every reported tool has its pricing set.' : 'Reported tools appear here once the team submits them.') + '</p></div>';
+      '<p>' + (financeTab === 'todo' ? 'Every tool in the tracker has its pricing set.' : 'Tools appear here once the team reports them.') + '</p></div>';
     return;
   }
-  rows.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-  host.innerHTML = rows.map(e => {
-    const m = monthlySavings(e);
-    const open = needsPricing(e);
-    return '<button type="button" class="deck-row" onclick="DECK.open(\'money\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
-      '<span class="dr-ico">' + svgIcon(open ? 'flag' : 'money') + '</span>' +
-      '<span class="dr-text"><b>' + escapeHTML(e.toolName || 'Untitled') + '</b>' +
-        '<i>' + escapeHTML(e.department || 'Unassigned') + ' · ' + escapeHTML(e.submittedBy || 'someone') +
-        ' · ' + fmtEntryTime(e.tradTime, e.tradTimeUnit) + ' → ' + fmtEntryTime(e.aiTime, e.aiTimeUnit) +
-        ' × ' + (Number(e.frequency) || 0) + '/mo</i></span>' +
-      '<span class="dr-stat">' + (open
-        ? '<b class="needs">Set pricing</b><span>not costed</span>'
-        : '<b class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</b><span>net / mo</span>') +
+  rows.sort((a, b) => (b.unpriced - a.unpriced) || (b.net - a.net));
+  host.innerHTML = rows.map(g =>
+    '<button type="button" class="deck-row" onclick="DECK.open(\'toolPricing\', ' + escapeAttr(JSON.stringify(g.key)) + ')">' +
+      '<span class="dr-ico">' + svgIcon(g.unpriced ? 'flag' : 'money') + '</span>' +
+      '<span class="dr-text"><b>' + escapeHTML(g.name) + '</b>' +
+        '<i>' + g.entries.length + ' entr' + (g.entries.length === 1 ? 'y' : 'ies') + ' · ' +
+        g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's') +
+        (g.sub !== null ? ' · ' + fmtUSD(g.sub + (g.credits || 0)) + '/mo licence' : ' · <em class="tp-split">figures disagree</em>') +
+        '</i></span>' +
+      '<span class="dr-stat">' + (g.unpriced
+        ? '<b class="needs">' + g.unpriced + ' to cost</b><span>of ' + g.entries.length + '</span>'
+        : '<b class="' + (g.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(g.net) + '</b><span>net / mo</span>') +
       '</span>' +
       '<span class="dr-go">' + svgIcon('expand') + '</span>' +
-    '</button>';
-  }).join('');
+    '</button>').join('');
 }
 
 /* ---------------- Calculator ---------------- */
@@ -15065,6 +15377,309 @@ function retryMail(id) {
     if (typeof out !== 'string' || !MONEY.test(out)) return out;
     const cleaned = scrub(out);
     return cleaned || redirect();
+  };
+})();
+
+/* ============================================================
+   THE ASSISTANT DOES THINGS, IT DOES NOT ONLY DESCRIBE THEM
+   ------------------------------------------------------------
+   "How do I file a request" answered with instructions; now it
+   opens the request. Every task in the app is reachable by
+   asking for it in plain words.
+
+   The scope rule is unchanged and enforced here as well as in
+   the answer layer: an action marked `admin` is invisible to a
+   department user — not refused with a description of what it
+   would have done, which is itself a leak. It simply is not one
+   of the things the assistant can do for them.
+   ============================================================ */
+(function () {
+  if (typeof botAnswer !== 'function') return;
+  const original = window.botAnswer;
+
+  /* Match on the SUBJECT alone. English puts the verb first — "open the
+     pricing", "take me to pricing" — so a pattern that expects the verb
+     after the noun matches almost nothing anybody types. Whether a sentence
+     is an instruction or a question is decided separately, below.
+
+     `stem` deliberately does not close with \b: "calculator" and "calculate"
+     both have to match "calculat", and \bcalculat\b matches neither. */
+  const stem = (...ws) => new RegExp('\\b(?:' + ws.join('|') + ')', 'i');
+  const word = (...ws) => new RegExp('\\b(?:' + ws.join('|') + ')\\b', 'i');
+
+  const ACTIONS = [
+    /* Order matters: the first subject found wins, so the narrow ones
+       (a request, a report) come before the broad ones. */
+    { id: 'request', admin: false,
+      say: 'Opening a request. Make the case for it and it goes to the admin inbox for a decision.',
+      match: q => word('request', 'requests', 'ask for', 'apply for', 'propose').test(q),
+      run: () => openGuidedWizard('request') },
+    { id: 'report', admin: false,
+      say: 'Opening a new report. Tell it what the tool is and how long the work takes — the hours are the part only you know.',
+      match: q => word('report', 'add a tool', 'add tool', 'record', 'log').test(q),
+      run: () => openGuidedWizard('report') },
+    { id: 'tour', admin: false,
+      say: 'Starting the tour.',
+      match: q => stem('tour', 'walk me through', 'show me around', 'walkthrough').test(q),
+      run: () => { if (typeof startTour === 'function') startTour(botDept(), true); } },
+    { id: 'profile', admin: false,
+      say: 'Opening your profile.',
+      match: q => stem('profile', 'my details', 'my role').test(q),
+      run: () => openProfileTile() },
+    { id: 'settings', admin: false,
+      say: 'Opening settings — appearance, and your session.',
+      match: q => stem('settings', 'theme', 'appearance', 'dark mode').test(q),
+      run: () => openSettingsTile() },
+    { id: 'mytools', admin: false,
+      say: 'Here are the tools recorded for your department.',
+      match: q => stem('my tools', 'our tools', 'dashboard').test(q) || word('tools', 'entries', 'submissions').test(q),
+      run: () => switchView('tools') },
+
+    /* --- admin only, and not offered to anyone else at all --- */
+    { id: 'workbook', admin: true,
+      say: 'Opening the workbook. The totals are live formulas — change the rate and everything moves.',
+      match: q => stem('excel', 'workbook', 'spreadsheet', 'csv').test(q) || word('sheet', 'sheets').test(q),
+      run: () => { showAdminSection('acc_exec'); setTimeout(() => DECK.open('sheetview'), 140); } },
+    { id: 'document', admin: true,
+      say: 'Opening the document as it will be filed.',
+      match: q => stem('word document', 'the document', 'pdf').test(q),
+      run: () => { showAdminSection('acc_exec'); setTimeout(() => DECK.open('docview'), 140); } },
+    { id: 'briefing', admin: true,
+      say: 'Preparing the executive briefing for the period you have selected.',
+      match: q => stem('briefing', 'executive report', 'executive summary', 'board paper',
+                       'monthly report', 'weekly report').test(q),
+      run: () => { showAdminSection('acc_exec'); setTimeout(() => DECK.open('execdoc'), 140); } },
+    { id: 'pricing', admin: true,
+      say: 'Opening Money & Pricing. Anything still uncosted is under “Waiting on you”.',
+      match: q => stem('pricing', 'price', 'licence', 'license', 'subscription', 'uncosted').test(q) ||
+                  word('money', 'cost', 'costs').test(q),
+      run: () => { showAdminSection('acc_finance'); if (typeof setFinanceTab === 'function') setFinanceTab('todo'); } },
+    { id: 'requestsIn', admin: true,
+      say: 'Opening the requests inbox.',
+      match: q => stem('inbox', 'pending').test(q) || word('decide', 'decisions', 'approvals').test(q),
+      run: () => showAdminSection('acc_requests') },
+    { id: 'calc', admin: true,
+      say: 'Opening the calculator.',
+      match: q => stem('calculat', 'work out', 'comput').test(q),
+      run: () => showAdminSection('acc_calc') },
+    { id: 'notify', admin: true,
+      say: 'Opening Notifications & Documents — who is written to, and who is quietly copied.',
+      match: q => stem('notification', 'email', 'mail', 'bcc', 'outbox', 'who gets a copy').test(q),
+      run: () => showAdminSection('acc_notify') },
+    { id: 'filters', admin: true,
+      say: 'Opening the filters. They shape every figure in the portal, including the briefing.',
+      match: q => stem('filter').test(q),
+      run: () => DECK.open('filters') },
+    { id: 'analysis', admin: true,
+      say: 'Opening the automatic analysis. Choose a department in it for that team alone.',
+      match: q => stem('analysis', 'analyse', 'analyz', 'finding', 'insight').test(q),
+      run: () => { showAdminSection('overview'); setTimeout(() => DECK.open('overview', 2), 140); } },
+  ];
+
+  /* Only what this person is allowed to do is even considered — an admin
+     action does not exist for anyone else, so it cannot be refused in a way
+     that reveals it. */
+  const availableActions = () => ACTIONS.filter(a => !a.admin || canSeeAdmin());
+
+  /* "Open the briefing" is an instruction. "What is the briefing?" is not,
+     and answering it by opening something would be obnoxious. */
+  const IS_COMMAND  = /\b(open|show|start|take me|go to|jump to|give me|bring up|let me|i want|i need|help me|prepare|make|create|file|new|launch|pull up)\b/i;
+  const IS_QUESTION = /^(what|why|how|who|when|where|is|are|does|do|can|could|should|explain|tell me)\b/i;
+  /* Except these: "what needs pricing?" is asking to be shown the list, not
+     for a definition. Asked as a question, meant as an instruction. */
+  const SHOW_ME_Q   = /^(what|which|who)\b[^?]*\b(need|needs|waiting|outstanding|left|still|pending|open)\b/i;
+
+  function isInstruction(q) {
+    if (SHOW_ME_Q.test(q)) return true;
+    if (IS_QUESTION.test(q)) return false;
+    if (/\?\s*$/.test(q) && !IS_COMMAND.test(q)) return false;
+    return IS_COMMAND.test(q);
+  }
+
+  window.botAnswer = function (qRaw) {
+    const q = String(qRaw || '').trim().toLowerCase();
+    if (!isInstruction(q)) return original.apply(this, arguments);
+    const hit = availableActions().find(a => a.match(q));
+    if (!hit) return original.apply(this, arguments);
+    /* Let the reply land before the app moves under the reader */
+    setTimeout(() => { try { hit.run(); } catch (e) { console.warn('assistant action failed', e); } }, 320);
+    return hit.say + '<div class="bot-did">' + svgIcon('bolt') + '<span>Done — I opened it for you.</span></div>';
+  };
+
+  /* What it can do, offered rather than guessed at. Rebuilt on open so an
+     admin and a department user never see the same list. */
+  window.botSuggestions = function () {
+    return canSeeAdmin()
+      ? ['Open the executive briefing', 'Show me the workbook', 'What needs pricing?', 'Open the requests inbox']
+      : ['I want to report a tool', 'I need to request a tool', 'Show me our tools', 'How are savings worked out?'];
+  };
+})();
+
+/* ============================================================
+   PROFILE AND SETTINGS ARE TWO THINGS, NOT ONE LONG FORM
+   ------------------------------------------------------------
+   They were a single scrolling page: photo, details, access,
+   theme, password, sign out. Two different jobs stacked on each
+   other, and everything visible whether you wanted it or not.
+
+   They are now two independent tiles, each holding its groups as
+   dropdowns you open one at a time. The groups are the original
+   nodes, moved rather than copied, so saveProfileSettings() and
+   every other reader keeps finding its fields by id.
+   ============================================================ */
+function psStash() {
+  let s = document.getElementById('psStash');
+  if (!s) {
+    s = document.createElement('div');
+    s.id = 'psStash';
+    s.hidden = true;
+    (document.querySelector('#profileSettings .wizard-body') || document.body).appendChild(s);
+  }
+  return s;
+}
+function psGroupsFor(which) {
+  return [...document.querySelectorAll('.ps-group')].filter(g => g.dataset.of === which);
+}
+/* Build the dropdown shells, then move each group's contents inside. */
+function buildPsPanes(body, which) {
+  const groups = psGroupsFor(which);
+  const wrap = document.createElement('div');
+  wrap.className = 'ps-panes';
+  groups.forEach(g => {
+    /* An empty group — the admin password block for a department user —
+       is not a dropdown that opens onto nothing; it is simply absent. */
+    if (g.style.display === 'none') return;
+    const d = document.createElement('details');
+    d.className = 'ps-pane';
+    if (g.dataset.open === '1') d.open = true;
+    d.innerHTML =
+      '<summary><span class="pp-ico">' + svgIcon(g.dataset.icon || 'grid') + '</span>' +
+      '<span class="pp-text"><b>' + escapeHTML(g.dataset.title || '') + '</b>' +
+      '<i>' + escapeHTML(g.dataset.hint || '') + '</i></span>' +
+      '<span class="pp-caret" aria-hidden="true">' +
+        '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></summary>' +
+      '<div class="pp-body"></div>';
+    d.querySelector('.pp-body').appendChild(g);
+    g.style.display = '';                     // the pane now controls visibility
+    wrap.appendChild(d);
+  });
+  body.appendChild(wrap);
+}
+/* Back to the stash on close, or the next open finds nothing to move. */
+function returnPsGroups(panel) {
+  if (!panel) return;
+  panel.querySelectorAll('.ps-group').forEach(g => psStash().appendChild(g));
+}
+
+DECK.register('profile', function () {
+  return {
+    title: 'Profile', icon: 'user', size: 'slim', noAutofocus: true,
+    sub: (profile.name || currentEmail() || 'You') + ' · ' + (profile.department || 'no department set'),
+    mount(body) {
+      if (typeof loadProfileFields === 'function') loadProfileFields();
+      buildPsPanes(body, 'profile');
+      try { renderProfileAvatar(); renderDeptAccess(); } catch (_) {}
+    },
+    unmount(panel) { returnPsGroups(panel); },
+    foot:
+      '<span class="doc-note" id="psSavedHint"></span>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="primary" onclick="saveProfileSettings()">Save changes</button>',
+  };
+});
+
+DECK.register('settings', function () {
+  return {
+    title: 'Settings', icon: 'gear', size: 'slim', noAutofocus: true,
+    sub: 'Appearance' + (canSeeAdmin() ? ', the admin password' : '') + ' and your session',
+    mount(body) {
+      const block = document.getElementById('psAdminBlock');
+      /* The admin password block belongs to admins. Hiding it is not the
+         security boundary — unlockAdmin is — but it must not be offered. */
+      if (block) block.style.display = canSeeAdmin() ? '' : 'none';
+      buildPsPanes(body, 'settings');
+      const row = document.getElementById('psThemeGrid');
+      const cur = document.documentElement.getAttribute('data-theme') || 'swangz';
+      if (row) row.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === cur));
+    },
+    unmount(panel) { returnPsGroups(panel); },
+  };
+});
+
+/* The fields the profile tile needs filled before it is shown. Lifted out of
+   openProfileSettings so both the tile and the old overlay can use it. */
+function loadProfileFields() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('psName', profile.name);
+  set('psNick', profile.nickname);
+  set('psRole', profile.role);
+  set('psEmail', profile.email || currentEmail());
+  const dept = document.getElementById('psDept');
+  if (dept) {
+    dept.innerHTML = '<option value="">Select department…</option>' +
+      ALL_DEPARTMENTS.map(d => '<option ' + (d === profile.department ? 'selected' : '') + '>' + escapeHTML(d) + '</option>').join('');
+  }
+}
+function openProfileTile()  { DECK.open('profile'); }
+function openSettingsTile() { DECK.open('settings'); }
+
+/* The ⋯ menu now offers them separately, because they are separate. */
+(function () {
+  const menu = document.getElementById('profileMenu');
+  if (!menu) return;
+  const old = [...menu.querySelectorAll('button[role="menuitem"]')]
+    .find(b => /profile\s*&\s*settings/i.test(b.textContent));
+  if (!old) return;
+  const make = (label, icon, fn) => {
+    const b = document.createElement('button');
+    b.setAttribute('role', 'menuitem');
+    b.innerHTML = '<span class="pm-ico">' + svgIcon(icon) + '</span> ' + label;
+    b.onclick = () => { closeProfileMenu(); fn(); };
+    return b;
+  };
+  old.parentNode.insertBefore(make('Profile', 'user', openProfileTile), old);
+  old.parentNode.insertBefore(make('Settings', 'gear', openSettingsTile), old);
+  old.remove();
+})();
+
+/* Anything that still calls openProfileSettings gets the tile instead —
+   there is one profile screen, not two that can disagree. */
+(function () {
+  if (typeof openProfileSettings !== 'function') return;
+  window.openProfileSettings = function () { openProfileTile(); };
+})();
+
+/* Saving closes the overlay it no longer lives in. Close the tile instead,
+   and only after the "Saved" hint has had a moment to be seen. */
+(function () {
+  if (typeof saveProfileSettings !== 'function') return;
+  const original = window.saveProfileSettings;
+  window.saveProfileSettings = function () {
+    const out = original.apply(this, arguments);
+    setTimeout(() => { try { DECK.close('profile'); } catch (_) {} }, 700);
+    return out;
+  };
+})();
+
+/* Offer those as chips when the panel opens, so nobody has to guess the
+   words. Wraps botToggle rather than editing it. */
+(function () {
+  if (typeof botToggle !== 'function') return;
+  const original = window.botToggle;
+  window.botToggle = function (open) {
+    const out = original.apply(this, arguments);
+    const panel = document.getElementById('botPanel');
+    if (!panel || !panel.classList.contains('open')) return out;
+    const body = document.getElementById('botBody');
+    if (!body || body.querySelector('.bot-chips')) return out;
+    const chips = document.createElement('div');
+    chips.className = 'bot-chips';
+    chips.innerHTML = (window.botSuggestions ? botSuggestions() : []).map(s =>
+      '<button type="button" onclick="botSend(' + escapeAttr(JSON.stringify(s)) + ')">' + escapeHTML(s) + '</button>').join('');
+    body.appendChild(chips);
+    body.scrollTop = body.scrollHeight;
+    return out;
   };
 })();
 
