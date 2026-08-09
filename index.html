@@ -11618,6 +11618,13 @@ function pricedEntries() {
 DECK.register('money', function (entryId) {
   const e = entries.find(x => x.id === entryId);
   if (!e) return { title: 'Entry not found', icon: 'money', html: '<div class="empty-state"><h3>That entry has been removed</h3></div>' };
+  /* Guarded at the builder, not only at the button that opens it: a report's
+     money is the admin's, whatever route got here. */
+  if (!moneyIsMine() && e.tag !== 'request') {
+    return { title: 'Pricing', icon: 'money', size: 'slim', noAutofocus: true,
+      html: '<div class="empty-state"><h3>The admin team sets this</h3>' +
+            '<p>You reported the work and the hours. What it is worth in money is set centrally, so the business case has one author.</p></div>' };
+  }
   const reg  = findToolInRegistry(e.toolName || '');
   const plans = (reg && Array.isArray(reg.plans)) ? reg.plans : [];
   const m = monthlySavings(e);
@@ -12012,6 +12019,11 @@ function toolPricingRows() {
 }
 
 DECK.register('toolPricing', function (groupKey) {
+  if (!moneyIsMine()) {
+    return { title: 'Pricing', icon: 'money', size: 'slim', noAutofocus: true,
+      html: '<div class="empty-state"><h3>The admin team sets this</h3>' +
+            '<p>Licences and costs are set centrally, so every figure in the business case has one author.</p></div>' };
+  }
   const g = toolPricingRows().find(x => x.key === groupKey);
   if (!g) return { title: 'Tool', icon: 'money', html: '<div class="empty-state"><h3>No entries for this tool</h3></div>' };
   const reg = findToolInRegistry(g.name || '');
@@ -14430,6 +14442,12 @@ DECK.register('entry', function (id) {
       '<span class="st-go">' + svgIcon('expand') + '</span>' +
     '</button>';
 
+  /* The money rule is enforced HERE too, not only by who can reach this
+     tile. A request's cost belongs to the person who asked for it; a
+     report's belongs to the admin, so a department user opening a report
+     must not be shown the figure — nor the door to setting it. */
+  const showMoney = costIsMineFor(e);
+
   return {
     title: e.toolName || 'Untitled',
     sub: (isReq ? 'Request' : 'Report') + ' · ' + (e.department || '—') + ' · filed by ' + (e.submittedBy || '—'),
@@ -14441,18 +14459,29 @@ DECK.register('entry', function (id) {
         '<div><span>Filed</span><b>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</b></div>' +
         '<div><span>Hours saved / mo</span><b>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</b></div>' +
         (isReq ? '<div><span>Decision</span><b>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</b></div>'
-               : '<div><span>Net / mo</span><b class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</b></div>') +
+         : showMoney
+           ? '<div><span>Net / mo</span><b class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</b></div>'
+           : '<div><span>Times / mo</span><b>' + (Number(e.frequency) || 0) + '</b></div>') +
       '</div>' +
       '<div class="sub-tiles">' +
         sub('entryCase', 'doc', 'The case they made', 'Why it is needed, and how it changes the work') +
         sub('entryEffort', 'clock', 'Effort and volume', fmtEntryTime(e.tradTime, e.tradTimeUnit) + ' → ' + fmtEntryTime(e.aiTime, e.aiTimeUnit) + ', ' + (Number(e.frequency) || 0) + ' a month') +
         sub('entryProjects', 'flag', 'Projects (' + ((e.projects || []).length) + ')', (e.projects || []).length ? 'The work this tool has actually done' : 'None attached') +
         (isReq ? sub('decide', 'gear', 'Take action', 'Decide what happens next — and tell them', needsDecision(e) ? 'urgent' : '') : '') +
-        sub('money', 'money', 'Pricing', needsPricing(e) ? 'Not costed yet — the figures above are missing it' : 'Set by ' + (e.pricedBy || 'an admin'), needsPricing(e) ? 'urgent' : '') +
+        (showMoney
+          ? sub('money', 'money', 'Pricing', needsPricing(e) ? 'Not costed yet — the figures above are missing it' : 'Set by ' + (e.pricedBy || 'an admin'), needsPricing(e) ? 'urgent' : '')
+          : '') +
         sub('entryDocs', 'db', 'Document & delivery', 'Word, PDF, and who has been written to') +
       '</div>',
   };
 });
+
+/* Who owns the cost of a given entry. costIsMine() answers for the entry
+   being edited in the wizard; this answers for any entry, which is what a
+   tile that can be opened from anywhere needs. */
+function costIsMineFor(e) {
+  return (e && e.tag === 'request') || moneyIsMine();
+}
 function needsDecision(e) { return e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'); }
 
 DECK.register('entryCase', function (id) {
@@ -15162,8 +15191,12 @@ function submissionDocBody(e) {
         '</table>'
       : '') +
 
+    /* The exchange rate is only a fact about this document if the document
+       has money in it. Stating it on a copy that deliberately carries none
+       is both meaningless and a small leak. */
     '<div class="foot">Generated from the Swangz Avenue AI Adoption Tracker on ' + escapeHTML(stamp()) +
-    '. US Dollar figures converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX.</div>'
+    (money ? '. US Dollar figures converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX.' :
+             '. Effort and outcome only — figures in money are held by the admin team.') + '</div>'
   );
 }
 function submissionDocHTML(e) {
