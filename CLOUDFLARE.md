@@ -32,14 +32,25 @@ localhost) — it is never built on the live site.
 CSS and the assistant's department scoping all behave exactly as they will for
 a real department user. It is scoped to the tab, so closing the tab ends it.
 
-## Two settings an admin should fill in first
+## Settings an admin should fill in first
 
-Both live under **Money & Pricing** in the admin portal.
+Under **Money & Pricing**:
 
 | Setting | Why it matters |
 |---|---|
 | **Blended hourly rate (USD)** | Without it the hours the team saves are reported as hours only. With it, every briefing also states what those hours are worth. |
 | **Swangz Google Drive folder** | Where the team uploads project media. The "Upload to Swangz Drive" button in the project tile opens this folder; without it, that button just says to ask an admin. Only Google Drive links are accepted anywhere in the app. |
+
+Under **Notifications & Documents**:
+
+| Setting | Why it matters |
+|---|---|
+| **Mail endpoint** | An Apps Script web app that receives `{to, cc, bcc, subject, body, attachmentName, attachmentHtml}` and calls `MailApp.sendEmail`. Until it is set, every message waits in the outbox and can be opened in your own mail client — nothing is lost, but nothing goes out by itself. |
+| **Also copy, without telling the submitter** | Goes in **BCC**, so nobody on the To or CC line can see it. This is how the GM gets a copy of everything without the person who filed it knowing. |
+| **When to write** | Filed / reviewed / approved / declined, each switchable. |
+
+The person who filed something always gets their own copy unless that is
+switched off.
 
 The team never enters money. They report the work and the hours; every figure
 in money — what the old way cost, the licence, extra credits, revenue — is set
