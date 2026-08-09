@@ -3321,6 +3321,7 @@
   .exec-launch-actions button { height: 40px; padding: 0 18px; }
   .el-note { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); }
   .el-note b { color: var(--text); }
+  .el-hint { margin: 10px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.6; max-width: 62ch; }
   .exec-scope {
     display: flex; gap: 10px; align-items: flex-start; margin: 0 0 22px;
     padding: 11px 14px; border-radius: 12px; font-size: 12px; line-height: 1.55; color: var(--muted);
@@ -3353,6 +3354,128 @@
   .an-dept:hover { background: rgba(255,255,255,0.07); border-color: rgba(167,139,250,0.3); transform: translateY(-2px); }
   .an-dept b { display: block; font-size: 13.5px; font-weight: 700; }
   .an-dept i { display: block; font-style: normal; font-size: 11px; color: var(--muted-2); margin-top: 3px; font-weight: 600; }
+
+  /* ============================================================
+     THE DOCUMENT, ON PAPER, INSIDE THE APP
+     What is read here is the same markup that goes into the Word
+     file — laid on an A4 sheet so the page breaks and the column
+     widths are the ones that will be filed. It stays light even
+     in a dark theme: paper is paper.
+     ============================================================ */
+  .doc-stage {
+    margin: -20px -22px -24px; padding: 26px 22px 30px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(0,0,0,0.28), rgba(0,0,0,0.42));
+    display: flex; justify-content: center;
+  }
+  .doc-paper {
+    width: 100%; max-width: 794px;               /* A4 at 96dpi */
+    padding: 48px 56px 56px; border-radius: 3px;
+    background: #fff; color: #111;
+    font-family: Calibri, Carlito, Arial, sans-serif; font-size: 14px; line-height: 1.5;
+    box-shadow: 0 30px 70px -18px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.28);
+  }
+  .doc-paper h1 { font-size: 25px; margin: 0 0 4px; letter-spacing: -.4px; font-weight: 700; color: #111; }
+  .doc-paper h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1.4px; color: #4b3f8f;
+    margin: 26px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 5px; font-weight: 700;
+  }
+  .doc-paper .dm-org {
+    font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+    color: #8a7cc4; margin-bottom: 7px;
+  }
+  .doc-paper .sub { color: #666; font-size: 13px; margin: 0 0 6px; }
+  .doc-paper .lead { color: #444; font-size: 13.5px; }
+  .doc-paper .rule { border-bottom: 3px solid #f5c542; margin: 13px 0 6px; }
+  .doc-paper p { margin: 0 0 9px; line-height: 1.55; }
+  .doc-paper ol { margin: 0 0 9px 20px; padding: 0; }
+  .doc-paper ol li { margin-bottom: 7px; line-height: 1.55; }
+  .doc-paper table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.5px; }
+  .doc-paper th {
+    text-align: left; background: #f4f4f7; padding: 7px 9px; border: 1px solid #dcdce4;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .7px; color: #555; font-weight: 700;
+  }
+  .doc-paper td { padding: 7px 9px; border: 1px solid #e3e3ea; vertical-align: top; }
+  .doc-paper td.k { color: #555; font-weight: 700; background: #fafafc; }
+  .doc-paper table.ctrl td.k { width: 17%; }
+  .doc-paper table.findings td { font-size: 12px; line-height: 1.5; }
+  .doc-paper .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .doc-paper .pos { color: #0a7d4b; font-weight: 700; }
+  .doc-paper .neg { color: #b32020; font-weight: 700; }
+  .doc-paper .stamp {
+    display: inline-block; padding: 3px 8px; border: 1px solid #7c5cff; color: #7c5cff;
+    font-weight: 700; font-size: 9.5px; letter-spacing: .9px; text-transform: uppercase; white-space: nowrap;
+  }
+  .doc-paper .stamp.good  { border-color: #0a7d4b; color: #0a7d4b; }
+  .doc-paper .stamp.risk  { border-color: #b32020; color: #b32020; }
+  .doc-paper .stamp.watch { border-color: #a2701a; color: #a2701a; }
+  .doc-paper .foot {
+    margin-top: 30px; padding-top: 11px; border-top: 1px solid #ddd; color: #777; font-size: 10.5px;
+  }
+  .doc-note { font-size: 11.5px; color: var(--muted-2); font-weight: 600; }
+
+  /* ---- and the workbook, as a spreadsheet ---- */
+  .sheet-view { display: flex; flex-direction: column; min-height: 0; }
+  .sheet-note {
+    display: flex; align-items: center; gap: 9px; margin-bottom: 12px;
+    padding: 9px 13px; border-radius: 11px; font-size: 12px; font-weight: 600; color: var(--muted);
+    background: rgba(245,197,66,0.08); border: 1px solid rgba(245,197,66,0.22);
+  }
+  .sheet-note .ico { width: 15px; height: 15px; flex: 0 0 auto; color: var(--brand-gold, #f5c542); }
+  .sheet-grid-wrap { overflow: auto; border-radius: 10px; border: 1px solid var(--glass-border); max-height: 58vh; }
+  .sheet-grid { border-collapse: separate; border-spacing: 0; font-size: 12px; width: max-content; min-width: 100%; }
+  .sheet-grid th, .sheet-grid td {
+    border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);
+    padding: 6px 10px; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* The address strips stay put while the grid scrolls under them */
+  .sheet-grid thead th {
+    position: sticky; top: 0; z-index: 2; background: rgba(20,25,38,0.97);
+    font-size: 10px; font-weight: 700; color: var(--muted-2); text-align: center; letter-spacing: .5px;
+  }
+  .sheet-grid .sg-row {
+    position: sticky; left: 0; z-index: 1; background: rgba(20,25,38,0.97);
+    font-size: 10px; font-weight: 700; color: var(--muted-2); text-align: center; min-width: 34px;
+  }
+  .sheet-grid .sg-corner { position: sticky; left: 0; z-index: 3; min-width: 34px; }
+  .sheet-grid td.sg-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sheet-grid td.sg-hdr {
+    background: rgba(75,63,143,0.42); color: #efeaff; font-weight: 700;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .sheet-grid td.sg-ttl { font-weight: 800; font-size: 14px; letter-spacing: -.01em; }
+  .sheet-grid td.sg-strong { font-weight: 800; color: var(--good, #3ddc97); }
+  /* A cell Excel will recompute is marked, so it is clear which numbers move */
+  .sheet-grid td.sg-formula { background: rgba(245,197,66,0.07); box-shadow: inset 2px 0 0 rgba(245,197,66,0.5); cursor: help; }
+  .sheet-tabs {
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+    margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--glass-border);
+  }
+  .sheet-tab {
+    height: 30px; padding: 0 13px; border-radius: 8px 8px 3px 3px; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 650; color: var(--muted-2);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-bottom: none;
+    transition: color .16s, background .18s;
+  }
+  .sheet-tab:hover { color: var(--text); background: rgba(255,255,255,0.09); }
+  .sheet-tab.on { color: #17130a; background: var(--brand-gold, #f5c542); border-color: transparent; font-weight: 750; }
+  .sheet-legend {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11px; color: var(--muted-2); font-weight: 600;
+  }
+  .sheet-legend i {
+    width: 13px; height: 13px; border-radius: 3px; display: inline-block;
+    background: rgba(245,197,66,0.14); box-shadow: inset 2px 0 0 rgba(245,197,66,0.6);
+  }
+  @media (max-width: 760px) {
+    .doc-stage { margin: -16px -15px -20px; padding: 15px 10px 20px; }
+    .doc-paper { padding: 26px 20px 30px; font-size: 13px; }
+    .doc-paper h1 { font-size: 20px; }
+    .doc-paper table { font-size: 11px; }
+    .doc-paper th, .doc-paper td { padding: 5px 6px; }
+    .sheet-grid-wrap { max-height: 46vh; }
+    .sheet-legend { display: none; }
+  }
 
   /* ---- The header of whatever section is open ---- */
   #adminFilterStore, #businessStash { display: none !important; }
@@ -4126,13 +4249,13 @@
               <span><b>Carry in the running total</b><i>Off by default: this period's briefing reports this period. Tick to merge everything to date</i></span></label>
           </div>
 
-          <div class="el-step"><span class="el-num">3</span><span>Prepare it</span></div>
+          <div class="el-step"><span class="el-num">3</span><span>Open it</span></div>
           <div class="exec-launch-actions">
-            <button type="button" class="primary" onclick="openExecBriefing()">Prepare the briefing</button>
-            <button type="button" class="secondary" onclick="downloadExecDoc()">Word document</button>
-            <button type="button" class="secondary" onclick="downloadExecWorkbook()">Excel workbook</button>
-            <button type="button" class="secondary" onclick="downloadExecCsv()">CSV for Sheets</button>
+            <button type="button" class="primary" onclick="openExecBriefing()">The briefing</button>
+            <button type="button" class="secondary" onclick="DECK.open('docview')">Read the document</button>
+            <button type="button" class="secondary" onclick="DECK.open('sheetview')">Open the workbook</button>
           </div>
+          <p class="el-hint">All three open as tiles you can sit side by side. Download from the foot of each — Word, PDF, Excel or CSV — once you have read it.</p>
           <p class="el-note" id="execLaunchNote"></p>
         </div>
       </div>
@@ -12009,9 +12132,9 @@ DECK.register('execdoc', function () {
     foot:
       '<button type="button" class="ghost" onclick="copyExecBriefing()">Copy as text</button>' +
       '<span class="spacer"></span>' +
-      '<button type="button" class="secondary" onclick="downloadExecWorkbook()">Excel</button>' +
-      '<button type="button" class="secondary" onclick="printExecBriefing()">Print / PDF</button>' +
-      '<button type="button" class="primary" onclick="downloadExecDoc()">Word document</button>',
+      /* Read it first, download second — both open beside this tile */
+      '<button type="button" class="secondary" onclick="DECK.open(\'sheetview\')">' + svgIcon('sheet') + 'Open the workbook</button>' +
+      '<button type="button" class="primary" onclick="DECK.open(\'docview\')">' + svgIcon('doc') + 'Open the document</button>',
   };
 });
 
@@ -12449,102 +12572,296 @@ async function copyExecBriefing() {
 
 function printExecBriefing() { openPrintWindow(execDocHTML(), 'Save it as PDF from the print dialog'); }
 
-/* ---- The briefing as an official document ---- */
-function execDocHTML() {
+/* ============================================================
+   THE BRIEFING AS AN OFFICIAL DOCUMENT
+   ------------------------------------------------------------
+   Written to the shape a board paper takes: a control block
+   naming the period and its author, numbered sections in the
+   order a reader needs them, the analysis standing on its own
+   as section 3 rather than scattered through the tables, and an
+   appendix stating the method so no figure is unexplained.
+
+   One body, three destinations — the Word file, the print/PDF
+   view, and the paper shown inside the app — so what is read on
+   screen is exactly what is filed.
+   ============================================================ */
+const DOC_SECTIONS = [
+  'Purpose and basis', 'Executive summary', 'Analysis and findings',
+  'Performance by tool', 'Performance by department', 'Activity in the period',
+  'Movement against the previous period', 'Decisions outstanding', 'Recommended actions',
+];
+function execDocBody() {
   const M = execBriefingModel();
   const t = M.standingTotals, p = M.periodTotals;
   const hr = hourlyRate();
   const roi = t.ai > 0 ? t.net / t.ai : null;
   const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
+  const catRows = Object.entries(M.byCat).sort((a, b) => b[1] - a[1]);
   const pending = M.all.filter(e => e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'));
+  const unpriced = M.scope.filter(needsPricing).length;
   const strip = s => String(s).replace(/<[^>]+>/g, '');
+  /* Numbered as the document is read, so a section can be cited */
+  let n = 0;
+  const H = title => '<h2>' + (++n) + '. ' + escapeHTML(title) + '</h2>';
+  const rate = Number(settings.usdToUgx) || 0;
 
-  return docShell('Swangz Avenue — ' + M.w.cadence + ' AI Adoption Briefing — ' + M.w.label,
-    '<h1>Swangz Avenue</h1>' +
-    '<p class="sub">AI Adoption — ' + escapeHTML(M.w.cadence) + ' Executive Briefing</p>' +
+  const findings = execFindings(M, roi, unpriced, pending);
+
+  return (
+    /* ---- masthead and control block ---- */
+    '<div class="docmast">' +
+      '<div class="dm-org">Swangz Avenue</div>' +
+      '<h1>AI Adoption — ' + escapeHTML(M.w.cadence) + ' Executive Briefing</h1>' +
+      '<p class="sub">' + escapeHTML(M.w.label) + '</p>' +
+    '</div>' +
     '<div class="rule"></div>' +
-    '<table style="margin-top:10pt;"><tr>' +
-      '<td class="k">Period</td><td><strong>' + escapeHTML(M.w.label) + '</strong></td>' +
-      '<td class="k">Prepared</td><td>' + escapeHTML(stamp()) + '</td></tr>' +
-      '<tr><td class="k">Prepared by</td><td>' + escapeHTML(currentEmail() || 'admin') + '</td>' +
-      '<td class="k">Basis</td><td>' + (M.carried ? 'Everything recorded to date' : 'This period only') + '</td></tr>' +
+    '<table class="ctrl"><tr>' +
+      '<td class="k">Reporting period</td><td><strong>' + escapeHTML(M.w.label) + '</strong></td>' +
+      '<td class="k">Cadence</td><td>' + escapeHTML(M.w.cadence) + '</td></tr>' +
+      '<tr><td class="k">Prepared</td><td>' + escapeHTML(stamp()) + '</td>' +
+      '<td class="k">Prepared by</td><td>' + escapeHTML(currentEmail() || 'Administrator') + '</td></tr>' +
+      '<tr><td class="k">Basis of figures</td><td colspan="3">' +
+        (M.carried
+          ? 'Everything recorded to date, with this period stated separately in section 6.'
+          : 'This period only. No figure from an earlier period is carried in.') +
+      '</td></tr>' +
+      '<tr><td class="k">Classification</td><td colspan="3">Internal — management use</td></tr>' +
     '</table>' +
 
-    '<h2>Summary</h2>' +
+    /* ---- 1. purpose ---- */
+    H('Purpose and basis') +
+    '<p>This briefing sets out what Swangz Avenue is getting from the AI tools its teams use: the ' +
+      'time returned to the business, what that time and the tools cost, and what remains to be decided. ' +
+      'It is written from the entries departments filed in the tracker over ' + escapeHTML(M.w.label) + '.</p>' +
+    '<p>Departments report the <strong>work</strong> — what the task is, how long it used to take and how long ' +
+      'it takes now. Every figure in money is set by the administration team, so the cost side has one author ' +
+      'and one method throughout.</p>' +
+
+    /* ---- 2. executive summary ---- */
+    H('Executive summary') +
     '<p>' + strip(execNarrative(M, roi, t.time * hr)) + '</p>' +
     '<table>' +
       '<tr><th>Measure</th><th class="num">Figure</th><th class="num">In shillings</th></tr>' +
       '<tr><td>Tools in scope</td><td class="num">' + M.scope.length + '</td><td class="num">—</td></tr>' +
-      '<tr><td>Departments</td><td class="num">' + Object.keys(M.byDept).length + '</td><td class="num">—</td></tr>' +
+      '<tr><td>Departments represented</td><td class="num">' + Object.keys(M.byDept).length + '</td><td class="num">—</td></tr>' +
       '<tr><td>Hours saved per month</td><td class="num">' + escapeHTML(fmtDuration(t.time)) + '</td><td class="num">' + (hr ? fmtUGX(t.time * hr) : '—') + '</td></tr>' +
       '<tr><td>Cost of the old way, per month</td><td class="num">' + fmtUSD(t.trad) + '</td><td class="num">' + fmtUGX(t.trad) + '</td></tr>' +
       '<tr><td>Spent on AI, per month</td><td class="num">' + fmtUSD(t.ai) + '</td><td class="num">' + fmtUGX(t.ai) + '</td></tr>' +
       '<tr><td><strong>Net saved per month</strong></td><td class="num ' + (t.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(t.net) + '</td><td class="num">' + fmtUGX(t.net) + '</td></tr>' +
-      '<tr><td>Annualised</td><td class="num ' + (t.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(t.net * 12) + '</td><td class="num">' + fmtUGX(t.net * 12) + '</td></tr>' +
+      '<tr><td>Annualised at this rate</td><td class="num ' + (t.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(t.net * 12) + '</td><td class="num">' + fmtUGX(t.net * 12) + '</td></tr>' +
       '<tr><td>Revenue enabled or protected</td><td class="num">' + fmtUSD(t.rev) + '</td><td class="num">' + fmtUGX(t.rev) + '</td></tr>' +
       '<tr><td>Return per $1 of licence spend</td><td class="num">' + (roi === null ? '—' : '$' + (1 + roi).toFixed(2)) + '</td><td class="num">—</td></tr>' +
     '</table>' +
 
-    '<h2>Filed in this period</h2>' +
+    /* ---- 3. the analysis, standing on its own ---- */
+    H('Analysis and findings') +
+    '<p class="lead">The tracker reads the entries and states what they show. Each finding below names ' +
+      'the tools or departments it comes from, so it can be checked against sections 4 and 5.</p>' +
+    (findings.length
+      ? '<table class="findings"><tr><th style="width:26%">Finding</th><th>What the data shows</th><th style="width:16%">Bearing</th></tr>' +
+        findings.map(f =>
+          '<tr><td><strong>' + escapeHTML(f.title) + '</strong></td>' +
+          '<td>' + strip(f.body) + '</td>' +
+          '<td><span class="stamp ' + f.tone + '">' + escapeHTML(f.toneLabel) + '</span></td></tr>').join('') +
+        '</table>'
+      : '<p><em>Not enough recorded yet in this period to draw a finding.</em></p>') +
+    (catRows.length
+      ? '<p class="lead" style="margin-top:12pt;">Where the value sits, by kind of work:</p>' +
+        '<table><tr><th>Capability</th><th class="num">Net saved / month</th><th class="num">Share</th></tr>' +
+        catRows.map(([c, v]) => {
+          const total = catRows.reduce((s, r) => s + Math.max(0, r[1]), 0);
+          return '<tr><td>' + escapeHTML(c) + '</td><td class="num">' + fmtUSD(v) + '</td>' +
+            '<td class="num">' + (total > 0 ? Math.round((Math.max(0, v) / total) * 100) + '%' : '—') + '</td></tr>';
+        }).join('') + '</table>'
+      : '') +
+
+    /* ---- 4. by tool ---- */
+    H('Performance by tool') +
+    '<table><tr><th>Tool</th><th>Stage</th><th class="num">Uses</th><th class="num">Depts</th><th class="num">Hours / mo</th><th class="num">Cost / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
+      (M.groups.length ? M.groups.map(g => '<tr><td>' + escapeHTML(g.name) + '</td><td>' + (g.stage ? escapeHTML(g.stage[0]) : '—') + '</td>' +
+        '<td class="num">' + g.entries.length + '</td><td class="num">' + g.depts.size + '</td>' +
+        '<td class="num">' + escapeHTML(fmtDuration(g.time)) + '</td><td class="num">' + fmtUSD(g.ai) + '</td>' +
+        '<td class="num ' + (g.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(g.net) + '</td><td class="num">' + fmtUSD(g.rev) + '</td></tr>').join('')
+        : '<tr><td colspan="8"><em>No tools in scope for this period.</em></td></tr>') +
+    '</table>' +
+
+    /* ---- 5. by department ---- */
+    H('Performance by department') +
+    '<table><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
+      (deptRows.length ? deptRows.map(([d, v]) => '<tr><td>' + escapeHTML(d) + '</td><td class="num">' + v.count + '</td>' +
+        '<td class="num">' + escapeHTML(fmtDuration(v.time)) + '</td><td class="num">' + fmtUSD(v.trad) + '</td>' +
+        '<td class="num">' + fmtUSD(v.ai) + '</td><td class="num ' + (v.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(v.net) + '</td>' +
+        '<td class="num">' + fmtUSD(v.rev) + '</td></tr>').join('')
+        : '<tr><td colspan="7"><em>No departments in scope for this period.</em></td></tr>') +
+    '</table>' +
+
+    /* ---- 6. the period itself ---- */
+    H('Activity in the period') +
     '<p>' + M.reports.length + ' report' + (M.reports.length === 1 ? '' : 's') + ' and ' + M.requests.length +
-      ' request' + (M.requests.length === 1 ? '' : 's') + ', adding ' + escapeHTML(fmtDuration(p.time)) +
+      ' request' + (M.requests.length === 1 ? '' : 's') + ' were filed, adding ' + escapeHTML(fmtDuration(p.time)) +
       ' saved a month and ' + fmtUSD(p.net) + ' net.</p>' +
     (M.period.length
-      ? '<table><tr><th>Tool</th><th>Department</th><th>Who</th><th>Type</th><th class="num">Hours / mo</th><th class="num">Net / mo</th></tr>' +
-        M.period.map(e => { const m = monthlySavings(e);
-          return '<tr><td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
+      ? '<table><tr><th>Filed</th><th>Tool</th><th>Department</th><th>Submitted by</th><th>Type</th><th class="num">Hours / mo</th><th class="num">Net / mo</th></tr>' +
+        M.period.slice().sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)).map(e => { const m = monthlySavings(e);
+          return '<tr><td>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</td>' +
+            '<td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
             '<td>' + escapeHTML(e.submittedBy || '—') + '</td><td>' + (e.tag === 'request' ? 'Request' : 'Report') + '</td>' +
             '<td class="num">' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</td>' +
             '<td class="num">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</td></tr>'; }).join('') + '</table>'
       : '<p><em>Nothing was filed in this period.</em></p>') +
 
+    /* ---- 7. movement ---- */
     (M.previous
-      ? '<h2>Against ' + escapeHTML(M.previous.label) + '</h2><table>' +
-        '<tr><th>Measure</th><th class="num">Before</th><th class="num">Now</th><th class="num">Change</th></tr>' +
+      ? H('Movement against ' + M.previous.label) +
+        '<table>' +
+        '<tr><th>Measure</th><th class="num">' + escapeHTML(M.previous.label.replace(/^the /, '')) + '</th><th class="num">This period</th><th class="num">Change</th></tr>' +
         [['Reports filed', M.previous.count, M.reports.length, v => String(Math.round(v))],
          ['Hours saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
          ['Net saved / mo', M.previous.net, p.net, v => fmtUSD(v)],
-         ['AI spend / mo', M.previous.ai, p.ai, v => fmtUSD(v)]].map(r => {
+         ['AI spend / mo', M.previous.ai, p.ai, v => fmtUSD(v)],
+         ['Revenue / mo', M.previous.rev, p.rev, v => fmtUSD(v)]].map(r => {
            const d = r[2] - r[1];
            return '<tr><td>' + r[0] + '</td><td class="num">' + escapeHTML(r[3](r[1])) + '</td>' +
-             '<td class="num">' + escapeHTML(r[3](r[2])) + '</td><td class="num ' + (d > 0 ? 'pos' : d < 0 ? 'neg' : '') + '">' +
+             '<td class="num"><strong>' + escapeHTML(r[3](r[2])) + '</strong></td><td class="num ' + (d > 0 ? 'pos' : d < 0 ? 'neg' : '') + '">' +
              (d === 0 ? '—' : (d > 0 ? '+' : '−') + escapeHTML(r[3](Math.abs(d)))) + '</td></tr>'; }).join('') +
         '</table>'
       : '') +
 
-    '<h2>By tool</h2>' +
-    '<table><tr><th>Tool</th><th>Stage</th><th class="num">Uses</th><th class="num">Depts</th><th class="num">Hours / mo</th><th class="num">Cost / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
-      M.groups.map(g => '<tr><td>' + escapeHTML(g.name) + '</td><td>' + (g.stage ? escapeHTML(g.stage[0]) : '—') + '</td>' +
-        '<td class="num">' + g.entries.length + '</td><td class="num">' + g.depts.size + '</td>' +
-        '<td class="num">' + escapeHTML(fmtDuration(g.time)) + '</td><td class="num">' + fmtUSD(g.ai) + '</td>' +
-        '<td class="num ' + (g.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(g.net) + '</td><td class="num">' + fmtUSD(g.rev) + '</td></tr>').join('') +
-    '</table>' +
-
-    '<h2>By department</h2>' +
-    '<table><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
-      deptRows.map(([d, v]) => '<tr><td>' + escapeHTML(d) + '</td><td class="num">' + v.count + '</td>' +
-        '<td class="num">' + escapeHTML(fmtDuration(v.time)) + '</td><td class="num">' + fmtUSD(v.trad) + '</td>' +
-        '<td class="num">' + fmtUSD(v.ai) + '</td><td class="num ' + (v.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(v.net) + '</td>' +
-        '<td class="num">' + fmtUSD(v.rev) + '</td></tr>').join('') +
-    '</table>' +
-
+    /* ---- 8. decisions ---- */
+    H('Decisions outstanding') +
     (pending.length
-      ? '<h2>Waiting on a decision</h2>' +
-        '<table><tr><th>Tool</th><th>Department</th><th>Asked by</th><th>Raised</th><th>Status</th><th class="num">Cost / mo</th></tr>' +
-        pending.map(e => '<tr><td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
+      ? '<p>' + pending.length + ' request' + (pending.length === 1 ? '' : 's') + ' from the team ' +
+        (pending.length === 1 ? 'is' : 'are') + ' awaiting a decision, oldest first. Open requests deliberately ' +
+        'carry across periods: they are not closed until someone decides.</p>' +
+        '<table><tr><th>Tool</th><th>Department</th><th>Asked by</th><th>Raised</th><th>Status</th><th class="num">Cost / mo</th><th>The case made</th></tr>' +
+        pending.slice().sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0)).map(e =>
+          '<tr><td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
           '<td>' + escapeHTML(e.submittedBy || '—') + '</td><td>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</td>' +
           '<td>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</td>' +
-          '<td class="num">' + fmtUSD((Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0)) + '</td></tr>').join('') +
+          '<td class="num">' + fmtUSD((Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0)) + '</td>' +
+          '<td>' + escapeHTML((e.reason || e.impact || '—').slice(0, 220)) + '</td></tr>').join('') +
         '</table>'
-      : '') +
+      : '<p>No open requests. Everything the team has asked for has been decided.</p>') +
 
-    '<h2>Recommended next steps</h2><ol>' +
-      execRecommendations(M, roi, M.scope.filter(needsPricing).length, pending).map(r => '<li>' + strip(r) + '</li>').join('') +
-    '</ol>' +
+    /* ---- 9. recommendations ---- */
+    H('Recommended actions') +
+    '<ol>' + execRecommendations(M, roi, unpriced, pending).map(r => '<li>' + strip(r) + '</li>').join('') + '</ol>' +
+
+    /* ---- appendix: the method, so no figure is unexplained ---- */
+    '<h2>Appendix A — Method and definitions</h2>' +
+    '<table>' +
+      '<tr><th style="width:32%">Term</th><th>How it is calculated</th></tr>' +
+      '<tr><td class="k">Hours saved per month</td><td>(time the old way − time with the tool) × deliverables per month, summed across every entry in scope.</td></tr>' +
+      '<tr><td class="k">Cost of the old way</td><td>Cost per deliverable × deliverables per month. Set by an administrator, never by the reporting department.</td></tr>' +
+      '<tr><td class="k">Spent on AI</td><td>Monthly subscription + extra credits, per tool.</td></tr>' +
+      '<tr><td class="k">Net saved</td><td>Cost of the old way − spent on AI. It does not include the value of the hours, which is stated separately.</td></tr>' +
+      '<tr><td class="k">Value of hours</td><td>' + (hr ? 'Hours saved × ' + fmtUSD(hr) + ' per hour, the blended rate set by the administration team.' : 'Not stated — no blended hourly rate has been set, so hours are reported as hours only.') + '</td></tr>' +
+      '<tr><td class="k">Revenue enabled</td><td>Revenue attributed by an administrator to work these tools made possible. Not counted as a saving.</td></tr>' +
+      '<tr><td class="k">Return per $1</td><td>1 + (net saved ÷ spend on AI). Undefined where nothing has been spent.</td></tr>' +
+      '<tr><td class="k">Currency</td><td>Figures are in US Dollars, converted at ' + escapeHTML(String(rate)) + ' UGX to the Dollar.</td></tr>' +
+      '<tr><td class="k">Scope</td><td>' + (M.carried ? 'Every report recorded to date.' : 'Reports filed within ' + escapeHTML(M.w.label) + ' only.') +
+        ' Requests are excluded from every money figure — they are proposals, not results.</td></tr>' +
+    '</table>' +
 
     '<div class="foot">Swangz Avenue AI Adoption Tracker · ' + escapeHTML(M.w.label) +
-      ' · figures monthly unless stated · US Dollar converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX' +
-      (hr ? ' · hours valued at ' + fmtUSD(hr) + '/hour' : '') + '</div>');
+      ' · figures monthly unless stated · US Dollar converted at ' + escapeHTML(String(rate)) + ' UGX' +
+      (hr ? ' · hours valued at ' + fmtUSD(hr) + '/hour' : '') +
+      ' · prepared ' + escapeHTML(stamp()) + '</div>'
+  );
+}
+function execDocHTML() {
+  const M = execBriefingModel();
+  return docShell('Swangz Avenue — ' + M.w.cadence + ' AI Adoption Briefing — ' + M.w.label, execDocBody());
+}
+
+/* The analysis, as findings rather than prose — each one able to say which
+   tools or departments it came from, so it can be checked. */
+function execFindings(M, roi, unpriced, pending) {
+  const out = [];
+  const t = M.standingTotals;
+  const groups = M.groups.slice();
+  const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
+  const winners = groups.filter(g => g.net > 0).sort((a, b) => b.net - a.net);
+  const losers = groups.filter(g => g.net < 0).sort((a, b) => a.net - b.net);
+  const single = groups.filter(g => g.depts.size === 1 && g.net > 0).sort((a, b) => b.net - a.net);
+  const hr = hourlyRate();
+  const add = (title, body, tone, toneLabel) => out.push({ title, body, tone, toneLabel });
+
+  if (winners.length) {
+    const top = winners[0];
+    add('Where the return comes from',
+      '<strong>' + escapeHTML(top.name) + '</strong> accounts for ' + fmtUSD(top.net) + ' of the ' +
+      fmtUSD(t.net) + ' saved each month' +
+      (t.net > 0 ? ' — ' + Math.round((top.net / t.net) * 100) + '% of the total' : '') +
+      ', across ' + top.depts.size + ' department' + (top.depts.size === 1 ? '' : 's') + '.',
+      'good', 'Strength');
+  }
+  if (deptRows.length) {
+    const lead = deptRows[0];
+    add('Who is carrying adoption',
+      '<strong>' + escapeHTML(lead[0]) + '</strong> is returning ' + fmtUSD(lead[1].net) + ' a month from ' +
+      lead[1].count + ' tool' + (lead[1].count === 1 ? '' : 's') + ' and ' + fmtDuration(lead[1].time) + ' saved. ' +
+      (deptRows.length > 1
+        ? 'The next is ' + escapeHTML(deptRows[1][0]) + ' at ' + fmtUSD(deptRows[1][1].net) + '.'
+        : 'No other department has recorded anything in scope.'),
+      'good', 'Strength');
+  }
+  if (hr && t.time > 0) {
+    add('The time, valued',
+      'The ' + fmtDuration(t.time) + ' returned each month is worth ' + fmtUSD(t.time * hr) +
+      ' at the blended rate, on top of the ' + fmtUSD(t.net) + ' of cash saved — a total benefit of ' +
+      fmtUSD(t.net + t.time * hr) + ' a month.',
+      'good', 'Strength');
+  }
+  if (losers.length) {
+    add('Costing more than they replace',
+      losers.slice(0, 3).map(g => '<strong>' + escapeHTML(g.name) + '</strong> (' + fmtUSD(g.net) + ')').join(', ') +
+      ' cost more each month than the work ' + (losers.length === 1 ? 'it replaces' : 'they replace') +
+      ' at the volumes reported. Either the volume is too low to justify the licence, or the cost of the old way is understated.',
+      'risk', 'Needs review');
+  }
+  if (single.length) {
+    add('Proven but not shared',
+      '<strong>' + escapeHTML(single[0].name) + '</strong> is returning ' + fmtUSD(single[0].net) +
+      ' a month for one department alone. Nothing in the data suggests the same gain is not available elsewhere.',
+      'watch', 'Opportunity');
+  }
+  if (unpriced) {
+    add('Figures still incomplete',
+      unpriced + ' reported tool' + (unpriced === 1 ? '' : 's') + ' ' + (unpriced === 1 ? 'has' : 'have') +
+      ' no pricing set, so ' + (unpriced === 1 ? 'it is' : 'they are') + ' absent from every money figure in this ' +
+      'briefing. The saving stated here is therefore a floor, not a ceiling.',
+      'risk', 'Caveat');
+  }
+  if (pending.length) {
+    const oldest = pending.slice().sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0))[0];
+    const days = Math.round((Date.now() - new Date(oldest.submittedAt || Date.now())) / 86400000);
+    add('Requests awaiting a decision',
+      pending.length + ' request' + (pending.length === 1 ? '' : 's') + ' ' + (pending.length === 1 ? 'is' : 'are') +
+      ' open. The longest-waiting is <strong>' + escapeHTML(oldest.toolName || '—') + '</strong> for ' +
+      escapeHTML(oldest.department || 'a team') + ', raised ' + days + ' day' + (days === 1 ? '' : 's') + ' ago.',
+      'watch', 'Decision');
+  }
+  if (roi !== null) {
+    add('Return on licence spend',
+      'Every dollar spent on licences is returning $' + (1 + roi).toFixed(2) + '. ' +
+      (roi >= 1 ? 'The programme is paying for itself more than twice over.'
+                : roi > 0 ? 'The programme is ahead, but not yet doubling its spend.'
+                          : 'The programme is behind at current volumes.'),
+      roi >= 1 ? 'good' : roi > 0 ? 'watch' : 'risk',
+      roi >= 1 ? 'Strength' : roi > 0 ? 'Watch' : 'Needs review');
+  }
+  if (M.previous) {
+    const d = M.periodTotals.net - M.previous.net;
+    add('Against ' + M.previous.label,
+      Math.abs(d) < 0.005
+        ? 'The saving added this period is level with ' + escapeHTML(M.previous.label) + '.'
+        : (d > 0 ? 'Up ' : 'Down ') + fmtUSD(Math.abs(d)) + ' on ' + escapeHTML(M.previous.label) +
+          ', with ' + M.reports.length + ' report' + (M.reports.length === 1 ? '' : 's') + ' filed against ' +
+          M.previous.count + '.',
+      d >= 0 ? 'good' : 'watch', d >= 0 ? 'Improving' : 'Slowing');
+  }
+  return out;
 }
 function downloadExecDoc() {
   const M = execBriefingModel();
@@ -12569,79 +12886,103 @@ function sheet(name, rows, widths) {
     '</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
     '<SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>';
 }
-function execWorkbookXML() {
+/* ---- One workbook, described once ----
+   The sheets are built as data so the same model can be written out as
+   Excel XML, shown as a grid inside the app, and saved as CSV. A formula
+   cell carries both its R1C1 formula (for Excel, which recomputes it) and
+   the value we already know (for the screen, and so the number survives
+   anywhere formulas are stripped). */
+function execWorkbookModel() {
   const M = execBriefingModel();
   const t = M.standingTotals;
   const rate = Number(settings.usdToUgx) || 0;
   const hr = hourlyRate();
   const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
 
-  const H = v => cell(v, 'String', 'hdr');
-  const T = v => cell(v, 'String', 'ttl');
-  const N = (v, s) => cell(Math.round((Number(v) || 0) * 100) / 100, 'Number', s || 'num');
-  const F = (f, s) => cell(0, 'Number', s || 'num', f);
+  const H = v => ({ v: v, t: 'String', s: 'hdr' });
+  const T = v => ({ v: v, t: 'String', s: 'ttl' });
+  const S = v => ({ v: v == null ? '' : String(v), t: 'String' });
+  const N = (v, s) => ({ v: Math.round((Number(v) || 0) * 100) / 100, t: 'Number', s: s || 'num' });
+  const F = (val, f, s) => ({ v: Math.round((Number(val) || 0) * 100) / 100, t: 'Number', s: s || 'num', f: f });
+  const gap = [];
 
-  /* Sheet 1 — the model. Rate and hourly rate are inputs, everything else
-     is a formula off them, so changing B3 changes the whole workbook. */
+  const labour = t.time * hr;
+  const benefit = t.net + labour;
   const summary = [
-    T('Swangz Avenue — AI Adoption') + T(M.w.cadence + ' briefing'),
-    cell('Period') + cell(M.w.label),
-    cell('Prepared') + cell(stamp()),
-    cell('Basis') + cell(M.carried ? 'Everything recorded to date' : 'This period only'),
-    '',
-    H('Inputs') + H('Value'),
-    cell('US Dollar to Ugandan Shilling') + N(rate, 'num'),
-    cell('Blended hourly rate (USD)') + N(hr, 'num'),
-    '',
-    H('Measure') + H('USD') + H('UGX') + H('Note'),
-    cell('Cost of the old way, per month') + N(t.trad) + F('=RC[-1]*R7C2', 'num') + cell('What the work used to cost'),
-    cell('Spent on AI, per month') + N(t.ai) + F('=RC[-1]*R7C2', 'num') + cell('Subscriptions and credits'),
-    cell('Net saved, per month') + F('=R11C2-R12C2', 'pos') + F('=RC[-1]*R7C2', 'pos') + cell('Old way minus AI'),
-    cell('Hours saved, per month') + N(t.time) + cell('') + cell('Reported by the departments'),
-    cell('Those hours in money, per month') + F('=R14C2*R8C2', 'num') + F('=RC[-1]*R7C2', 'num') + cell('Hours × hourly rate'),
-    cell('Total benefit, per month') + F('=R13C2+R15C2', 'pos') + F('=RC[-1]*R7C2', 'pos') + cell('Cash saved plus the value of the time'),
-    cell('Annualised benefit') + F('=R16C2*12', 'pos') + F('=RC[-1]*R7C2', 'pos') + cell('Twelve months at this rate'),
-    cell('Revenue enabled or protected') + N(t.rev) + F('=RC[-1]*R7C2', 'num') + cell('Attributed by the admin team'),
-    cell('Return per $1 of licence spend') + F('=IF(R12C2=0,0,1+R13C2/R12C2)', 'num') + cell('') + cell('One dollar in, this much back'),
+    [T('Swangz Avenue — AI Adoption'), T(M.w.cadence + ' briefing')],
+    [S('Period'), S(M.w.label)],
+    [S('Prepared'), S(stamp())],
+    [S('Basis'), S(M.carried ? 'Everything recorded to date' : 'This period only')],
+    gap,
+    [H('Inputs'), H('Value')],
+    [S('US Dollar to Ugandan Shilling'), N(rate)],
+    [S('Blended hourly rate (USD)'), N(hr)],
+    gap,
+    [H('Measure'), H('USD'), H('UGX'), H('Note')],
+    [S('Cost of the old way, per month'), N(t.trad), F(t.trad * rate, '=RC[-1]*R7C2'), S('What the work used to cost')],
+    [S('Spent on AI, per month'), N(t.ai), F(t.ai * rate, '=RC[-1]*R7C2'), S('Subscriptions and credits')],
+    [S('Net saved, per month'), F(t.net, '=R11C2-R12C2', 'pos'), F(t.net * rate, '=RC[-1]*R7C2', 'pos'), S('Old way minus AI')],
+    [S('Hours saved, per month'), N(t.time), S(''), S('Reported by the departments')],
+    [S('Those hours in money, per month'), F(labour, '=R14C2*R8C2'), F(labour * rate, '=RC[-1]*R7C2'), S('Hours × hourly rate')],
+    [S('Total benefit, per month'), F(benefit, '=R13C2+R15C2', 'pos'), F(benefit * rate, '=RC[-1]*R7C2', 'pos'), S('Cash saved plus the value of the time')],
+    [S('Annualised benefit'), F(benefit * 12, '=R16C2*12', 'pos'), F(benefit * 12 * rate, '=RC[-1]*R7C2', 'pos'), S('Twelve months at this rate')],
+    [S('Revenue enabled or protected'), N(t.rev), F(t.rev * rate, '=RC[-1]*R7C2'), S('Attributed by the admin team')],
+    [S('Return per $1 of licence spend'), F(t.ai > 0 ? 1 + t.net / t.ai : 0, '=IF(R12C2=0,0,1+R13C2/R12C2)'), S(''), S('One dollar in, this much back')],
   ];
 
-  const tools = [H('Tool') + H('Category') + H('Stage') + H('Submissions') + H('Departments') +
-                 H('Hours saved / mo') + H('Old way / mo (USD)') + H('AI cost / mo (USD)') + H('Net / mo (USD)') +
-                 H('Net / mo (UGX)') + H('Annual net (USD)') + H('Revenue / mo (USD)')]
+  const tools = [[H('Tool'), H('Category'), H('Stage'), H('Submissions'), H('Departments'),
+                  H('Hours saved / mo'), H('Old way / mo (USD)'), H('AI cost / mo (USD)'), H('Net / mo (USD)'),
+                  H('Net / mo (UGX)'), H('Annual net (USD)'), H('Revenue / mo (USD)')]]
     .concat(M.groups.map((g, i) => {
       const r = i + 2;
-      return cell(g.name) + cell(g.cats[0] || '') + cell(g.stage ? g.stage[0] : '') +
-        N(g.entries.length) + N(g.depts.size) + N(g.time) + N(g.trad) + N(g.ai) +
-        F('=RC[-2]-RC[-1]', 'pos') + F('=RC[-1]*Summary!R7C2') + F('=R' + r + 'C9*12') + N(g.rev);
+      return [S(g.name), S(g.cats[0] || ''), S(g.stage ? g.stage[0] : ''),
+        N(g.entries.length), N(g.depts.size), N(g.time), N(g.trad), N(g.ai),
+        F(g.net, '=RC[-2]-RC[-1]', 'pos'), F(g.net * rate, '=RC[-1]*Summary!R7C2'),
+        F(g.net * 12, '=R' + r + 'C9*12'), N(g.rev)];
     }));
 
-  const depts = [H('Department') + H('Tools') + H('Hours saved / mo') + H('Old way / mo (USD)') +
-                 H('AI spend / mo (USD)') + H('Net / mo (USD)') + H('Net / mo (UGX)') + H('Revenue / mo (USD)')]
+  const depts = [[H('Department'), H('Tools'), H('Hours saved / mo'), H('Old way / mo (USD)'),
+                  H('AI spend / mo (USD)'), H('Net / mo (USD)'), H('Net / mo (UGX)'), H('Revenue / mo (USD)')]]
     .concat(deptRows.map(([d, v]) =>
-      cell(d) + N(v.count) + N(v.time) + N(v.trad) + N(v.ai) +
-      F('=RC[-2]-RC[-1]', 'pos') + F('=RC[-1]*Summary!R7C2') + N(v.rev)));
+      [S(d), N(v.count), N(v.time), N(v.trad), N(v.ai),
+       F(v.net, '=RC[-2]-RC[-1]', 'pos'), F(v.net * rate, '=RC[-1]*Summary!R7C2'), N(v.rev)]));
 
-  const filed = [H('Filed') + H('Type') + H('Tool') + H('Department') + H('Submitted by') + H('Stage') +
-                 H('Old time (h)') + H('AI time (h)') + H('Per month') + H('Hours saved / mo') +
-                 H('Old cost / deliverable') + H('Subscription / mo') + H('Extra credits / mo') + H('Net / mo') + H('Revenue / mo')]
+  const filed = [[H('Filed'), H('Type'), H('Tool'), H('Department'), H('Submitted by'), H('Stage'),
+                  H('Old time (h)'), H('AI time (h)'), H('Per month'), H('Hours saved / mo'),
+                  H('Old cost / deliverable'), H('Subscription / mo'), H('Extra credits / mo'), H('Net / mo'), H('Revenue / mo')]]
     .concat(M.period.map(e => {
       const m = monthlySavings(e);
-      return cell(new Date(e.submittedAt || Date.now()).toLocaleDateString()) +
-        cell(e.tag === 'request' ? 'Request' : 'Report') + cell(e.toolName || '') + cell(e.department || '') +
-        cell(e.submittedBy || '') + cell(e.status || '') +
-        N(m.tradHoursPer) + N(m.aiHoursPer) + N(Number(e.frequency) || 0) + N(m.timeSavedMonthly) +
-        N(e.tradCost) + N(e.toolMonthlyCost) + N(e.extraCredits) + N(m.netMonthlyCostSavedUSD) + N(e.revenueAmount);
+      return [S(new Date(e.submittedAt || Date.now()).toLocaleDateString()),
+        S(e.tag === 'request' ? 'Request' : 'Report'), S(e.toolName), S(e.department),
+        S(e.submittedBy), S(e.status),
+        N(m.tradHoursPer), N(m.aiHoursPer), N(Number(e.frequency) || 0), N(m.timeSavedMonthly),
+        N(e.tradCost), N(e.toolMonthlyCost), N(e.extraCredits), N(m.netMonthlyCostSavedUSD), N(e.revenueAmount)];
     }));
 
   const pending = M.all.filter(e => e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'));
-  const asks = [H('Tool') + H('Department') + H('Asked by') + H('Raised') + H('Status') + H('Cost / mo (USD)') + H('Cost / mo (UGX)') + H('The case')]
+  const asks = [[H('Tool'), H('Department'), H('Asked by'), H('Raised'), H('Status'), H('Cost / mo (USD)'), H('Cost / mo (UGX)'), H('The case')]]
     .concat(pending.map(e => {
       const cost = (Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0);
-      return cell(e.toolName || '') + cell(e.department || '') + cell(e.submittedBy || '') +
-        cell(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + cell(reqStatusLabel(e.requestStatus || 'new')) +
-        N(cost) + F('=RC[-1]*Summary!R7C2') + cell((e.reason || '').slice(0, 300));
+      return [S(e.toolName), S(e.department), S(e.submittedBy),
+        S(new Date(e.submittedAt || Date.now()).toLocaleDateString()), S(reqStatusLabel(e.requestStatus || 'new')),
+        N(cost), F(cost * rate, '=RC[-1]*Summary!R7C2'), S((e.reason || '').slice(0, 300))];
     }));
 
+  return {
+    label: M.w.label,
+    sheets: [
+      { name: 'Summary',           rows: summary, widths: [230, 130, 130, 260], note: 'Change the rate in B7 or the hourly rate in B8 and every figure below moves.' },
+      { name: 'Tools',             rows: tools,   widths: [160, 120, 110, 90, 95, 105, 120, 115, 110, 115, 115, 120] },
+      { name: 'Departments',       rows: depts,   widths: [150, 70, 110, 125, 125, 110, 115, 120] },
+      { name: 'Filed this period', rows: filed,   widths: [90, 80, 150, 120, 130, 120, 90, 90, 80, 110, 130, 120, 120, 100, 110] },
+      { name: 'Awaiting decision', rows: asks,    widths: [150, 120, 130, 90, 100, 115, 115, 380] },
+    ],
+  };
+}
+
+function execWorkbookXML() {
+  const wb = execWorkbookModel();
+  const write = c => cell(c.v, c.t, c.s, c.f);
   return '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n' +
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
     'xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
@@ -12654,11 +12995,7 @@ function execWorkbookXML() {
       '<Style ss:ID="num"><NumberFormat ss:Format="#,##0.00"/></Style>' +
       '<Style ss:ID="pos"><Font ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/></Style>' +
     '</Styles>' +
-    sheet('Summary', summary, [230, 130, 130, 260]) +
-    sheet('Tools', tools, [160, 120, 110, 90, 95, 105, 120, 115, 110, 115, 115, 120]) +
-    sheet('Departments', depts, [150, 70, 110, 125, 125, 110, 115, 120]) +
-    sheet('Filed this period', filed, [90, 80, 150, 120, 130, 120, 90, 90, 80, 110, 130, 120, 120, 100, 110]) +
-    sheet('Awaiting decision', asks, [150, 120, 130, 90, 100, 115, 115, 380]) +
+    wb.sheets.map(s => sheet(s.name, s.rows.map(r => r.map(write).join('')), s.widths)).join('') +
     '</Workbook>';
 }
 function downloadExecWorkbook() {
@@ -12666,17 +13003,98 @@ function downloadExecWorkbook() {
   saveFile(slug('swangz-ai-briefing-' + M.w.label) + '.xls', execWorkbookXML(), 'application/vnd.ms-excel');
   toast('Workbook downloaded — the totals are live formulas, so changing the rate changes everything');
 }
-function downloadExecCsv() {
+
+/* ============================================================
+   READ IT HERE, DON'T DOWNLOAD IT TO FIND OUT
+   ------------------------------------------------------------
+   Both the document and the workbook open inside the app. The
+   paper is the same markup that goes into the Word file, laid
+   out on an A4 page; the workbook is the same model the Excel
+   file is written from, with the sheet tabs along the bottom
+   where a spreadsheet keeps them. Downloading is then a choice,
+   not the only way to see what you have.
+   ============================================================ */
+DECK.register('docview', function () {
   const M = execBriefingModel();
+  return {
+    title: 'Document', icon: 'doc', size: 'wide', noAutofocus: true,
+    sub: M.w.cadence + ' briefing · ' + M.w.label + ' · as it will be filed',
+    html: '<div class="doc-stage"><div class="doc-paper">' + execDocBody() + '</div></div>',
+    foot:
+      '<span class="doc-note">' + DOC_SECTIONS.length + ' numbered sections and an appendix · A4</span>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="secondary" onclick="printExecBriefing()">' + svgIcon('print') + 'Print / PDF</button>' +
+      '<button type="button" class="primary" onclick="downloadExecDoc()">' + svgIcon('doc') + 'Word</button>',
+  };
+});
+
+let sheetTab = 0;
+DECK.register('sheetview', function () {
+  const wb = execWorkbookModel();
+  if (sheetTab >= wb.sheets.length) sheetTab = 0;
+  return {
+    title: 'Workbook', icon: 'sheet', size: 'wide', noAutofocus: true,
+    sub: wb.label + ' · ' + wb.sheets.length + ' sheets, totals as live formulas',
+    mount(body) { body.innerHTML = sheetViewHTML(wb); },
+    foot:
+      '<button type="button" class="ghost" onclick="downloadExecCsv()">' + svgIcon('sheet') + 'CSV for Google Sheets</button>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="primary" onclick="downloadExecWorkbook()">' + svgIcon('sheet') + 'Excel workbook</button>',
+  };
+});
+function showSheet(i) {
+  sheetTab = i;
+  const host = document.querySelector('.sheet-view');
+  if (host) host.parentNode.innerHTML = sheetViewHTML(execWorkbookModel());
+}
+function sheetViewHTML(wb) {
+  const s = wb.sheets[sheetTab] || wb.sheets[0];
+  const cols = Math.max(1, ...s.rows.map(r => r.length));
+  /* Column letters down the top edge, row numbers down the side — the
+     addresses a formula refers to have to be visible or they mean nothing. */
+  const letter = i => { let out = '', n = i; do { out = String.fromCharCode(65 + (n % 26)) + out; n = Math.floor(n / 26) - 1; } while (n >= 0); return out; };
+  const fmtCell = c => {
+    if (!c) return '';
+    if (c.t === 'Number') {
+      const v = Number(c.v) || 0;
+      return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return escapeHTML(String(c.v));
+  };
+  return '<div class="sheet-view">' +
+    (s.note ? '<div class="sheet-note">' + svgIcon('sparkle') + '<span>' + escapeHTML(s.note) + '</span></div>' : '') +
+    '<div class="sheet-grid-wrap"><table class="sheet-grid">' +
+      '<thead><tr><th class="sg-corner"></th>' +
+        Array.from({ length: cols }, (_, i) => '<th class="sg-col">' + letter(i) + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      s.rows.map((row, r) =>
+        '<tr><th class="sg-row">' + (r + 1) + '</th>' +
+        Array.from({ length: cols }, (_, c) => {
+          const cellData = row[c];
+          if (!cellData) return '<td></td>';
+          const cls = [cellData.s === 'hdr' ? 'sg-hdr' : '', cellData.s === 'ttl' ? 'sg-ttl' : '',
+                       cellData.s === 'pos' ? 'sg-strong' : '', cellData.t === 'Number' ? 'sg-num' : '',
+                       cellData.f ? 'sg-formula' : ''].filter(Boolean).join(' ');
+          return '<td' + (cls ? ' class="' + cls + '"' : '') +
+            (cellData.f ? ' title="' + escapeAttr(cellData.f) + '"' : '') + '>' + fmtCell(cellData) + '</td>';
+        }).join('') + '</tr>').join('') +
+    '</tbody></table></div>' +
+    '<div class="sheet-tabs">' + wb.sheets.map((sh, i) =>
+      '<button type="button" class="sheet-tab' + (i === sheetTab ? ' on' : '') + '" onclick="showSheet(' + i + ')">' +
+        escapeHTML(sh.name) + '</button>').join('') +
+      '<span class="sheet-legend"><i></i>calculated by formula</span>' +
+    '</div>' +
+  '</div>';
+}
+/* Google Sheets takes one grid at a time, so this is the sheet on screen —
+   values, not formulas, because a CSV cannot carry a formula. */
+function downloadExecCsv() {
+  const wb = execWorkbookModel();
+  const s = wb.sheets[sheetTab] || wb.sheets[0];
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const rows = [['Tool', 'Category', 'Stage', 'Submissions', 'Departments', 'Hours saved per month',
-                 'Old way per month USD', 'AI cost per month USD', 'Net per month USD', 'Net per month UGX',
-                 'Annual net USD', 'Revenue per month USD'].map(q).join(',')];
-  M.groups.forEach(g => rows.push([g.name, g.cats[0] || '', g.stage ? g.stage[0] : '', g.entries.length, g.depts.size,
-    Math.round(g.time * 100) / 100, Math.round(g.trad), Math.round(g.ai), Math.round(g.net),
-    Math.round(g.net * (settings.usdToUgx || 0)), Math.round(g.net * 12), Math.round(g.rev)].map(q).join(',')));
-  saveFile(slug('swangz-ai-tools-' + M.w.label) + '.csv', rows.join('\n'), 'text/csv');
-  toast('CSV downloaded — import it straight into Google Sheets');
+  const rows = s.rows.map(r => r.map(c => q(c ? c.v : '')).join(','));
+  saveFile(slug('swangz-ai-' + s.name + '-' + wb.label) + '.csv', rows.join('\n'), 'text/csv');
+  toast('“' + s.name + '” downloaded — import it straight into Google Sheets');
 }
 
 /* ============================================================
@@ -13800,9 +14218,10 @@ DECK.register('entryDocs', function (id) {
     html:
       '<p class="ask-body">A formal record of this submission — the case, the effort, the money and the projects — laid out as a document you can table.</p>' +
       '<div class="doc-actions">' +
-        '<button type="button" class="primary" onclick="downloadSubmissionDoc(' + arg + ')">' + svgIcon('doc') + ' Word document</button>' +
-        '<button type="button" class="secondary" onclick="printSubmissionDoc(' + arg + ')">' + svgIcon('doc') + ' Print / PDF</button>' +
-        '<button type="button" class="secondary" onclick="resendSubmission(' + arg + ')">' + svgIcon('inbox') + ' Send it again</button>' +
+        '<button type="button" class="primary" onclick="DECK.open(\'submissionDoc\', ' + arg + ')">' + svgIcon('eye') + ' Read the document</button>' +
+        '<button type="button" class="secondary" onclick="downloadSubmissionDoc(' + arg + ')">' + svgIcon('doc') + ' Word</button>' +
+        '<button type="button" class="secondary" onclick="printSubmissionDoc(' + arg + ')">' + svgIcon('print') + ' Print / PDF</button>' +
+        '<button type="button" class="secondary" onclick="resendSubmission(' + arg + ')">' + svgIcon('mail') + ' Send it again</button>' +
       '</div>' +
       '<div class="section-title" style="margin-top:20px;">Who has been written to</div>' +
       (mine.length
@@ -14276,19 +14695,28 @@ DECK.register('sectionMap', function () {
    ============================================================ */
 const DOC_STYLE =
   'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;margin:0;}' +
-  'h1{font-size:20pt;margin:0 0 2pt;letter-spacing:-.3pt;}' +
-  'h2{font-size:11pt;text-transform:uppercase;letter-spacing:1.2pt;color:#7c5cff;margin:20pt 0 6pt;border-bottom:1px solid #ddd;padding-bottom:3pt;}' +
-  '.sub{color:#666;font-size:9.5pt;margin:0 0 4pt;}' +
+  'h1{font-size:19pt;margin:0 0 3pt;letter-spacing:-.3pt;font-weight:bold;}' +
+  'h2{font-size:11pt;text-transform:uppercase;letter-spacing:1.2pt;color:#4b3f8f;margin:20pt 0 6pt;border-bottom:1px solid #ddd;padding-bottom:3pt;page-break-after:avoid;}' +
+  'h3{font-size:10.5pt;margin:12pt 0 4pt;color:#333;}' +
+  '.sub{color:#666;font-size:10pt;margin:0 0 4pt;}' +
+  '.lead{color:#444;font-size:10.5pt;}' +
+  '.docmast .dm-org{font-size:9pt;font-weight:bold;letter-spacing:2.4pt;text-transform:uppercase;color:#8a7cc4;margin-bottom:5pt;}' +
   '.rule{border-bottom:2.5pt solid #f5c542;margin:10pt 0 4pt;}' +
   'table{border-collapse:collapse;width:100%;margin:6pt 0;font-size:10pt;}' +
   'th{text-align:left;background:#f4f4f7;padding:5pt 7pt;border:1px solid #dcdce4;font-size:8.5pt;text-transform:uppercase;letter-spacing:.6pt;color:#555;}' +
   'td{padding:5pt 7pt;border:1px solid #e3e3ea;vertical-align:top;}' +
   'td.k{width:32%;color:#555;font-weight:bold;background:#fafafc;}' +
+  'table.ctrl td.k{width:17%;}' +
+  'table.findings td{font-size:9.5pt;line-height:1.45;}' +
   '.num{text-align:right;}' +
   '.pos{color:#0a7d4b;font-weight:bold;} .neg{color:#b32020;font-weight:bold;}' +
   'p{margin:0 0 7pt;line-height:1.5;}' +
+  'ol{margin:0 0 7pt 16pt;padding:0;} ol li{margin-bottom:5pt;line-height:1.5;}' +
   '.foot{margin-top:22pt;padding-top:8pt;border-top:1px solid #ddd;color:#777;font-size:8.5pt;}' +
-  '.stamp{display:inline-block;padding:3pt 9pt;border:1.5pt solid #7c5cff;color:#7c5cff;font-weight:bold;font-size:9pt;letter-spacing:1pt;text-transform:uppercase;}';
+  '.stamp{display:inline-block;padding:2pt 7pt;border:1pt solid #7c5cff;color:#7c5cff;font-weight:bold;font-size:7.5pt;letter-spacing:.8pt;text-transform:uppercase;white-space:nowrap;}' +
+  '.stamp.good{border-color:#0a7d4b;color:#0a7d4b;}' +
+  '.stamp.risk{border-color:#b32020;color:#b32020;}' +
+  '.stamp.watch{border-color:#a2701a;color:#a2701a;}';
 
 function docShell(title, bodyHTML) {
   return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">' +
@@ -14308,7 +14736,7 @@ function slug(s) { return String(s || 'document').replace(/[^a-z0-9]+/gi, '-').r
 function stamp(d) { return new Date(d || Date.now()).toLocaleString(); }
 
 /* ---- one submission, as a document ---- */
-function submissionDocHTML(e) {
+function submissionDocBody(e) {
   const isReq = e.tag === 'request';
   const m = monthlySavings(e);
   const money = moneyIsMine() || isReq;
@@ -14324,11 +14752,12 @@ function submissionDocHTML(e) {
         '</table>').join('')
     : '';
 
-  return docShell((isReq ? 'Tool Request' : 'Tool Report') + ' — ' + (e.toolName || 'Untitled'),
-    '<h1>Swangz Avenue</h1>' +
-    '<p class="sub">AI Adoption Tracker — ' + (isReq ? 'Tool Request' : 'Tool Report') + '</p>' +
+  return (
+    '<div class="docmast"><div class="dm-org">Swangz Avenue</div>' +
+    '<h1>' + (isReq ? 'Tool Request' : 'Tool Report') + '</h1>' +
+    '<p class="sub">AI Adoption Tracker · ' + escapeHTML(e.toolName || 'Untitled') + '</p></div>' +
     '<div class="rule"></div>' +
-    '<p style="margin-top:10pt;"><span class="stamp">' + escapeHTML(isReq ? (e.requestStatus || 'new') : 'recorded') + '</span></p>' +
+    '<p style="margin-top:10pt;"><span class="stamp">' + escapeHTML(isReq ? reqStatusLabel(e.requestStatus || 'new') : 'recorded') + '</span></p>' +
 
     '<h2>Submission</h2>' +
     '<table>' +
@@ -14382,8 +14811,31 @@ function submissionDocHTML(e) {
       : '') +
 
     '<div class="foot">Generated from the Swangz Avenue AI Adoption Tracker on ' + escapeHTML(stamp()) +
-    '. US Dollar figures converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX.</div>');
+    '. US Dollar figures converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX.</div>'
+  );
 }
+function submissionDocHTML(e) {
+  return docShell((e.tag === 'request' ? 'Tool Request' : 'Tool Report') + ' — ' + (e.toolName || 'Untitled'),
+                  submissionDocBody(e));
+}
+
+/* The same document, read on screen before anyone downloads it */
+DECK.register('submissionDoc', function (id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return null;
+  const arg = escapeAttr(JSON.stringify(id));
+  return {
+    title: (e.tag === 'request' ? 'Request' : 'Report') + ' document',
+    sub: (e.toolName || '') + ' · ' + (e.department || ''),
+    icon: 'doc', size: 'wide', noAutofocus: true,
+    html: '<div class="doc-stage"><div class="doc-paper">' + submissionDocBody(e) + '</div></div>',
+    foot:
+      '<span class="doc-note">Exactly what is filed and emailed</span>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="secondary" onclick="printSubmissionDoc(' + arg + ')">' + svgIcon('print') + 'Print / PDF</button>' +
+      '<button type="button" class="primary" onclick="downloadSubmissionDoc(' + arg + ')">' + svgIcon('doc') + 'Word</button>',
+  };
+});
 
 function downloadSubmissionDoc(id) {
   const e = entries.find(x => x.id === id);
