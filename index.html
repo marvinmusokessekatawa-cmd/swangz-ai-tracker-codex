@@ -3354,29 +3354,79 @@
   .an-dept b { display: block; font-size: 13.5px; font-weight: 700; }
   .an-dept i { display: block; font-style: normal; font-size: 11px; color: var(--muted-2); margin-top: 3px; font-weight: 600; }
 
-  /* ---- The filter bar, at the head of every admin section ---- */
-  .admin-filter-bar {
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 12px 16px; margin-bottom: 18px; border-radius: 16px;
-    background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+  /* ---- The header of whatever section is open ---- */
+  #adminFilterStore, #businessStash { display: none !important; }
+  /* One section fills the page at a time and the header above already names
+     it — the accordion's own bar would only say it a second time. It stays
+     in the DOM because the rail, the palette and the breadcrumb all read
+     their labels from it. */
+  #adminContent > details.accordion > summary { display: none; }
+  #adminContent > details.accordion > .acc-body { padding-top: 22px; }
+  .admin-sec-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; margin-bottom: 18px; border-radius: 15px;
+    background: rgba(255,255,255,0.025); border: 1px solid var(--glass-border);
   }
-  .afb-lead {
-    display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
-    font-size: 10.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted-2);
+  .ash-back {
+    flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center;
+    border-radius: 10px; cursor: pointer; color: var(--muted);
+    background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+    transition: color .16s, background .18s, border-color .18s, transform .18s;
   }
-  .afb-lead .ico { width: 15px; height: 15px; }
-  .admin-filter-bar .filters { flex: 1 1 420px; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin: 0; }
-  .admin-filter-bar .filters select, .admin-filter-bar .filters input { max-width: 190px; height: 36px; padding-top: 0; padding-bottom: 0; }
-  .admin-filter-bar .rate-box { display: flex; align-items: center; gap: 7px; }
-  .admin-filter-bar .rate-box .lbl { font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: var(--muted-2); }
-  .admin-filter-bar .rate-box input { width: 92px; }
-  .afb-status { flex: 0 0 auto; font-size: 12px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .afb-status b { color: var(--text); font-weight: 800; }
+  .ash-back:hover { color: var(--text); background: rgba(255,255,255,0.11); transform: translateX(-2px); }
+  .ash-back .ico { width: 17px; height: 17px; }
+  .ash-ico {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center; color: var(--accent);
+    background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.22);
+  }
+  .ash-ico .ico { width: 17px; height: 17px; }
+  .ash-name { min-width: 0; flex: 1; }
+  .ash-name b { display: block; font-size: 15px; font-weight: 750; letter-spacing: -.01em; }
+  .ash-name i {
+    display: block; font-style: normal; font-size: 11.5px; color: var(--muted-2);
+    font-weight: 600; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ash-tools { flex: 0 0 auto; display: flex; align-items: center; gap: 9px; }
+  .ash-count { font-size: 12px; color: var(--muted-2); font-weight: 650; white-space: nowrap; }
+  .ash-count b { color: var(--text); font-weight: 800; }
+  .ash-btn {
+    display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px;
+    border-radius: 10px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 650;
+    color: var(--muted); background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+    transition: color .16s, background .18s, border-color .18s;
+  }
+  .ash-btn:hover { color: var(--text); background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.2); }
+  .ash-btn .ico { width: 15px; height: 15px; flex: 0 0 auto; }
+  .ash-btn.on { color: var(--brand-gold, #f5c542); border-color: rgba(245,197,66,0.38); background: rgba(245,197,66,0.11); }
+  .ash-btn em {
+    font-style: normal; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    display: grid; place-items: center; font-size: 10.5px; font-weight: 800;
+    background: var(--brand-gold, #f5c542); color: #17130a;
+  }
+  /* ---- and the filters themselves, now that they open as a tile ---- */
+  .filter-tile .filters { display: flex; flex-direction: column; gap: 11px; margin: 0; }
+  .filter-tile .filters select, .filter-tile .filters input { width: 100%; max-width: none; }
+  .filter-tile .rate-box { display: flex; align-items: center; gap: 9px; }
+  .filter-tile .rate-box .lbl {
+    font-size: 10px; font-weight: 800; letter-spacing: .8px;
+    text-transform: uppercase; color: var(--muted-2); white-space: nowrap;
+  }
+  .filter-tile .rate-box input { width: 110px; flex: 0 0 auto; }
+  .filter-note {
+    margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--glass-border);
+    font-size: 12px; color: var(--muted-2); font-weight: 600; line-height: 1.6;
+  }
+  .filter-note b { color: var(--text); font-weight: 800; }
   .afb-on { color: var(--brand-gold, #f5c542); font-weight: 700; }
-  .afb-clear { height: 28px; padding: 0 10px; font-size: 11.5px; }
+  .deck-row.here { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.09); }
   @media (max-width: 760px) {
-    .admin-filter-bar { padding: 11px 13px; gap: 10px; }
-    .admin-filter-bar .filters select, .admin-filter-bar .filters input { max-width: none; width: 100%; }
+    .admin-sec-head { flex-wrap: wrap; padding: 10px 12px; gap: 10px; }
+    .ash-name { flex: 1 1 140px; }
+    .ash-tools { flex: 1 1 100%; }
+    .ash-count { flex: 1; }
+    .ash-btn { flex: 0 0 auto; }
   }
   .drive-row { display: flex; gap: 9px; align-items: stretch; flex-wrap: wrap; }
   .drive-row input { flex: 1 1 220px; min-width: 0; }
@@ -4116,7 +4166,7 @@
       <summary>
         <span class="chevron">▸</span>
         <span class="acc-title">Core Business Case</span>
-        <span class="acc-meta">filters · breakdowns · table · cards</span>
+        <span class="acc-meta">six views, each on its own tile</span>
       </summary>
       <div class="acc-body">
         <p class="help">Aggregate view: tools, the delta vs traditional, net monthly savings, and the revenue each unlocks. All figures in USD with live UGX conversion.</p>
@@ -8816,6 +8866,9 @@ function showAdminSection(id) {
   });
   const nav = document.getElementById('adminNav');
   if (nav) nav.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
+  /* The header names where you are and offers the way back, so no section
+     is ever a room with no door. */
+  if (typeof renderSectionHead === 'function') { try { renderSectionHead(); } catch (_) {} }
   // Cinematic reveal of whatever this tab just showed
   const shown = (id === 'overview')
     ? [...(overview ? overview.children : [])]
@@ -8954,6 +9007,13 @@ const ICONS = {
   /* "This opens onto the screen" — an arrow out of a frame, not a chevron,
      because a chevron promises the row will unfold in place. */
   expand:  '<path d="M14 4h6v6"/><path d="m20 4-7.5 7.5"/><path d="M10 20H4v-6"/><path d="m4 20 7.5-7.5"/>',
+  /* Added with the section header and the spreadsheet view */
+  bolt:    '<path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/>',
+  back:    '<path d="m15 18-6-6 6-6"/>',
+  sheet:   '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 15h18M9 4v16M15 4v16"/>',
+  print:   '<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 16h10v5H7z"/>',
+  mail:    '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+  tag:     '<path d="M3 12V4.5A1.5 1.5 0 0 1 4.5 3H12l9 9-8.5 8.5z"/><circle cx="7.5" cy="7.5" r="1.4"/>',
 };
 const svgIcon = k => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[k] || ICONS.grid) + '</svg>';
 
@@ -13903,46 +13963,129 @@ DECK.register('deptAnalysis', function (dept) {
 });
 
 /* ============================================================
-   THE FILTER BAR BELONGS AT THE TOP
+   ONE HEADER, AT THE TOP OF WHATEVER YOU ARE LOOKING AT
    ------------------------------------------------------------
-   Department, category, status, search and the exchange rate
-   were buried inside the Business Case section — yet they shape
-   every figure in the portal, including the briefing. Anyone who
-   never opened that section had no idea a filter was on. It is
-   lifted to the head of the dashboard, where it applies.
+   Two problems, one answer. The filters — department, category,
+   status, search, exchange rate — shape every figure in the
+   portal, so they cannot go back into a section nobody opens;
+   but as a full-width bar reading "Showing…" they took the top
+   of every page and said nothing about where you were.
+
+   So: a slim header that names the section, says which door it
+   came through, and offers the way back. The filters sit behind
+   one button on it, and open as a tile like everything else,
+   with the count of what is on shown on the button itself.
    ============================================================ */
+
+/* Sections whose figures the filters actually move. Everything else —
+   settings, the registry, the admin list — would only be confused by a
+   control that does nothing to it. */
+const FILTERED_SECTIONS = new Set([
+  'overview', 'acc_requests', 'acc_manage', 'acc_tools', 'acc_summary',
+  'acc_rotation', 'acc_finance', 'acc_exec', 'acc_business',
+]);
+/* The palette already keeps one glyph per section — reuse it rather than
+   letting a second map drift away from it. */
+SECTION_ICONS.acc_backend = 'db';
+SECTION_ICONS.acc_actions = 'bolt';
+
+function sectionTitleOf(id) {
+  if (id === 'overview') return 'Overview';
+  const t = document.querySelector('#' + CSS.escape(id) + ' .acc-title');
+  return t ? t.textContent.trim() : id;
+}
+
+/* The filters live in a hidden store between visits, so every existing
+   reader — renderAdmin, filteredEntries, the briefing — keeps finding
+   #adminDeptFilter and friends by id whether the tile is open or not. */
+function filterStore() {
+  let store = document.getElementById('adminFilterStore');
+  if (!store) {
+    store = document.createElement('div');
+    store.id = 'adminFilterStore';
+    store.hidden = true;
+    (document.getElementById('adminContent') || document.body).appendChild(store);
+  }
+  return store;
+}
 function hoistAdminFilters() {
   const content = document.getElementById('adminContent');
-  const filters = document.querySelector('#acc_business .filters');
-  if (!content || !filters || document.getElementById('adminFilterBar')) return;
-  const bar = document.createElement('div');
-  bar.id = 'adminFilterBar';
-  bar.className = 'admin-filter-bar';
-  bar.innerHTML = '<div class="afb-lead">' + svgIcon('sliders') + '<span>Showing</span></div>';
-  bar.appendChild(filters);
-  const status = document.createElement('div');
-  status.className = 'afb-status';
-  status.id = 'adminFilterStatus';
-  bar.appendChild(status);
-  content.insertBefore(bar, content.firstChild);
+  if (!content) return;
+  const filters = document.querySelector('#acc_business .filters') ||
+                  document.querySelector('#adminFilterStore .filters') ||
+                  document.querySelector('.deck-panel .filters');
+  if (filters && !filters.closest('#adminFilterStore') && !filters.closest('.deck-panel')) {
+    filterStore().appendChild(filters);
+  }
+  buildSectionHead();
 }
-function renderFilterStatus() {
-  const el = document.getElementById('adminFilterStatus');
-  if (!el) return;
+
+function activeFilterCount() {
+  const set = ['adminDeptFilter', 'adminCatFilter', 'adminStatusFilter']
+    .map(id => (document.getElementById(id) || {}).value).filter(Boolean).length;
+  const q = ((document.getElementById('adminSearch') || {}).value || '').trim();
+  return set + (q ? 1 : 0);
+}
+
+function buildSectionHead() {
+  const content = document.getElementById('adminContent');
+  if (!content) return;
+  let head = document.getElementById('adminSectionHead');
+  if (!head) {
+    head = document.createElement('div');
+    head.id = 'adminSectionHead';
+    head.className = 'admin-sec-head';
+    content.insertBefore(head, content.firstChild);
+  }
+  renderSectionHead();
+}
+
+function renderSectionHead() {
+  const head = document.getElementById('adminSectionHead');
+  if (!head) return;
+  const id = adminSection;
+  const grp = (typeof groupOf === 'function' && id !== 'overview') ? groupOf(id) : null;
+  const showFilters = FILTERED_SECTIONS.has(id);
+  const on = activeFilterCount();
   const shown = filteredEntries().length;
   /* Requests are never in these figures — they are decisions, not results —
      so the denominator has to be reports, or the count reads as a bug. */
   const total = dashboardEntries().filter(e => e.tag !== 'request').length;
-  const asks = dashboardEntries().filter(e => e.tag === 'request').length;
-  const active = ['adminDeptFilter', 'adminCatFilter', 'adminStatusFilter']
-    .map(id => (document.getElementById(id) || {}).value).filter(Boolean);
-  const q = ((document.getElementById('adminSearch') || {}).value || '').trim();
-  const on = active.length + (q ? 1 : 0);
-  el.innerHTML = '<b>' + shown + '</b> of ' + total + ' report' + (total === 1 ? '' : 's') +
-    (asks ? ' <span title="Requests are counted in the inbox, not in these figures">(+' + asks + ' request' + (asks === 1 ? '' : 's') + ')</span>' : '') +
-    (on ? ' · <span class="afb-on">' + on + ' filter' + (on === 1 ? '' : 's') + ' on</span>' +
-          ' <button type="button" class="ghost afb-clear" onclick="clearAdminFilters()">Clear</button>' : '');
+
+  head.innerHTML =
+    (id === 'overview' ? '' :
+      '<button type="button" class="ash-back" onclick="adminGoBack()" title="Back to ' +
+        escapeAttr(grp ? grp.label : 'Overview') + '" aria-label="Back">' +
+        '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>') +
+    '<span class="ash-ico">' + svgIcon(SECTION_ICONS[id] || 'grid') + '</span>' +
+    '<div class="ash-name">' +
+      '<b>' + escapeHTML(sectionTitleOf(id)) + '</b>' +
+      '<i>' + (grp ? escapeHTML(grp.label) + ' · ' : '') +
+        escapeHTML(sectionSub(id) || 'Admin dashboard') + '</i>' +
+    '</div>' +
+    '<div class="ash-tools">' +
+      (showFilters
+        ? '<span class="ash-count"><b>' + shown + '</b> of ' + total + ' report' + (total === 1 ? '' : 's') + '</span>' +
+          '<button type="button" class="ash-btn' + (on ? ' on' : '') + '" onclick="DECK.open(\'filters\')">' +
+            svgIcon('sliders') + '<span>Filters</span>' +
+            (on ? '<em>' + on + '</em>' : '') + '</button>'
+        : '') +
+      '<button type="button" class="ash-btn" onclick="DECK.open(\'sectionMap\')" title="Every section, in one list">' +
+        svgIcon('grid') + '<span>Go to…</span></button>' +
+    '</div>';
 }
+/* Kept for the callers that already exist */
+function renderFilterStatus() { renderSectionHead(); }
+
+/* Back means: up to the door this section came through, and if there is
+   no door, home. Never a dead end. */
+function adminGoBack() {
+  const grp = typeof groupOf === 'function' ? groupOf(adminSection) : null;
+  showAdminSection('overview');
+  if (grp && typeof openRailMenu === 'function') { try { openRailMenu(grp.id); } catch (_) {} }
+}
+
 function clearAdminFilters() {
   ['adminDeptFilter', 'adminCatFilter', 'adminStatusFilter', 'adminSearch'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
@@ -13950,6 +14093,164 @@ function clearAdminFilters() {
   renderAdmin();
   toast('Filters cleared — every entry is in view again');
 }
+
+/* ---- the filters, as a tile ---- */
+DECK.register('filters', function () {
+  return {
+    title: 'Filters', icon: 'sliders', size: 'slim', noAutofocus: true,
+    sub: 'They shape every figure in the portal',
+    mount(body) {
+      const live = document.querySelector('#adminFilterStore .filters') ||
+                   document.querySelector('#acc_business .filters');
+      const wrap = document.createElement('div');
+      wrap.className = 'filter-tile';
+      if (live) wrap.appendChild(live);            // the one true set of controls
+      body.appendChild(wrap);
+      const note = document.createElement('div');
+      note.className = 'filter-note';
+      note.id = 'filterTileNote';
+      body.appendChild(note);
+      paintFilterNote();
+    },
+    /* Put them back in the store, or the next render finds nothing */
+    unmount() {
+      const live = document.querySelector('.deck-panel .filters');
+      if (live) filterStore().appendChild(live);
+    },
+    foot: '<button type="button" class="ghost" onclick="clearAdminFilters()">Clear all</button>' +
+          '<span class="spacer"></span>' +
+          '<button type="button" class="primary" onclick="DECK.close(\'filters\')">Done</button>',
+  };
+});
+function paintFilterNote() {
+  const el = document.getElementById('filterTileNote');
+  if (!el) return;
+  const shown = filteredEntries().length;
+  const total = dashboardEntries().filter(e => e.tag !== 'request').length;
+  const asks = dashboardEntries().filter(e => e.tag === 'request').length;
+  const on = activeFilterCount();
+  el.innerHTML = '<b>' + shown + '</b> of ' + total + ' report' + (total === 1 ? '' : 's') + ' in view' +
+    (asks ? ' · ' + asks + ' request' + (asks === 1 ? '' : 's') + ' sit outside these figures' : '') +
+    (on ? ' · <span class="afb-on">' + on + ' filter' + (on === 1 ? '' : 's') + ' on</span>' : '');
+}
+
+/* ============================================================
+   THE BUSINESS CASE, IN PARTS
+   ------------------------------------------------------------
+   It was one page carrying four charts, a wide table and a card
+   per tool — everything at once, so nothing stood out. The
+   section is now a short verdict and six buttons; each opens its
+   own tile, and they can be open side by side and compared.
+
+   The blocks themselves are the original nodes, moved rather
+   than copied, so renderAdmin() keeps filling them by id and
+   there is never a second copy to drift out of date.
+   ============================================================ */
+const BUSINESS_PARTS = [
+  { key: 'dept',   sel: '#deptBars',      icon: 'chart',  size: 'wide',
+    title: 'By department',        hint: 'Monthly net saving, team by team' },
+  { key: 'cat',    sel: '#catBars',       icon: 'list',   size: 'wide',
+    title: 'By category',          hint: 'Which kind of work the saving comes from' },
+  { key: 'status', sel: '#statusChart',   icon: 'pulse',  size: 'slim',
+    title: 'Stage of adoption',    hint: 'How far each tool has got' },
+  { key: 'rev',    sel: '#revenueBars',   icon: 'money',  size: 'wide',
+    title: 'Revenue by department', hint: 'What the work brought in or protected' },
+  { key: 'table',  sel: '#adminTable',    icon: 'grid',   size: 'wide', wrap: true,
+    title: 'The full table',       hint: 'Every entry, every column' },
+  { key: 'cards',  sel: '#businessCards', icon: 'doc',    size: 'wide',
+    title: 'Case per tool',        hint: 'One row per tool, opening its own case' },
+];
+function businessNode(p) {
+  const el = document.querySelector(p.sel);
+  return el ? (p.wrap ? el.parentNode : el) : null;
+}
+function splitBusinessCase() {
+  const body = document.querySelector('#acc_business .acc-body');
+  if (!body || body.dataset.split) return;
+  let stash = document.getElementById('businessStash');
+  if (!stash) {
+    stash = document.createElement('div');
+    stash.id = 'businessStash';
+    stash.hidden = true;
+    document.getElementById('acc_business').appendChild(stash);
+  }
+  BUSINESS_PARTS.forEach(p => { const n = businessNode(p); if (n) stash.appendChild(n); });
+  /* The headings labelled blocks that have just moved out */
+  body.querySelectorAll('.section-title').forEach(n => n.remove());
+  const strip = document.createElement('div');
+  strip.className = 'sum-strip';
+  strip.id = 'bizStrip';
+  body.appendChild(strip);
+  const chooser = document.createElement('div');
+  chooser.className = 'sub-tiles';
+  chooser.innerHTML = BUSINESS_PARTS.map(p =>
+    '<button type="button" class="sub-tile" onclick="DECK.open(\'businessPart\', \'' + p.key + '\')">' +
+      '<span class="st-ico">' + svgIcon(p.icon) + '</span>' +
+      '<span class="st-text"><b>' + escapeHTML(p.title) + '</b><i>' + escapeHTML(p.hint) + '</i></span>' +
+      '<span class="st-go">' + svgIcon('expand') + '</span></button>').join('');
+  body.appendChild(chooser);
+  body.dataset.split = '1';
+}
+function renderBusinessStrip() {
+  const strip = document.getElementById('bizStrip');
+  if (!strip) return;
+  const list = filteredEntries();
+  let net = 0, time = 0, rev = 0;
+  list.forEach(e => {
+    const m = monthlySavings(e);
+    net += m.netMonthlyCostSavedUSD; time += m.timeSavedMonthly;
+    rev += Number(e.revenueAmount) || 0;
+  });
+  const depts = new Set(list.map(e => e.department).filter(Boolean)).size;
+  const stat = (lbl, val, sub, tone) =>
+    '<div class="sum-stat' + (tone ? ' ' + tone : '') + '">' +
+      '<span class="ss-lbl">' + lbl + '</span>' +
+      '<span class="ss-val">' + val + '</span>' +
+      '<span class="ss-sub">' + sub + '</span></div>';
+  strip.innerHTML =
+    stat('Entries in view', list.length, depts + ' department' + (depts === 1 ? '' : 's')) +
+    stat('Net saved / month', fmtUSD(net), '≈ ' + fmtUGX(net), net >= 0 ? 'pos' : 'neg') +
+    stat('Hours back / month', fmtHours(time), 'across every team') +
+    stat('Revenue / month', fmtUSD(rev), '≈ ' + fmtUGX(rev), rev > 0 ? 'pos' : '');
+}
+DECK.register('businessPart', function (key) {
+  const p = BUSINESS_PARTS.find(x => x.key === key);
+  if (!p) return null;
+  let node = null;                    // the block this tile borrowed
+  return {
+    title: p.title, sub: p.hint, icon: p.icon, size: p.size || '', noAutofocus: true,
+    mount(body) {
+      node = businessNode(p);
+      if (!node) { body.innerHTML = '<div class="empty-state"><h3>Nothing to show yet</h3></div>'; return; }
+      body.appendChild(node);
+    },
+    /* Back to the stash, or the next render fills a node nobody can see */
+    unmount() {
+      const stash = document.getElementById('businessStash');
+      if (stash && node) stash.appendChild(node);
+      node = null;
+    },
+  };
+});
+
+/* ---- every section, in one list: the app is never a dead end ---- */
+DECK.register('sectionMap', function () {
+  const rows = [{ id: 'overview', label: 'Overview', grp: '' }].concat(
+    RAIL_GROUPS.flatMap(g => g.sections
+      .filter(s => document.getElementById(s))
+      .map(s => ({ id: s, label: sectionTitleOf(s), grp: g.label }))));
+  return {
+    title: 'Go to…', icon: 'grid', size: 'slim', noAutofocus: true,
+    sub: 'Every section of the dashboard',
+    html: '<div class="deck-list">' + rows.map(r =>
+      '<button type="button" class="deck-row' + (r.id === adminSection ? ' here' : '') +
+        '" onclick="showAdminSection(\'' + r.id + '\'); DECK.close(\'sectionMap\')">' +
+        '<span class="dr-ico">' + svgIcon(SECTION_ICONS[r.id] || 'grid') + '</span>' +
+        '<span class="dr-text"><b>' + escapeHTML(r.label) + '</b>' +
+          '<i>' + escapeHTML(r.grp || 'Dashboard home') + '</i></span>' +
+        '<span class="dr-go">' + svgIcon('expand') + '</span></button>').join('') + '</div>',
+  };
+});
 
 /* An admin opens a submission to read it, not to rewrite it. */
 (function () {
@@ -14257,6 +14558,8 @@ function retryMail(id) {
     try { injectAdminSections(); hoistAdminFilters(); } catch (e) { console.warn('extra admin sections skipped:', e); }
     const out = original.apply(this, arguments);
     try {
+      splitBusinessCase();
+      renderBusinessStrip();
       renderToolsSummary();
       renderFinance();
       renderNotify();
@@ -14266,6 +14569,7 @@ function retryMail(id) {
       if (hr && !hr.value) hr.value = hourlyRate() || '';
       runCalc();
       renderFilterStatus();
+      paintFilterNote();
       execLaunchNote();        // the briefing itself waits to be asked for
       DECK.refresh();          // anything on screen shows the new numbers
     } catch (e) { console.warn('admin extras skipped:', e); }
