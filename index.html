@@ -2781,6 +2781,29 @@
   .deck-panel.dragging { transition: none; cursor: grabbing; }
   .deck-panel.dragging .dp-body { pointer-events: none; }
 
+  /* ---- Pull a tile to the size the work needs ---- */
+  /* The panel clips its overflow, so every grip sits just inside the edge */
+  .dp-rs { position: absolute; z-index: 4; touch-action: none; }
+  .dp-rs[data-rs="e"]  { top: 16px; bottom: 16px; right: 0; width: 7px;  cursor: ew-resize; }
+  .dp-rs[data-rs="w"]  { top: 16px; bottom: 16px; left: 0;  width: 7px;  cursor: ew-resize; }
+  .dp-rs[data-rs="s"]  { left: 16px; right: 16px; bottom: 0; height: 7px; cursor: ns-resize; }
+  .dp-rs[data-rs="n"]  { left: 16px; right: 16px; top: 0;    height: 7px; cursor: ns-resize; }
+  .dp-rs[data-rs="se"] { right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; }
+  .dp-rs[data-rs="sw"] { left: 0;  bottom: 0; width: 20px; height: 20px; cursor: nesw-resize; }
+  .dp-rs[data-rs="ne"] { right: 0; top: 0;    width: 16px; height: 16px; cursor: nesw-resize; }
+  .dp-rs[data-rs="nw"] { left: 0;  top: 0;    width: 16px; height: 16px; cursor: nwse-resize; }
+  /* Only the bottom-right one is drawn — enough to say the tile can be pulled */
+  .dp-rs[data-rs="se"]::after {
+    content: ''; position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px;
+    border-right: 2px solid rgba(255,255,255,0.18);
+    border-bottom: 2px solid rgba(255,255,255,0.18);
+    border-radius: 0 0 5px 0; transition: border-color .18s;
+  }
+  .deck-panel.focused .dp-rs[data-rs="se"]::after { border-color: rgba(167,139,250,0.52); }
+  .dp-rs[data-rs="se"]:hover::after { border-color: var(--brand-gold, #f5c542); }
+  .deck-panel.resizing { transition: none; user-select: none; }
+  .deck-panel.resizing .dp-body { pointer-events: none; }
+
   .dp-head {
     flex: 0 0 auto; display: flex; align-items: center; gap: 13px;
     padding: 17px 18px 15px 20px;
@@ -2846,9 +2869,13 @@
        the bottom edge and the rest wait on the dock. */
     .deck-panel, .deck-panel.wide, .deck-panel.slim {
       left: 0 !important; top: auto !important; bottom: 0;
-      width: 100vw; max-height: 92dvh; border-radius: 24px 24px 0 0;
+      /* !important because a size dragged on a wide screen is inline, and a
+         phone sheet is not something you drag to size */
+      width: 100vw !important; height: auto !important;
+      max-height: 92dvh; border-radius: 24px 24px 0 0;
       border-bottom: none;
     }
+    .dp-rs { display: none; }
     .dp-head { padding: 15px 14px 13px 16px; cursor: default; }
     .dp-grip { display: none; }
     .dp-body { padding: 16px 15px 20px; }
@@ -10476,6 +10503,7 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
   let restoring = false;
   let focusId = null;
   let cascade = 0;
+  let zTop = 10;                // stacking order, so no tile ever has to move
 
   const phone = () => window.matchMedia('(max-width: 760px)').matches;
 
@@ -10487,7 +10515,14 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
   function savePosition(p) {
     if (!p.live || phone()) return;
     const all = positions();
-    all[p.scope + '|' + p.id] = { x: parseFloat(p.live.style.left) || 0, y: parseFloat(p.live.style.top) || 0 };
+    /* Where it was left and how big it was left — both belong to the
+       session, so a new one starts every tile back at its own size. */
+    all[p.scope + '|' + p.id] = {
+      x: parseFloat(p.live.style.left) || 0,
+      y: parseFloat(p.live.style.top) || 0,
+      w: parseFloat(p.live.style.width) || 0,
+      h: parseFloat(p.live.style.height) || 0,
+    };
     try { sessionStorage.setItem(POS_KEY, JSON.stringify(all)); } catch (_) {}
   }
   function forgetPosition(p) {
@@ -10591,7 +10626,11 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
           '</button>' +
         '</div>' +
       '</div>' +
-      '<div class="dp-body"></div>';
+      '<div class="dp-body"></div>' +
+      /* Eight grips: the four edges to change one dimension, the four
+         corners to change both. Only the bottom-right one is drawn. */
+      ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+        .map(d => '<span class="dp-rs" data-rs="' + d + '" aria-hidden="true"></span>').join('');
     el.querySelector('.dp-title b').textContent = p.spec.title;
     if (p.spec.sub) el.querySelector('.dp-title i').textContent = p.spec.sub;
 
@@ -10611,9 +10650,11 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
        nodes by id, and a detached subtree cannot be found that way. */
     layer.appendChild(el);
     p.live = el;
+    lift(el);
     if (typeof p.spec.mount === 'function') { try { p.spec.mount(body, p.args); } catch (e) { console.warn('deck mount failed', e); } }
     place(p, anchor);
     makeDraggable(p);
+    makeResizable(p);
     el.addEventListener('pointerdown', () => focus(p.id), true);
     focusId = p.id;
     paint();
@@ -10640,6 +10681,9 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     if (phone()) return;                       // the sheet rules handle it
     const el = p.live;
     const saved = positions()[p.scope + '|' + p.id];
+    /* Size first: the position it was left at was measured against it */
+    if (saved && saved.w) el.style.width  = Math.min(saved.w, window.innerWidth - 24) + 'px';
+    if (saved && saved.h) el.style.height = Math.min(saved.h, window.innerHeight - 24) + 'px';
     const w = el.offsetWidth, h = el.offsetHeight;
     const vw = window.innerWidth, vh = window.innerHeight, edge = 12;
     let x, y;
@@ -10657,9 +10701,12 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
   const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
   function keepOnScreen() {
-    if (phone()) return;
     panels.filter(p => !p.min && p.live).forEach(p => {
       const el = p.live, edge = 12;
+      if (phone()) { el.style.width = ''; el.style.height = ''; return; }
+      /* A window that shrank must not leave a tile wider than the screen */
+      if (parseFloat(el.style.width)  > window.innerWidth  - 24) el.style.width  = (window.innerWidth - 24) + 'px';
+      if (parseFloat(el.style.height) > window.innerHeight - 24) el.style.height = (window.innerHeight - 24) + 'px';
       const x = clamp(parseFloat(el.style.left) || 0, edge, Math.max(edge, window.innerWidth - el.offsetWidth - edge));
       const y = clamp(parseFloat(el.style.top) || 0, edge, Math.max(edge, window.innerHeight - el.offsetHeight - edge));
       el.style.left = Math.round(x) + 'px';
@@ -10696,19 +10743,85 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     };
     head.addEventListener('pointerup', drop);
     head.addEventListener('pointercancel', drop);
-    /* Double-clicking the bar sends it back to the middle */
+    /* Double-clicking the bar sends it back to the middle, at its own size */
     head.addEventListener('dblclick', ev => {
       if (ev.target.closest('button')) return;
       forgetPosition(p);
+      el.style.width = ''; el.style.height = '';
       place(p, null);
     });
   }
 
+  /* ---- and pull it to whatever size suits the work ---- */
+  const MIN_W = 360, MIN_H = 200;
+  function makeResizable(p) {
+    const el = p.live;
+    el.querySelectorAll('.dp-rs').forEach(grip => {
+      const dir = grip.dataset.rs;
+      let id = null, sx = 0, sy = 0, sw = 0, sh = 0, sl = 0, st = 0;
+      grip.addEventListener('pointerdown', ev => {
+        if (phone() || ev.button !== 0) return;
+        id = ev.pointerId;
+        const r = el.getBoundingClientRect();
+        sx = ev.clientX; sy = ev.clientY; sw = r.width; sh = r.height;
+        sl = parseFloat(el.style.left) || r.left; st = parseFloat(el.style.top) || r.top;
+        el.classList.add('resizing');
+        focus(p.id);
+        try { grip.setPointerCapture(id); } catch (_) {}
+        ev.preventDefault(); ev.stopPropagation();
+      });
+      grip.addEventListener('pointermove', ev => {
+        if (id === null || ev.pointerId !== id) return;
+        const edge = 12, vw = window.innerWidth, vh = window.innerHeight;
+        let w = sw, h = sh, l = sl, t = st;
+        if (dir.indexOf('e') > -1) w = sw + (ev.clientX - sx);
+        if (dir.indexOf('s') > -1) h = sh + (ev.clientY - sy);
+        if (dir.indexOf('w') > -1) w = sw - (ev.clientX - sx);
+        if (dir.indexOf('n') > -1) h = sh - (ev.clientY - sy);
+        w = clamp(w, MIN_W, vw - edge * 2);
+        h = clamp(h, MIN_H, vh - edge * 2);
+        /* Pulling the left or top edge moves that edge only — the opposite
+           one has to stay exactly where it was, or the tile walks away */
+        if (dir.indexOf('w') > -1) l = sl + sw - w;
+        if (dir.indexOf('n') > -1) t = st + sh - h;
+        el.style.width  = Math.round(w) + 'px';
+        el.style.height = Math.round(h) + 'px';
+        el.style.left = Math.round(clamp(l, edge, Math.max(edge, vw - w - edge))) + 'px';
+        el.style.top  = Math.round(clamp(t, edge, Math.max(edge, vh - h - edge))) + 'px';
+      });
+      const done = ev => {
+        if (id === null || (ev && ev.pointerId !== id)) return;
+        try { grip.releasePointerCapture(id); } catch (_) {}
+        id = null;
+        el.classList.remove('resizing');
+        savePosition(p);
+      };
+      grip.addEventListener('pointerup', done);
+      grip.addEventListener('pointercancel', done);
+      /* Double-click a grip and the tile sizes itself again */
+      grip.addEventListener('dblclick', ev => {
+        ev.stopPropagation();
+        el.style.width = ''; el.style.height = '';
+        keepOnScreen();
+        savePosition(p);
+      });
+    });
+  }
+
+  /* Bring a tile forward by raising it, never by moving the node.
+     appendChild() on an element already in the document detaches and
+     re-inserts it — and a node that moves between pointerdown and
+     pointerup gets no click event at all. That is what silenced ✕ and −
+     on every tile: the capture-phase listener below fired first and
+     pulled the button out from under the press. */
+  function lift(el) { el.style.zIndex = String(++zTop); }
+
   function focus(id) {
     const p = panels.find(x => x.id === id);
     if (!p || !p.live) return;
+    const already = focusId === id && p.live.style.zIndex;
     focusId = id;
-    layer.appendChild(p.live);                 // the one you are in comes forward
+    if (!already) lift(p.live);
     paint();
   }
 
