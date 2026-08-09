@@ -2733,19 +2733,13 @@
 
   .deck-layer {
     position: fixed; inset: 0; z-index: 121;
-    /* Grid, not flex: every panel occupies the same cell so they stack
-       exactly on top of one another, and max-height stays relative to the
-       padded box rather than the full viewport. */
-    display: grid; grid-template: 1fr / 1fr; place-items: center;
-    padding: clamp(16px, 4vh, 44px) clamp(12px, 4vw, 48px);
     pointer-events: none;
   }
-  .deck-layer.on { pointer-events: auto; }
 
   .deck-panel {
-    grid-area: 1 / 1;
-    width: min(980px, 100%);
-    max-height: 100%;
+    position: absolute; left: 0; top: 0;
+    width: min(980px, calc(100vw - 24px));
+    max-height: calc(100vh - 32px);
     display: flex; flex-direction: column;
     border-radius: 24px;
     border: 1px solid var(--glass-border);
@@ -2764,28 +2758,45 @@
     transform-origin: 50% 60%;
     will-change: transform, opacity, filter;
   }
-  .deck-panel.wide  { width: min(1220px, 100%); }
-  .deck-panel.slim  { width: min(620px, 100%); }
+  .deck-panel.wide  { width: min(1220px, calc(100vw - 24px)); }
+  .deck-panel.slim  { width: min(620px, calc(100vw - 24px)); }
   /* The specular sheen that marks every glass surface in this app */
   .deck-panel::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
     background: linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 42%);
   }
 
-  /* Panels stack: the one you opened last is in front, the rest fall back
-     and blur out so it is obvious which one you are reading. */
-  .deck-panel[data-depth="1"] { transform: translateY(-16px) scale(.955); filter: blur(1.5px) brightness(.78); }
-  .deck-panel[data-depth="2"] { transform: translateY(-30px) scale(.915); filter: blur(3px)   brightness(.62); }
-  .deck-panel[data-depth="3"] { transform: translateY(-42px) scale(.88);  filter: blur(4.5px) brightness(.5);  }
-  .deck-panel[data-depth]:not([data-depth="0"]) { pointer-events: none; }
-  .deck-panel[data-depth] { transition: transform .5s cubic-bezier(.16,.84,.32,1), filter .5s ease, opacity .4s ease; }
+  /* Several tiles can be open together. The one you are working in is lit;
+     the rest hold their place, dimmed but readable, until you pick them up. */
+  .deck-panel { transition: box-shadow .3s ease, opacity .3s ease, filter .3s ease; }
+  .deck-panel.resting { filter: saturate(.86) brightness(.88); }
+  .deck-panel.resting .dp-head { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)); }
+  .deck-panel.focused {
+    border-color: rgba(167,139,250,0.34);
+    box-shadow:
+      0 54px 130px -30px rgba(0,0,0,0.84),
+      0 0 0 1px rgba(167,139,250,0.16),
+      inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+  .deck-panel.dragging { transition: none; cursor: grabbing; }
+  .deck-panel.dragging .dp-body { pointer-events: none; }
 
   .dp-head {
     flex: 0 0 auto; display: flex; align-items: center; gap: 13px;
     padding: 17px 18px 15px 20px;
     border-bottom: 1px solid var(--glass-border);
     background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0));
+    cursor: grab; touch-action: none; user-select: none;
   }
+  .dp-head:active { cursor: grabbing; }
+  .dp-head .dp-tools, .dp-head .dp-btn { cursor: pointer; }
+  /* A quiet grip, so it is obvious the tile can be picked up */
+  .dp-grip {
+    position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+    width: 38px; height: 3px; border-radius: 999px; background: rgba(255,255,255,0.14);
+    pointer-events: none;
+  }
+  .deck-panel.focused .dp-grip { background: rgba(167,139,250,0.4); }
   .dp-ico {
     flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px;
     display: grid; place-items: center; color: var(--accent);
@@ -2831,17 +2842,18 @@
   .dp-foot .spacer { flex: 1; }
 
   @media (max-width: 760px) {
-    .deck-layer { padding: 0; align-items: flex-end; }
+    /* No room to arrange tiles on a phone: the focused one is a sheet from
+       the bottom edge and the rest wait on the dock. */
     .deck-panel, .deck-panel.wide, .deck-panel.slim {
-      width: 100%; max-height: 94dvh; border-radius: 24px 24px 0 0;
+      left: 0 !important; top: auto !important; bottom: 0;
+      width: 100vw; max-height: 92dvh; border-radius: 24px 24px 0 0;
       border-bottom: none;
     }
-    .dp-head { padding: 15px 14px 13px 16px; }
+    .dp-head { padding: 15px 14px 13px 16px; cursor: default; }
+    .dp-grip { display: none; }
     .dp-body { padding: 16px 15px 20px; }
     .dp-foot { padding: 12px 15px calc(16px + env(safe-area-inset-bottom)); }
-    .deck-panel[data-depth="1"] { transform: translateY(-8px) scale(.97); }
-    .deck-panel[data-depth="2"] { transform: translateY(-15px) scale(.945); }
-    .deck-panel[data-depth="3"] { transform: translateY(-21px) scale(.92); }
+    .deck-panel.resting { display: none; }
   }
 
   /* ---- The dock: panels you didn't close fold to an icon on the right ---- */
@@ -3154,6 +3166,144 @@
   .proj-read em { color: var(--accent); font-style: normal; font-weight: 700; }
   .ask-body { margin: 0; font-size: 14.5px; line-height: 1.7; color: var(--muted); }
   .ask-body strong { color: var(--text); font-weight: 700; }
+
+  /* ============================================================
+     FLOATING THINGS MUST NOT SIT IN THE FLOW
+     The liquid-glass rule above sets `position: relative` on a long
+     list of surfaces, and .profile-menu was in it — which put the
+     ⋯ dropdown back into normal flow, so opening it stretched the
+     card from 69px to 271px. Anything that floats says so here,
+     after that rule, and stays out of the flow for good.
+     ============================================================ */
+  .profile-menu { position: absolute !important; }
+  .rail-menu, .deck-dock, .toast, .tour-mask, .tour-pop, .tour-hole { position: fixed !important; }
+
+  /* Alerts belong above every tile, however many are open */
+  .toast { z-index: 400 !important; }
+  .tour-mask, .tour-pop, .tour-hole { z-index: 300; }
+
+  /* ---- Buttons: one system, evenly weighted, properly aligned ---- */
+  .dp-btn {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.10);
+    color: var(--muted-2);
+  }
+  .dp-btn .ico { width: 15px; height: 15px; stroke-width: 2; }
+  .dp-btn:hover { color: var(--text); background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.2); }
+  .dp-btn:active { transform: scale(.9); }
+  .dp-btn.dp-x:hover { color: #fecaca; background: rgba(248,113,113,0.16); border-color: rgba(248,113,113,0.4); }
+  .dp-btn.dp-min:hover { color: var(--brand-gold, #f5c542); border-color: rgba(245,197,66,0.4); background: rgba(245,197,66,0.13); }
+
+  /* ---- Sub-tiles: the buttons that open the detail beside this tile ---- */
+  .sub-tiles { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .sub-tile {
+    display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+    padding: 13px 15px; border-radius: 14px; cursor: pointer; color: var(--text);
+    background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+    font-family: inherit; height: auto;
+    transition: background .2s, border-color .2s, transform .2s cubic-bezier(.16,.84,.32,1);
+  }
+  .sub-tile:hover { background: rgba(255,255,255,0.07); border-color: var(--border-2); transform: translateX(3px); }
+  .st-ico {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    color: var(--accent); background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2);
+  }
+  .st-ico .ico { width: 17px; height: 17px; }
+  .st-text { min-width: 0; flex: 1; }
+  .st-text b { display: block; font-size: 13.5px; font-weight: 650; }
+  .st-text i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted-2); margin-top: 2px; font-weight: 600; line-height: 1.45; }
+  .st-go { flex: 0 0 auto; color: var(--muted-2); display: grid; place-items: center; }
+  .st-go .ico { width: 16px; height: 16px; }
+  .sub-tile:hover .st-go { color: var(--accent); }
+  .sub-tile.urgent { border-color: rgba(251,191,36,0.34); background: rgba(251,191,36,0.07); }
+  .sub-tile.urgent .st-ico { color: #fbbf24; background: rgba(251,191,36,0.13); border-color: rgba(251,191,36,0.3); }
+
+  .read-only-note {
+    display: flex; gap: 11px; align-items: flex-start; padding: 12px 14px; border-radius: 13px;
+    background: rgba(255,255,255,0.03); border: 1px dashed var(--border-2);
+    font-size: 12.5px; line-height: 1.55; color: var(--muted);
+  }
+  .read-only-note .ico { width: 17px; height: 17px; flex: 0 0 auto; color: var(--muted-2); margin-top: 1px; }
+  .read-only-note b { color: var(--text); font-weight: 700; }
+
+  /* ---- Take action ---- */
+  .decide-row { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+  .decide-btn {
+    display: flex; align-items: center; gap: 13px; width: 100%; text-align: left; height: auto;
+    padding: 14px 16px; border-radius: 14px; cursor: pointer; font-family: inherit;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); color: var(--text);
+    transition: background .18s, border-color .18s, transform .16s;
+  }
+  .decide-btn:hover { transform: translateY(-1px); }
+  .db-ico { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; }
+  .db-ico .ico { width: 18px; height: 18px; }
+  .db-text b { display: block; font-size: 14px; font-weight: 750; }
+  .db-text i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted-2); margin-top: 2px; font-weight: 600; line-height: 1.45; }
+  .decide-btn.d-review .db-ico  { color: #93c5fd; background: rgba(96,165,250,.14); border: 1px solid rgba(96,165,250,.3); }
+  .decide-btn.d-approve .db-ico { color: #6ee7b7; background: rgba(61,220,151,.14); border: 1px solid rgba(61,220,151,.3); }
+  .decide-btn.d-decline .db-ico { color: #fca5a5; background: rgba(248,113,113,.14); border: 1px solid rgba(248,113,113,.3); }
+  .decide-btn.d-review:hover  { border-color: rgba(96,165,250,.45); background: rgba(96,165,250,.10); }
+  .decide-btn.d-approve:hover { border-color: rgba(61,220,151,.45); background: rgba(61,220,151,.10); }
+  .decide-btn.d-decline:hover { border-color: rgba(248,113,113,.45); background: rgba(248,113,113,.10); }
+  .decide-btn.on { border-width: 2px; }
+  .decide-btn.d-review.on  { border-color: #60a5fa; background: rgba(96,165,250,.14); }
+  .decide-btn.d-approve.on { border-color: #3ddc97; background: rgba(61,220,151,.14); }
+  .decide-btn.d-decline.on { border-color: #f87171; background: rgba(248,113,113,.14); }
+  .who-told {
+    display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 12px 14px;
+    border-radius: 13px; background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.2);
+    font-size: 12px; line-height: 1.55; color: var(--muted);
+  }
+  .who-told .ico { width: 16px; height: 16px; flex: 0 0 auto; color: var(--accent); margin-top: 1px; }
+  .who-told b { color: var(--text); font-weight: 700; }
+
+  /* ---- Documents and the outbox ---- */
+  .doc-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+  .doc-actions button { height: 38px; }
+  .doc-actions .ico { width: 15px; height: 15px; }
+  .notify-events { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; }
+  .nt-ev {
+    display: flex; gap: 11px; align-items: flex-start; padding: 12px 14px; border-radius: 13px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); cursor: pointer;
+    text-transform: none; letter-spacing: 0; margin: 0;
+  }
+  .nt-ev input { width: auto; margin-top: 2px; flex: 0 0 auto; accent-color: var(--accent); }
+  .nt-ev b { display: block; font-size: 13px; font-weight: 700; color: var(--text); }
+  .nt-ev i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted-2); margin-top: 2px; font-weight: 600; }
+  .mail-ok   { color: var(--good, #3ddc97); }
+  .mail-warn { color: #fbbf24; }
+  .mail-bad  { color: var(--danger, #f87171); }
+  .mo-row span i { font-style: normal; color: var(--muted-2); font-weight: 600; }
+  .reg-toggle.required {
+    border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  }
+
+  /* ---- The briefing is asked for, not displayed ---- */
+  .exec-launch { max-width: 780px; }
+  .el-step {
+    display: flex; align-items: center; gap: 10px; margin: 20px 0 10px;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted-2);
+  }
+  .el-step:first-child { margin-top: 4px; }
+  .el-num {
+    width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 11px; font-weight: 800; letter-spacing: 0; color: #0b0e16;
+    background: var(--brand-gold, #f5c542);
+  }
+  .exec-launch-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 4px; }
+  .exec-launch-actions button { height: 40px; padding: 0 18px; }
+  .el-note { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); }
+  .el-note b { color: var(--text); }
+  .exec-scope {
+    display: flex; gap: 10px; align-items: flex-start; margin: 0 0 22px;
+    padding: 11px 14px; border-radius: 12px; font-size: 12px; line-height: 1.55; color: var(--muted);
+    background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+  }
+  .exec-scope .ico { width: 16px; height: 16px; flex: 0 0 auto; color: var(--muted-2); margin-top: 1px; }
+  .exec-scope b { color: var(--text); font-weight: 700; }
+  .ed-up   { color: var(--good, #3ddc97); font-style: normal; font-weight: 700; font-size: 11px; display: block; margin-top: 3px; }
+  .ed-down { color: var(--danger, #f87171); font-style: normal; font-weight: 700; font-size: 11px; display: block; margin-top: 3px; }
+  .ed-flat { color: var(--muted-2); font-style: normal; font-weight: 600; font-size: 11px; display: block; margin-top: 3px; }
   .drive-row { display: flex; gap: 9px; align-items: stretch; flex-wrap: wrap; }
   .drive-row input { flex: 1 1 220px; min-width: 0; }
   .drive-btn { flex: 0 0 auto; height: auto; min-height: 40px; white-space: nowrap; }
@@ -3390,16 +3540,7 @@
 
     <div id="claimBanner" class="card claim-banner" style="display:none;"></div>
 
-    <div class="grid cols-2 dept-overview" id="deptOverview" style="display:none;">
-      <div class="card chart-card">
-        <div class="chart-head">
-          <div>
-            <div class="section-title" style="margin:0;">Your Department's Momentum</div>
-            <p class="help" style="margin:6px 0 0;" id="deptTrendSub">Cumulative monthly savings recorded by your team.</p>
-          </div>
-        </div>
-        <div id="deptTrendChart" class="chart-wrap"></div>
-      </div>
+    <div class="dept-overview" id="deptOverview" style="display:none;">
       <div class="card">
         <div class="section-title" style="margin-top:0;">Tool Status Breakdown</div>
         <p class="help" style="margin:-4px 0 12px;">Where your department's tools are in the adoption journey.</p>
@@ -3841,21 +3982,35 @@
         <span class="acc-meta">narrative summary</span>
       </summary>
       <div class="acc-body">
-        <p class="help">A full executive briefing written from the tracked data — every tool reported and every tool requested, with the charts to read it by. Pick a period, then print it or copy it into an email.</p>
-        <div class="exec-bar">
+        <p class="help">A briefing written from the tracked data, ready to table. Choose the period and prepare it — each week and each month stands on its own, so nothing bleeds across the boundary.</p>
+
+        <div class="exec-launch">
+          <div class="el-step"><span class="el-num">1</span><span>Which period?</span></div>
           <div class="exec-periods" id="execPeriods" role="tablist">
-            <button type="button" class="active" data-p="this-week"  onclick="setExecPeriod('this-week')">This week</button>
+            <button type="button" data-p="this-week"  onclick="setExecPeriod('this-week')">This week</button>
             <button type="button" data-p="last-week"  onclick="setExecPeriod('last-week')">Last week</button>
-            <button type="button" data-p="this-month" onclick="setExecPeriod('this-month')">This month</button>
+            <button type="button" class="active" data-p="this-month" onclick="setExecPeriod('this-month')">This month</button>
             <button type="button" data-p="last-month" onclick="setExecPeriod('last-month')">Last month</button>
-            <button type="button" data-p="all"        onclick="setExecPeriod('all')">All time</button>
+            <button type="button" data-p="all"        onclick="setExecPeriod('all')">Everything to date</button>
           </div>
-          <div class="row-actions" style="margin:0;">
-            <button type="button" class="secondary" onclick="copyExecBriefing()">Copy</button>
-            <button type="button" class="primary" onclick="printExecBriefing()">Print / PDF</button>
+
+          <div class="el-step"><span class="el-num">2</span><span>How should it read?</span></div>
+          <div class="notify-events">
+            <label class="nt-ev"><input type="checkbox" id="ex_compare" checked onchange="execOption()" />
+              <span><b>Compare with the period before</b><i>Adds a movement table — up or down on last week or last month</i></span></label>
+            <label class="nt-ev"><input type="checkbox" id="ex_carry" onchange="execOption()" />
+              <span><b>Carry in the running total</b><i>Off by default: this period's briefing reports this period. Tick to merge everything to date</i></span></label>
           </div>
+
+          <div class="el-step"><span class="el-num">3</span><span>Prepare it</span></div>
+          <div class="exec-launch-actions">
+            <button type="button" class="primary" onclick="openExecBriefing()">Prepare the briefing</button>
+            <button type="button" class="secondary" onclick="downloadExecDoc()">Word document</button>
+            <button type="button" class="secondary" onclick="downloadExecWorkbook()">Excel workbook</button>
+            <button type="button" class="secondary" onclick="downloadExecCsv()">CSV for Sheets</button>
+          </div>
+          <p class="el-note" id="execLaunchNote"></p>
         </div>
-        <div id="execReport" class="exec-report"></div>
       </div>
     </details>
 
@@ -6328,6 +6483,9 @@ function renderAdmin() {
 ---------------------------------------------------------*/
 function renderExecReport(list, totalTime, totalNetUSD, totalRevenueUSD) {
   const host = document.getElementById('execReport');
+  /* The briefing is prepared on request now, so this host only exists while
+     its tile is open. Nothing to write into is not an error. */
+  if (!host) return;
   if (!list.length) {
     host.innerHTML = `<p>No data yet. Use <strong>Load Sample Data</strong> to preview the report, or add tools via the Departments view.</p>`;
     return;
@@ -8789,7 +8947,7 @@ const SECTION_ICONS = {
   overview: 'grid', acc_requests: 'inbox', acc_tools: 'list', acc_exec: 'doc',
   acc_rotation: 'refresh', acc_business: 'chart', acc_registry: 'book',
   acc_manage: 'users', acc_admins: 'users', acc_backend: 'db', acc_actions: 'sliders',
-  acc_summary: 'trophy', acc_finance: 'money', acc_calc: 'calc',
+  acc_summary: 'trophy', acc_finance: 'money', acc_calc: 'calc', acc_notify: 'inbox',
 };
 function paletteCommands() {
   const cmds = [];
@@ -9827,7 +9985,7 @@ const RAIL_GROUPS = [
   /* Configuration is not daily work — it lives at the foot of the rail,
      outside the scrolling list, so it is always in reach. */
   { id: '__settings', label: 'Settings', icon: 'gear', atFoot: true,
-    sections: ['acc_actions', 'acc_admins', 'acc_backend'] },
+    sections: ['acc_notify', 'acc_actions', 'acc_admins', 'acc_backend'] },
 ];
 const CARET_SVG =
   '<svg class="nav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -10258,11 +10416,33 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
    ============================================================ */
 (function () {
   const DECK_KEY = 'swangz_deck_v2';
+  const POS_KEY  = 'swangz_deck_pos_v1';
   const EASE = 'cubic-bezier(.16,.84,.32,1)';
   const builders = {};
-  let panels = [];              // [{id, kind, args, scope, min, spec, live}]
+  let panels = [];              // [{id, kind, args, scope, min, spec, live, parent}]
   let scrim, layer, dock;
   let restoring = false;
+  let focusId = null;
+  let cascade = 0;
+
+  const phone = () => window.matchMedia('(max-width: 760px)').matches;
+
+  /* Where each tile was left, for this session only. A new session starts
+     everything back in the middle, which is what "reset" has to mean. */
+  function positions() {
+    try { return JSON.parse(sessionStorage.getItem(POS_KEY)) || {}; } catch (_) { return {}; }
+  }
+  function savePosition(p) {
+    if (!p.live || phone()) return;
+    const all = positions();
+    all[p.scope + '|' + p.id] = { x: parseFloat(p.live.style.left) || 0, y: parseFloat(p.live.style.top) || 0 };
+    try { sessionStorage.setItem(POS_KEY, JSON.stringify(all)); } catch (_) {}
+  }
+  function forgetPosition(p) {
+    const all = positions();
+    delete all[p.scope + '|' + p.id];
+    try { sessionStorage.setItem(POS_KEY, JSON.stringify(all)); } catch (_) {}
+  }
 
   const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -10304,7 +10484,10 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     return kind + (args === undefined ? '' : '|' + JSON.stringify(args));
   }
 
-  /* ---- open ---- */
+  /* ---- open ----
+     `opts.from` is the id of the tile this was opened from. That tile folds
+     to the dock and the new one takes its place, offset, so you always know
+     which one you are reading; closing the child brings the parent back. */
   function open(kind, args, opts) {
     mount();
     const build = builders[kind];
@@ -10312,28 +10495,36 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     const id = keyOf(kind, args);
     const already = panels.find(p => p.id === id);
     if (already) {
-      if (already.min) { restore(id); } else { bringToFront(id); }
+      if (already.min) { restore(id); } else { focus(id); }
       return already;
     }
     let spec;
     try { spec = build(args) || {}; } catch (e) { console.warn('deck: builder failed for ' + kind, e); return null; }
     spec = Object.assign({ title: kind, icon: 'grid', size: '' }, spec, opts || {});
-    const p = { id, kind, args, scope: scope(), min: false, spec, live: null };
+
+    const parent = spec.from ? panels.find(x => x.id === spec.from && !x.min) : null;
+    const anchor = parent && parent.live
+      ? { x: parseFloat(parent.live.style.left) || 0, y: parseFloat(parent.live.style.top) || 0 }
+      : null;
+
+    const p = { id, kind, args, scope: scope(), min: false, spec, live: null, parent: parent ? parent.id : null };
     panels.push(p);
-    show(p, true);
+    show(p, true, anchor);
+    if (parent) minimize(parent.id, true);
     persist();
     return p;
   }
 
   /* ---- build the DOM for one panel ---- */
-  function show(p, animate) {
+  function show(p, animate, anchor) {
     const el = document.createElement('div');
     el.className = 'deck-panel' + (p.spec.size ? ' ' + p.spec.size : '');
     el.dataset.id = p.id;
     el.setAttribute('role', 'dialog');
-    el.setAttribute('aria-modal', 'true');
+    if (p.spec.modal) el.setAttribute('aria-modal', 'true');
     el.setAttribute('aria-label', p.spec.title);
     el.innerHTML =
+      '<span class="dp-grip" aria-hidden="true"></span>' +
       '<div class="dp-head">' +
         '<span class="dp-ico">' + svgIcon(p.spec.icon) + '</span>' +
         '<div class="dp-title"><b></b>' + (p.spec.sub ? '<i></i>' : '') + '</div>' +
@@ -10354,7 +10545,6 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
 
     const body = el.querySelector('.dp-body');
     if (p.spec.html) body.innerHTML = p.spec.html;
-    if (typeof p.spec.mount === 'function') { try { p.spec.mount(body, p.args); } catch (e) { console.warn('deck mount failed', e); } }
     if (p.spec.foot) {
       const f = document.createElement('div');
       f.className = 'dp-foot';
@@ -10365,8 +10555,15 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     if (minBtn) minBtn.addEventListener('click', () => minimize(p.id));
     el.querySelector('.dp-x').addEventListener('click', () => close(p.id));
 
+    /* In the document before mount() runs: builders reach for their own
+       nodes by id, and a detached subtree cannot be found that way. */
     layer.appendChild(el);
     p.live = el;
+    if (typeof p.spec.mount === 'function') { try { p.spec.mount(body, p.args); } catch (e) { console.warn('deck mount failed', e); } }
+    place(p, anchor);
+    makeDraggable(p);
+    el.addEventListener('pointerdown', () => focus(p.id), true);
+    focusId = p.id;
     paint();
 
     if (animate && !reduced()) {
@@ -10386,6 +10583,83 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     }, 120);
   }
 
+  /* ---- where a tile lands ---- */
+  function place(p, anchor) {
+    if (phone()) return;                       // the sheet rules handle it
+    const el = p.live;
+    const saved = positions()[p.scope + '|' + p.id];
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight, edge = 12;
+    let x, y;
+    if (saved) { x = saved.x; y = saved.y; }
+    else if (anchor) { x = anchor.x + 46; y = anchor.y + 34; }   // beside the tile it came from
+    else {
+      /* Centre the first, then cascade so a second tile never hides the first */
+      const step = (cascade++ % 5) * 34;
+      x = Math.round((vw - w) / 2) + step;
+      y = Math.round((vh - h) / 2 - 10) + step;
+    }
+    el.style.left = Math.round(clamp(x, edge, Math.max(edge, vw - w - edge))) + 'px';
+    el.style.top  = Math.round(clamp(y, edge, Math.max(edge, vh - h - edge))) + 'px';
+  }
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+  function keepOnScreen() {
+    if (phone()) return;
+    panels.filter(p => !p.min && p.live).forEach(p => {
+      const el = p.live, edge = 12;
+      const x = clamp(parseFloat(el.style.left) || 0, edge, Math.max(edge, window.innerWidth - el.offsetWidth - edge));
+      const y = clamp(parseFloat(el.style.top) || 0, edge, Math.max(edge, window.innerHeight - el.offsetHeight - edge));
+      el.style.left = Math.round(x) + 'px';
+      el.style.top = Math.round(y) + 'px';
+    });
+  }
+
+  /* ---- pick a tile up by its header ---- */
+  function makeDraggable(p) {
+    const el = p.live, head = el.querySelector('.dp-head');
+    let dx = 0, dy = 0, id = null;
+    head.addEventListener('pointerdown', ev => {
+      if (phone() || ev.button !== 0 || ev.target.closest('button, a, input, select, textarea')) return;
+      id = ev.pointerId;
+      dx = ev.clientX - (parseFloat(el.style.left) || 0);
+      dy = ev.clientY - (parseFloat(el.style.top) || 0);
+      el.classList.add('dragging');
+      focus(p.id);
+      try { head.setPointerCapture(id); } catch (_) {}
+      ev.preventDefault();
+    });
+    head.addEventListener('pointermove', ev => {
+      if (id === null || ev.pointerId !== id) return;
+      const edge = 12;
+      el.style.left = Math.round(clamp(ev.clientX - dx, edge, Math.max(edge, window.innerWidth - el.offsetWidth - edge))) + 'px';
+      el.style.top  = Math.round(clamp(ev.clientY - dy, edge, Math.max(edge, window.innerHeight - el.offsetHeight - edge))) + 'px';
+    });
+    const drop = ev => {
+      if (id === null || (ev && ev.pointerId !== id)) return;
+      try { head.releasePointerCapture(id); } catch (_) {}
+      id = null;
+      el.classList.remove('dragging');
+      savePosition(p);
+    };
+    head.addEventListener('pointerup', drop);
+    head.addEventListener('pointercancel', drop);
+    /* Double-clicking the bar sends it back to the middle */
+    head.addEventListener('dblclick', ev => {
+      if (ev.target.closest('button')) return;
+      forgetPosition(p);
+      place(p, null);
+    });
+  }
+
+  function focus(id) {
+    const p = panels.find(x => x.id === id);
+    if (!p || !p.live) return;
+    focusId = id;
+    layer.appendChild(p.live);                 // the one you are in comes forward
+    paint();
+  }
+
   function teardown(p) {
     if (typeof p.spec.unmount === 'function') { try { p.spec.unmount(p.live); } catch (e) { console.warn('deck unmount failed', e); } }
     if (p.live && p.live.parentNode) p.live.parentNode.removeChild(p.live);
@@ -10397,8 +10671,14 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     const p = panels.find(x => x.id === id);
     if (!p) return;
     const el = p.live;
+    forgetPosition(p);
     panels = panels.filter(x => x.id !== id);
     persist();
+    /* Closing a sub-tile hands you back the tile you opened it from */
+    if (p.parent) {
+      const up = panels.find(x => x.id === p.parent);
+      if (up && up.min) setTimeout(() => restore(up.id), 180);
+    }
     if (el && !reduced()) {
       const a = el.animate(
         [{ opacity: 1, transform: 'none', filter: 'blur(0)' },
@@ -10411,12 +10691,14 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     paint();
   }
 
-  function minimize(id) {
+  function minimize(id, quiet) {
     const p = panels.find(x => x.id === id);
     if (!p || p.min) return;
     const el = p.live;
+    savePosition(p);
     p.min = true;
     persist();
+    if (quiet && el) { teardown(p); paint(); return; }
     if (el && !reduced()) {
       /* Fly to where its icon is about to appear, so the fold is legible */
       const r = el.getBoundingClientRect();
@@ -10448,15 +10730,9 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     show(p, true);
   }
 
-  function bringToFront(id) {
-    const p = panels.find(x => x.id === id);
-    if (!p) return;
-    panels = panels.filter(x => x.id !== id).concat([p]);
-    if (p.live) layer.appendChild(p.live);
-    paint();
-  }
-
   function closeTop() {
+    const here = panels.find(p => !p.min && p.id === focusId);
+    if (here) { close(here.id); return; }
     const openOnes = panels.filter(p => !p.min);
     if (openOnes.length) close(openOnes[openOnes.length - 1].id);
   }
@@ -10467,15 +10743,20 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     return { x: window.innerWidth - 36, y: window.innerHeight / 2 };
   }
 
-  /* ---- paint the stack and the dock ---- */
+  /* ---- paint the arrangement and the dock ---- */
   function paint() {
     const openOnes = panels.filter(p => !p.min && p.live);
-    openOnes.forEach((p, i) => {
-      p.live.dataset.depth = String(openOnes.length - 1 - i);
-      p.live.setAttribute('aria-hidden', i === openOnes.length - 1 ? 'false' : 'true');
+    if (openOnes.length && !openOnes.some(p => p.id === focusId)) focusId = openOnes[openOnes.length - 1].id;
+    openOnes.forEach(p => {
+      const on = p.id === focusId;
+      p.live.classList.toggle('focused', on);
+      p.live.classList.toggle('resting', !on);
+      p.live.style.pointerEvents = 'auto';
     });
-    scrim.classList.toggle('on', openOnes.length > 0);
-    layer.classList.toggle('on', openOnes.length > 0);
+    /* Only a question dims the page behind it; ordinary tiles float over a
+       page you can still read and use. */
+    const modal = openOnes.some(p => p.spec.modal);
+    scrim.classList.toggle('on', modal);
     document.body.classList.toggle('deck-open', openOnes.length > 0);
 
     const here = scope();
@@ -10508,8 +10789,9 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     if (now === lastScope) return;
     lastScope = now;
     /* Panels belong to the tab that opened them: leaving folds them away
-       rather than throwing them out, so coming back restores the desk. */
-    panels.filter(p => !p.min).forEach(p => { p.min = true; teardown(p); });
+       rather than throwing them out, so coming back restores the desk —
+       each tile exactly where it was left. */
+    panels.filter(p => !p.min).forEach(p => { savePosition(p); p.min = true; teardown(p); });
     persist();
     paint();
     if (!restoring) rehydrate();
@@ -10540,12 +10822,17 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     closeTop();
   }, true);
 
-  window.addEventListener('resize', () => { if (dock) paint(); });
+  window.addEventListener('resize', () => { if (dock) { keepOnScreen(); paint(); } });
 
   /* Public surface */
   window.DECK = {
     register(kind, builder) { builders[kind] = builder; return this; },
-    open, close, minimize, restore,
+    open, close, minimize, restore, focus,
+    /* Open something from inside a tile: it lands beside, and the tile it
+       came from folds away until this one is closed. */
+    openFrom(fromId, kind, args, opts) {
+      return open(kind, args, Object.assign({ from: fromId }, opts || {}));
+    },
     has(kind, args) { return panels.some(p => p.id === keyOf(kind, args)); },
     isOpen() { return panels.some(p => !p.min); },
     /* Rebuild whatever is on screen — used after data changes.
@@ -10567,9 +10854,12 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
       });
     },
     closeAll(hard) {
-      panels.slice().forEach(p => { teardown(p); });
-      if (hard) { panels = []; try { sessionStorage.removeItem(DECK_KEY); } catch (_) {} }
-      else panels.forEach(p => { p.min = true; });
+      panels.slice().forEach(p => { if (!hard) savePosition(p); teardown(p); });
+      if (hard) {
+        panels = [];
+        cascade = 0;
+        try { sessionStorage.removeItem(DECK_KEY); sessionStorage.removeItem(POS_KEY); } catch (_) {}
+      } else panels.forEach(p => { p.min = true; });
       persist(); paint();
     },
     /* Drop every panel of one kind — used when the thing that owned them
@@ -10628,14 +10918,135 @@ DECK.register('overview', function (i) {
   };
 });
 
+/* A tool's report used to be one long slab. It is a short verdict now, with
+   each part of the detail on its own tile a button away. */
 DECK.register('tool', function (groupKey) {
   const g = _toolGroups(filteredEntries()).find(x => x.key === groupKey);
+  if (!g) return { title: 'Tool', icon: 'wand', html: '<div class="empty-state"><h3>That tool is no longer in the current filter</h3></div>' };
+  const r = buildToolReport(g);
+  const me = 'tool|' + JSON.stringify(groupKey);
+  const arg = escapeAttr(JSON.stringify(groupKey));
+  const sub = (kind, icon, label, note) =>
+    '<button type="button" class="sub-tile" onclick="DECK.openFrom(\'' + escapeAttr(me) + '\', \'' + kind + '\', ' + arg + ')">' +
+      '<span class="st-ico">' + svgIcon(icon) + '</span>' +
+      '<span class="st-text"><b>' + escapeHTML(label) + '</b><i>' + escapeHTML(note) + '</i></span>' +
+      '<span class="st-go">' + svgIcon('expand') + '</span>' +
+    '</button>';
   return {
-    title: g ? g.name : 'Tool', sub: g ? (g.entries.length + ' submission' + (g.entries.length === 1 ? '' : 's') + ' · ' + g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's')) : '',
-    icon: 'wand', size: 'wide', noAutofocus: true,
-    html: toolDrillHTML(groupKey) || '<div class="empty-state"><h3>That tool is no longer in the current filter</h3></div>',
+    title: g.name,
+    sub: g.entries.length + ' submission' + (g.entries.length === 1 ? '' : 's') + ' · ' + g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's') + ' · ' + g.people.size + ' ' + (g.people.size === 1 ? 'person' : 'people'),
+    icon: 'wand', size: 'slim', noAutofocus: true,
+    html:
+      '<div class="exec-verdict-row">' +
+        '<span class="verdict-pill verdict-' + r.verdictClass + '">' + escapeHTML(r.verdict) + '</span>' +
+        '<span class="verdict-tagline">' + escapeHTML(r.verdictReason) + '</span>' +
+      '</div>' +
+      '<div class="mny-context" style="margin-top:14px;">' +
+        '<div><span>Time saved / mo</span><b>' + escapeHTML(fmtDuration(r.timeSav)) + '</b></div>' +
+        '<div><span>Net saved / mo</span><b class="' + (r.netSav >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(r.netSav) + '</b></div>' +
+        '<div><span>Return per $1</span><b>' + (r.aiMo > 0 ? '$' + (1 + (r.netSav / r.aiMo)).toFixed(2) : '—') + '</b></div>' +
+      '</div>' +
+      '<div class="sub-tiles">' +
+        sub('toolStory', 'doc', 'The read on it', 'What the numbers add up to, in words') +
+        sub('toolNumbers', 'calc', 'The numbers', 'Cost, saving, revenue and return in full') +
+        sub('toolDepts', 'users', 'By department', g.depts.size + ' team' + (g.depts.size === 1 ? '' : 's') + ' using it') +
+        sub('toolUses', 'flag', 'What it is used for', r.useCases.length ? r.useCases.length + ' use cases recorded' : 'Nothing recorded yet') +
+        sub('toolSubs', 'inbox', 'Submissions (' + g.entries.length + ')', 'Who entered it and what each said') +
+      '</div>',
+    foot:
+      '<button type="button" class="secondary" onclick="copyToolReport(' + arg + ')">Copy report</button>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="primary" onclick="downloadToolDoc(' + arg + ')">Word document</button>',
   };
 });
+
+function toolGroup(key) { return _toolGroups(filteredEntries()).find(x => x.key === key); }
+
+DECK.register('toolStory', function (key) {
+  const g = toolGroup(key); if (!g) return null;
+  const r = buildToolReport(g);
+  return { title: 'The read on ' + g.name, sub: r.verdict, icon: 'doc', size: 'slim', noAutofocus: true,
+    html: '<p class="exec-narrative">' + escapeHTML(r.narrative) + '</p>' +
+      '<div class="exec-empty" style="margin-top:16px;">' + escapeHTML(r.verdictReason) + '</div>' };
+});
+
+DECK.register('toolNumbers', function (key) {
+  const g = toolGroup(key); if (!g) return null;
+  const r = buildToolReport(g);
+  const row = (k, v, tone) => '<div class="mo-row' + (tone ? ' ' + tone : '') + '"><span>' + k + '</span><b>' + v + '</b></div>';
+  return { title: g.name + ' — the numbers', sub: 'Everything monthly unless stated', icon: 'calc', size: 'slim', noAutofocus: true,
+    html: '<div class="mny-out">' +
+      row('Submissions', String(g.entries.length)) +
+      row('Departments', String(g.depts.size)) +
+      row('Hours saved', escapeHTML(fmtDuration(r.timeSav)) + (hourlyRate() ? ' <i>worth ' + fmtUSD(r.timeSav * hourlyRate()) + '</i>' : '')) +
+      row('What the old way cost', fmtUSD(r.tradMo)) +
+      row('What this tool costs', fmtUSD(r.aiMo) + ' <i>≈ ' + fmtUGX(r.aiMo) + '</i>') +
+      row('Net saved', fmtUSD(r.netSav) + ' <i>≈ ' + fmtUGX(r.netSav) + '</i>', 'total') +
+      row('Revenue attributed', fmtUSD(r.revenue)) +
+      row('Return per $1 spent', r.aiMo > 0 ? '$' + (1 + r.netSav / r.aiMo).toFixed(2) : '<i>no cost recorded</i>') +
+      row('Over a year', fmtUSD(r.netSav * 12)) +
+    '</div>' };
+});
+
+DECK.register('toolDepts', function (key) {
+  const g = toolGroup(key); if (!g) return null;
+  const r = buildToolReport(g);
+  return { title: g.name + ' — by department', sub: g.depts.size + ' using it', icon: 'users', size: 'slim', noAutofocus: true,
+    html: r.byDept.length
+      ? '<div class="mny-out">' + r.byDept.map(d =>
+          '<div class="mo-row"><span><span class="pill dept">' + escapeHTML(d.dept) + '</span> ' + d.count + ' submission' + (d.count === 1 ? '' : 's') + '</span>' +
+          '<b>' + fmtUSD(d.sav) + ' <i>' + escapeHTML(fmtDuration(d.time)) + ' saved</i></b></div>').join('') + '</div>'
+      : '<div class="exec-empty">No departments recorded against it.</div>' };
+});
+
+DECK.register('toolUses', function (key) {
+  const g = toolGroup(key); if (!g) return null;
+  const r = buildToolReport(g);
+  return { title: g.name + ' — what it is used for', sub: r.useCases.length + ' recorded', icon: 'flag', size: 'slim', noAutofocus: true,
+    html: r.useCases.length
+      ? '<ul class="use-case-list">' + r.useCases.map(u => '<li>' + escapeHTML(u) + '</li>').join('') + '</ul>'
+      : '<div class="exec-empty">Nobody has written down what they use it for. That is the first thing to ask for.</div>' };
+});
+
+DECK.register('toolSubs', function (key) {
+  const g = toolGroup(key); if (!g) return null;
+  const me = 'toolSubs|' + JSON.stringify(key);
+  return { title: g.name + ' — submissions', sub: g.entries.length + ' on file', icon: 'inbox', size: 'slim', noAutofocus: true,
+    html: '<div class="deck-list">' + g.entries.map(e => {
+      const m = monthlySavings(e);
+      return '<button type="button" class="deck-row" onclick="DECK.openFrom(\'' + escapeAttr(me) + '\', \'entry\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
+        '<span class="dr-ico">' + svgIcon(e.tag === 'request' ? 'inbox' : 'doc') + '</span>' +
+        '<span class="dr-text"><b>' + escapeHTML(e.submittedBy || 'Someone') + '</b>' +
+        '<i>' + escapeHTML(e.department || '—') + ' · ' + escapeHTML(e.status || '—') + ' · ' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + ' saved/mo</i></span>' +
+        '<span class="dr-go">' + svgIcon('expand') + '</span></button>';
+    }).join('') + '</div>' };
+});
+
+function downloadToolDoc(key) {
+  const g = toolGroup(key);
+  if (!g) return;
+  const r = buildToolReport(g);
+  const row = (k, v) => '<tr><td class="k">' + k + '</td><td>' + v + '</td></tr>';
+  saveFile(slug('tool-report-' + g.name) + '.doc', docShell(g.name + ' — Tool Report',
+    '<h1>' + escapeHTML(g.name) + '</h1>' +
+    '<p class="sub">Swangz Avenue AI Adoption Tracker — tool report</p><div class="rule"></div>' +
+    '<p style="margin-top:10pt;"><span class="stamp">' + escapeHTML(r.verdict) + '</span> ' + escapeHTML(r.verdictReason) + '</p>' +
+    '<h2>The read on it</h2><p>' + escapeHTML(r.narrative) + '</p>' +
+    '<h2>The numbers, monthly</h2><table>' +
+      row('Submissions', g.entries.length + ' from ' + g.people.size + ' across ' + g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's')) +
+      row('Hours saved', fmtDuration(r.timeSav)) +
+      row('Traditional cost', fmtUSD(r.tradMo)) +
+      row('Tool cost', fmtUSD(r.aiMo)) +
+      row('Net saved', fmtUSD(r.netSav) + ' (' + fmtUGX(r.netSav) + ')') +
+      row('Revenue attributed', fmtUSD(r.revenue)) +
+      row('Return per $1 spent', r.aiMo > 0 ? '$' + (1 + r.netSav / r.aiMo).toFixed(2) : '—') +
+    '</table>' +
+    (r.byDept.length ? '<h2>By department</h2><table><tr><th>Department</th><th class="num">Submissions</th><th class="num">Hours saved</th><th class="num">Net saved</th></tr>' +
+      r.byDept.map(d => '<tr><td>' + escapeHTML(d.dept) + '</td><td class="num">' + d.count + '</td><td class="num">' + fmtDuration(d.time) + '</td><td class="num">' + fmtUSD(d.sav) + '</td></tr>').join('') + '</table>' : '') +
+    (r.useCases.length ? '<h2>What it is used for</h2><ul>' + r.useCases.map(u => '<li>' + escapeHTML(u) + '</li>').join('') + '</ul>' : '') +
+    '<div class="foot">Generated ' + escapeHTML(stamp()) + '.</div>'), 'application/msword');
+  toast('Tool report downloaded');
+}
 
 /* ============================================================
    MONEY IS THE ADMIN'S JOB
@@ -10850,6 +11261,33 @@ function injectAdminSections() {
       '<div class="field-caption">Plus, minus, times, divide, brackets and percentages. Results convert to shillings automatically.</div>' +
     '</div>');
 
+  const notify = make('acc_notify', 'Notifications &amp; Documents', '—',
+    'Who is written to when something is filed or decided, and who else is quietly copied. Recipients you add here go in BCC — the person who filed it never sees them.',
+    '<div class="fin-settings">' +
+      '<div><label for="nt_method">How mail is sent</label>' +
+        '<select id="nt_method" onchange="saveNotify()">' +
+          '<option value="endpoint">Automatically, through a mail endpoint</option>' +
+          '<option value="mailto">By hand, from your own mail client</option>' +
+        '</select></div>' +
+      '<div><label for="nt_endpoint">Mail endpoint (Apps Script web app URL)</label>' +
+        '<input id="nt_endpoint" type="url" placeholder="https://script.google.com/macros/s/…/exec" oninput="saveNotify()" />' +
+        '<div class="field-caption">Until this is set, every message waits in the outbox below and can be opened in your mail client.</div></div>' +
+      '<div><label for="nt_from">Sent as</label>' +
+        '<input id="nt_from" type="text" placeholder="Swangz Avenue AI Tracker" oninput="saveNotify()" /></div>' +
+    '</div>' +
+    '<div style="margin-top:6px;"><label for="nt_bcc">Also copy, without telling the submitter (BCC)</label>' +
+      '<input id="nt_bcc" type="text" placeholder="gm@swangzavenue.com, head.of.ops@swangzavenue.com" oninput="saveNotify()" />' +
+      '<div class="field-caption">Comma separated. These go in BCC on every message the rules below allow, so nobody on the To or CC line can see them.</div></div>' +
+    '<div class="section-title" style="margin-top:20px;">When to write</div>' +
+    '<div class="notify-events" id="notifyEvents"></div>' +
+    '<label class="reg-toggle" style="margin-top:12px;">' +
+      '<input id="nt_copy" type="checkbox" onchange="saveNotify()" />' +
+      '<span><strong>Send the person who filed it their own copy</strong>' +
+      '<span class="rt-help">They receive the same document, and every status change afterwards.</span></span></label>' +
+    '<div class="section-title" style="margin-top:22px;">Outbox</div>' +
+    '<p class="help" style="margin:-4px 0 10px;">Everything the tracker has tried to send. Nothing is ever dropped silently.</p>' +
+    '<div class="deck-list" id="outboxList"></div>');
+
   /* Position matters: the rail puts each door in front of its first member,
      so the order here is the order of the doors — Tools, then Money, then
      Reports. */
@@ -10860,6 +11298,10 @@ function injectAdminSections() {
     content.insertBefore(finance, summary.nextSibling);
     content.insertBefore(calc, finance.nextSibling);
   } else { content.appendChild(finance); content.appendChild(calc); }
+  /* Notifications belong with the other settings, at the foot */
+  const actions = document.getElementById('acc_actions');
+  if (actions) content.insertBefore(notify, actions);
+  else content.appendChild(notify);
 
   content.dataset.extraSections = '1';
 }
@@ -11196,6 +11638,96 @@ function runScratch() {
     out.textContent = err.message;
   }
 }
+/* ---------------- Notifications & outbox ---------------- */
+function saveNotify() {
+  const s = notifySettings();
+  const v = id => (document.getElementById(id) || {}).value || '';
+  s.method   = v('nt_method') || 'endpoint';
+  s.endpoint = v('nt_endpoint').trim();
+  s.fromName = v('nt_from').trim() || 'Swangz Avenue AI Tracker';
+  s.bcc      = v('nt_bcc').split(',').map(x => x.trim()).filter(Boolean);
+  const copy = document.getElementById('nt_copy');
+  if (copy) s.copySubmitter = copy.checked;
+  NOTIFY_EVENTS.forEach(ev => {
+    const box = document.getElementById('nt_ev_' + ev.key);
+    if (box) s.events[ev.key] = box.checked;
+  });
+  saveNotifySettings(s);
+  const meta = document.getElementById('acc_notifyMeta');
+  if (meta) meta.textContent = (s.bcc.length ? s.bcc.length + ' copied · ' : '') +
+    (s.method === 'endpoint' && s.endpoint ? 'sending automatically' : 'sent by hand');
+}
+function renderNotify() {
+  const s = notifySettings();
+  const set = (id, val) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = val; };
+  set('nt_method', s.method); set('nt_endpoint', s.endpoint); set('nt_from', s.fromName);
+  set('nt_bcc', (s.bcc || []).join(', '));
+  const copy = document.getElementById('nt_copy');
+  if (copy) copy.checked = !!s.copySubmitter;
+  const host = document.getElementById('notifyEvents');
+  if (host) host.innerHTML = NOTIFY_EVENTS.map(ev =>
+    '<label class="nt-ev"><input type="checkbox" id="nt_ev_' + ev.key + '"' + (s.events[ev.key] ? ' checked' : '') +
+    ' onchange="saveNotify()" /><span><b>' + escapeHTML(ev.label) + '</b><i>' + escapeHTML(ev.note) + '</i></span></label>').join('');
+  const meta = document.getElementById('acc_notifyMeta');
+  if (meta) meta.textContent = (s.bcc.length ? s.bcc.length + ' copied · ' : '') +
+    (s.method === 'endpoint' && s.endpoint ? 'sending automatically' : 'sent by hand');
+  renderOutbox();
+}
+const MAIL_STATE = {
+  sent:        { icon: 'pulse', label: 'Sent',        tone: 'ok' },
+  queued:      { icon: 'clock', label: 'Sending…',    tone: '' },
+  waiting:     { icon: 'inbox', label: 'Waiting',     tone: 'warn' },
+  failed:      { icon: 'flag',  label: 'Failed',      tone: 'bad' },
+  'handed-off':{ icon: 'doc',   label: 'Handed over', tone: 'ok' },
+};
+function renderOutbox() {
+  const host = document.getElementById('outboxList');
+  if (!host) return;
+  const box = outbox().slice().reverse();
+  if (!box.length) {
+    host.innerHTML = '<div class="empty-state" style="padding:22px;"><h3>Nothing sent yet</h3>' +
+      '<p>Messages appear here the moment something is filed or decided.</p></div>';
+    return;
+  }
+  host.innerHTML = box.slice(0, 40).map(it => {
+    const st = MAIL_STATE[it.state] || MAIL_STATE.queued;
+    return '<button type="button" class="deck-row" onclick="DECK.open(\'mail\', ' + escapeAttr(JSON.stringify(it.id)) + ')">' +
+      '<span class="dr-ico">' + svgIcon(st.icon) + '</span>' +
+      '<span class="dr-text"><b>' + escapeHTML(it.subject.replace('[Swangz AI Tracker] ', '')) + '</b>' +
+        '<i>to ' + escapeHTML(it.to.join(', ') || '—') + (it.bcc.length ? ' · ' + it.bcc.length + ' copied quietly' : '') +
+        ' · ' + escapeHTML(new Date(it.at).toLocaleString()) + '</i></span>' +
+      '<span class="dr-stat"><b class="mail-' + (st.tone || 'none') + '">' + st.label + '</b><span>status</span></span>' +
+      '<span class="dr-go">' + svgIcon('expand') + '</span>' +
+    '</button>';
+  }).join('');
+}
+DECK.register('mail', function (id) {
+  const it = outbox().find(x => x.id === id);
+  if (!it) return { title: 'Message', icon: 'inbox', html: '<div class="empty-state"><h3>That message is gone</h3></div>' };
+  const st = MAIL_STATE[it.state] || MAIL_STATE.queued;
+  const line = (k, v) => '<div class="mo-row"><span>' + k + '</span><b>' + v + '</b></div>';
+  return {
+    title: it.subject.replace('[Swangz AI Tracker] ', ''),
+    sub: st.label + (it.error ? ' — ' + it.error : ''),
+    icon: st.icon, size: 'slim', noAutofocus: true,
+    html:
+      '<div class="mny-out">' +
+        line('To', escapeHTML(it.to.join(', ') || '—')) +
+        (it.cc.length ? line('CC', escapeHTML(it.cc.join(', '))) : '') +
+        (it.bcc.length ? line('BCC <i>(not visible to the recipient)</i>', escapeHTML(it.bcc.join(', '))) : '') +
+        line('Attachment', escapeHTML(it.docName)) +
+        line('Queued', escapeHTML(new Date(it.at).toLocaleString())) +
+      '</div>' +
+      '<p class="ask-body" style="margin-top:16px;">' + escapeHTML(it.body) + '</p>' +
+      (it.error ? '<div class="exec-empty" style="margin-top:14px;">' + escapeHTML(it.error) + '</div>' : ''),
+    foot:
+      '<button type="button" class="secondary" onclick="openInMailClient(' + escapeAttr(JSON.stringify(id)) + ')">Open in my mail client</button>' +
+      '<span class="spacer"></span>' +
+      (it.state === 'failed' || it.state === 'waiting'
+        ? '<button type="button" class="primary" onclick="retryMail(' + escapeAttr(JSON.stringify(id)) + ')">Try again</button>' : ''),
+  };
+});
+
 function populateCalcPicker() {
   const sel = document.getElementById('calc_pick');
   if (!sel) return;
@@ -11220,8 +11752,43 @@ const EXEC_PALETTE = ['#f5c542', '#a78bfa', '#3ddc97', '#60a5fa', '#fb923c', '#f
 function setExecPeriod(k) {
   execPeriodKey = k;
   document.querySelectorAll('#execPeriods button').forEach(b => b.classList.toggle('active', b.dataset.p === k));
-  renderExecBriefing();
+  execLaunchNote();
+  if (DECK.has('execdoc')) DECK.refresh();
 }
+function execOption() {
+  execCompare = !!(document.getElementById('ex_compare') || {}).checked;
+  execCarryTotals = !!(document.getElementById('ex_carry') || {}).checked;
+  execLaunchNote();
+  if (DECK.has('execdoc')) DECK.refresh();
+}
+function execLaunchNote() {
+  const el = document.getElementById('execLaunchNote');
+  if (!el) return;
+  const M = execBriefingModel();
+  el.innerHTML = '<b>' + escapeHTML(M.w.label) + '</b> — ' + M.period.length + ' submission' + (M.period.length === 1 ? '' : 's') +
+    ' filed in this period, ' + M.scope.length + ' tool' + (M.scope.length === 1 ? '' : 's') + ' in scope' +
+    (execCarryTotals ? ' (everything to date)' : ' (this period only)') + '.';
+}
+
+/* The briefing is prepared on request and opens as its own tile, so the
+   section stays a control panel rather than a wall of report. */
+function openExecBriefing() { DECK.open('execdoc'); }
+DECK.register('execdoc', function () {
+  const M = execBriefingModel();
+  return {
+    title: M.w.cadence + ' Executive Briefing',
+    sub: M.w.label + (execCarryTotals ? ' · running total carried in' : ' · this period only'),
+    icon: 'doc', size: 'wide', noAutofocus: true,
+    html: '<div id="execReport" class="exec-report"></div>',
+    mount(body) { try { renderExecBriefing(); } catch (e) { body.innerHTML = '<div class="exec-empty">Could not build the briefing: ' + escapeHTML(String(e.message)) + '</div>'; } },
+    foot:
+      '<button type="button" class="ghost" onclick="copyExecBriefing()">Copy as text</button>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="secondary" onclick="downloadExecWorkbook()">Excel</button>' +
+      '<button type="button" class="secondary" onclick="printExecBriefing()">Print / PDF</button>' +
+      '<button type="button" class="primary" onclick="downloadExecDoc()">Word document</button>',
+  };
+});
 
 function execWindow(k) {
   const now = new Date();
@@ -11306,15 +11873,24 @@ function execDonut(rows, opts) {
 }
 
 /* ---- the briefing itself ---- */
+/* Each period stands on its own. A week's briefing reports that week, and a
+   month's reports that month — nothing bleeds across the boundary. The
+   running position to date is a separate section the admin has to ask for,
+   because merging the two is exactly what made last week's report and this
+   week's read the same. */
+let execCarryTotals = false;
+let execCompare = true;
+
 function execBriefingModel() {
   const w = execWindow(execPeriodKey);
   const all = dashboardEntries();
   const period = all.filter(e => inWindow(e, w));
   const reports = period.filter(e => e.tag !== 'request');
   const requests = period.filter(e => e.tag === 'request');
-  /* The running position is everything reported to date, not just this
-     period — a week's briefing still has to state where the org stands. */
-  const standing = all.filter(e => e.tag !== 'request');
+
+  /* The period is the subject. Everything to date is only pulled in when
+     the admin ticks the box. */
+  const scope = execCarryTotals ? all.filter(e => e.tag !== 'request') : reports;
 
   const sum = list => list.reduce((s, e) => {
     const m = monthlySavings(e);
@@ -11325,21 +11901,48 @@ function execBriefingModel() {
   }, { time: 0, net: 0, ai: 0, trad: 0, rev: 0 });
 
   const byDept = {};
-  standing.forEach(e => {
+  scope.forEach(e => {
     const d = e.department || 'Unassigned';
     const m = monthlySavings(e);
-    byDept[d] = byDept[d] || { count: 0, net: 0, time: 0, ai: 0 };
+    byDept[d] = byDept[d] || { count: 0, net: 0, time: 0, ai: 0, trad: 0, rev: 0 };
     byDept[d].count++; byDept[d].net += m.netMonthlyCostSavedUSD;
     byDept[d].time += m.timeSavedMonthly; byDept[d].ai += m.aiMonthlyUSD;
+    byDept[d].trad += m.tradMonthlyUSD; byDept[d].rev += Number(e.revenueAmount) || 0;
   });
   const byCat = {};
-  standing.forEach(e => { if (e.category) { const m = monthlySavings(e); byCat[e.category] = (byCat[e.category] || 0) + m.netMonthlyCostSavedUSD; } });
+  scope.forEach(e => { if (e.category) { const m = monthlySavings(e); byCat[e.category] = (byCat[e.category] || 0) + m.netMonthlyCostSavedUSD; } });
   const stages = {};
-  standing.forEach(e => { if (e.status) stages[e.status] = (stages[e.status] || 0) + 1; });
+  scope.forEach(e => { if (e.status) stages[e.status] = (stages[e.status] || 0) + 1; });
 
-  return { w, all, period, reports, requests, standing,
-           periodTotals: sum(reports), standingTotals: sum(standing),
-           byDept, byCat, stages, groups: summaryRows() };
+  /* Same length of time, immediately before — so "up on last week" is a fact */
+  let previous = null;
+  if (execCompare && w.from) {
+    const span = w.to - w.from;
+    const pw = { from: new Date(w.from.getTime() - span), to: new Date(w.from.getTime()) };
+    const prev = all.filter(e => e.tag !== 'request' && inWindow(e, pw));
+    previous = Object.assign(sum(prev), { count: prev.length, label: w.cadence === 'Weekly' ? 'the week before' : 'the month before' });
+  }
+
+  const groups = _toolGroups(scope);
+  groups.forEach(g => {
+    let net = 0, time = 0, rev = 0, ai = 0, trad = 0;
+    const st = {};
+    g.entries.forEach(e => {
+      const m = monthlySavings(e);
+      net += m.netMonthlyCostSavedUSD; time += m.timeSavedMonthly;
+      rev += Number(e.revenueAmount) || 0; ai += m.aiMonthlyUSD; trad += m.tradMonthlyUSD;
+      if (e.status) st[e.status] = (st[e.status] || 0) + 1;
+    });
+    g.net = net; g.time = time; g.rev = rev; g.ai = ai; g.trad = trad;
+    g.stage = Object.entries(st).sort((a, b) => b[1] - a[1])[0];
+    g.cats = [...new Set(g.entries.map(e => e.category).filter(Boolean))];
+    g.unpriced = g.entries.filter(needsPricing).length;
+  });
+
+  return { w, all, period, reports, requests, scope,
+           carried: execCarryTotals,
+           periodTotals: sum(reports), standingTotals: sum(scope), previous,
+           byDept, byCat, stages, groups };
 }
 
 function renderExecBriefing() {
@@ -11353,43 +11956,54 @@ function renderExecBriefing() {
   const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
   const catRows  = Object.entries(M.byCat).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const topTools = M.groups.slice().sort((a, b) => b.net - a.net).slice(0, 8);
-  const unpriced = M.standing.filter(needsPricing).length;
-
-  /* Six months of context, so a monthly briefing shows direction */
-  const months = lastMonths(6);
-  const trend = months.map(k => {
-    const upto = M.standing.filter(e => monthKey(new Date(e.submittedAt || e.updatedAt || 0)) <= k);
-    return { label: monthLabel(k).split(' ')[0], value: Math.round(upto.reduce((s, e) => s + monthlySavings(e).netMonthlyCostSavedUSD, 0)) };
-  });
-
-  const pendingReq = M.all.filter(e => e.tag === 'request' && (e.requestStatus || 'new') !== 'approved' && (e.requestStatus || 'new') !== 'declined');
+  const unpriced = M.scope.filter(needsPricing).length;
+  const pendingReq = M.all.filter(e => e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'));
   const generated = new Date();
+
+  const delta = (now, was, fmt) => {
+    if (!M.previous) return '';
+    const d = now - was;
+    if (Math.abs(d) < 0.005) return '<i class="ed-flat">level with ' + escapeHTML(M.previous.label) + '</i>';
+    return '<i class="' + (d > 0 ? 'ed-up' : 'ed-down') + '">' + (d > 0 ? '▲ ' : '▼ ') + fmt(Math.abs(d)) + ' on ' + escapeHTML(M.previous.label) + '</i>';
+  };
 
   host.innerHTML =
     '<article class="exec-doc">' +
 
     '<div class="exec-doc-head">' +
-      '<div class="ed-mark"><img src="assets/swangz-badge.webp" alt="" /><div><b>Swangz Avenue</b><span>AI Adoption — ' + escapeHTML(M.w.cadence) + ' Executive Briefing</span></div></div>' +
-      '<div class="ed-period"><b>' + escapeHTML(M.w.label) + '</b><span>Prepared ' + escapeHTML(generated.toLocaleString()) + '</span></div>' +
+      '<div class="ed-mark"><img src="assets/swangz-badge.webp" alt="" /><div><b>Swangz Avenue</b>' +
+        '<span>AI Adoption — ' + escapeHTML(M.w.cadence) + ' Executive Briefing</span></div></div>' +
+      '<div class="ed-period"><b>' + escapeHTML(M.w.label) + '</b>' +
+        '<span>Prepared ' + escapeHTML(generated.toLocaleString()) + ' · ' + escapeHTML(currentEmail() || 'admin') + '</span></div>' +
     '</div>' +
 
+    '<div class="exec-scope">' + svgIcon(M.carried ? 'db' : 'clock') +
+      '<span>' + (M.carried
+        ? 'Figures cover <b>everything recorded to date</b>, with this period called out separately below.'
+        : 'Figures cover <b>this period only</b>. Nothing from an earlier week or month is mixed in.') +
+      '</span></div>' +
+
     '<section class="exec-sec">' +
-      '<h3>Where we stand</h3>' +
+      '<h3>' + (M.carried ? 'Where we stand' : 'What this period produced') + '</h3>' +
       '<div class="exec-kpis">' +
-        '<div><span>Tools in the tracker</span><b>' + M.standing.length + '</b><i>' + Object.keys(M.byDept).length + ' departments</i></div>' +
-        '<div><span>Hours saved each month</span><b>' + escapeHTML(fmtDuration(t.time)) + '</b><i>' + (hr ? 'worth ' + fmtUSD(labour) : 'no hourly rate set') + '</i></div>' +
-        '<div><span>Net saved each month</span><b class="' + (t.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(t.net)) + '</b><i>≈ ' + escapeHTML(fmtUGX(t.net)) + '</i></div>' +
-        '<div><span>Spent on AI each month</span><b>' + escapeHTML(fmtUSD(t.ai)) + '</b><i>' + (roi === null ? 'no licence cost recorded' : '$' + (1 + roi).toFixed(2) + ' back per $1') + '</i></div>' +
+        '<div><span>Tools ' + (M.carried ? 'in the tracker' : 'reported') + '</span><b>' + M.scope.length + '</b>' +
+          '<i>' + Object.keys(M.byDept).length + ' department' + (Object.keys(M.byDept).length === 1 ? '' : 's') + '</i></div>' +
+        '<div><span>Hours saved each month</span><b>' + escapeHTML(fmtDuration(t.time)) + '</b>' +
+          (M.previous && !M.carried ? delta(t.time, M.previous.time, v => fmtDuration(v)) : '<i>' + (hr ? 'worth ' + fmtUSD(labour) : 'no hourly rate set') + '</i>') + '</div>' +
+        '<div><span>Net saved each month</span><b class="' + (t.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(t.net)) + '</b>' +
+          (M.previous && !M.carried ? delta(t.net, M.previous.net, v => fmtUSD(v)) : '<i>≈ ' + escapeHTML(fmtUGX(t.net)) + '</i>') + '</div>' +
+        '<div><span>Spent on AI each month</span><b>' + escapeHTML(fmtUSD(t.ai)) + '</b>' +
+          '<i>' + (roi === null ? 'no licence cost recorded' : '$' + (1 + roi).toFixed(2) + ' back per $1') + '</i></div>' +
         '<div><span>Revenue enabled</span><b>' + escapeHTML(fmtUSD(t.rev)) + '</b><i>≈ ' + escapeHTML(fmtUGX(t.rev)) + '</i></div>' +
       '</div>' +
       '<p class="exec-narrative">' + execNarrative(M, roi, labour) + '</p>' +
     '</section>' +
 
     '<section class="exec-sec">' +
-      '<h3>What happened in this period</h3>' +
+      '<h3>Filed in this period</h3>' +
       '<div class="exec-period-grid">' +
-        '<div><span>Tools reported</span><b>' + M.reports.length + '</b></div>' +
-        '<div><span>Tools requested</span><b>' + M.requests.length + '</b></div>' +
+        '<div><span>Reports</span><b>' + M.reports.length + '</b></div>' +
+        '<div><span>Requests</span><b>' + M.requests.length + '</b></div>' +
         '<div><span>Savings added</span><b class="' + (p.net >= 0 ? 'savings-pos' : '') + '">' + escapeHTML(fmtUSD(p.net)) + '</b></div>' +
         '<div><span>Hours added</span><b>' + escapeHTML(fmtDuration(p.time)) + '</b></div>' +
         '<div><span>Departments active</span><b>' + new Set(M.period.map(e => e.department).filter(Boolean)).size + '</b></div>' +
@@ -11397,7 +12011,7 @@ function renderExecBriefing() {
       (M.period.length
         ? '<div class="table-wrap"><table class="exec-table">' +
             '<thead><tr><th>Tool</th><th>Department</th><th>Who</th><th>Type</th><th class="num">Time saved / mo</th><th class="num">Net / mo</th></tr></thead><tbody>' +
-            M.period.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)).map(e => {
+            M.period.slice().sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)).map(e => {
               const m = monthlySavings(e);
               return '<tr><td><b>' + escapeHTML(e.toolName || '—') + '</b></td>' +
                 '<td>' + escapeHTML(e.department || '—') + '</td>' +
@@ -11406,14 +12020,28 @@ function renderExecBriefing() {
                 '<td class="num">' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</td>' +
                 '<td class="num ' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(m.netMonthlyCostSavedUSD)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
-        : '<div class="exec-empty">Nothing was submitted in this period. The figures above are the standing position.</div>') +
+        : '<div class="exec-empty">Nothing was filed in this period.</div>') +
     '</section>' +
 
-    '<section class="exec-sec">' +
-      '<h3>Direction of travel</h3>' +
-      '<p class="exec-cap">Cumulative net monthly saving across the last six months.</p>' +
-      execLine(trend, { fmt: v => fmtUSD(v) }) +
-    '</section>' +
+    (M.previous
+      ? '<section class="exec-sec">' +
+          '<h3>Against ' + escapeHTML(M.previous.label) + '</h3>' +
+          '<div class="table-wrap"><table class="exec-table">' +
+            '<thead><tr><th>Measure</th><th class="num">' + escapeHTML(M.previous.label.replace('the ', '')) + '</th><th class="num">This period</th><th class="num">Change</th></tr></thead><tbody>' +
+            [['Reports filed', M.previous.count, M.reports.length, v => String(Math.round(v))],
+             ['Hours saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
+             ['Net saved / mo', M.previous.net, p.net, v => fmtUSD(v)],
+             ['AI spend / mo', M.previous.ai, p.ai, v => fmtUSD(v)],
+             ['Revenue / mo', M.previous.rev, p.rev, v => fmtUSD(v)]].map(r => {
+               const d = r[2] - r[1];
+               return '<tr><td>' + r[0] + '</td><td class="num">' + escapeHTML(r[3](r[1])) + '</td>' +
+                 '<td class="num"><b>' + escapeHTML(r[3](r[2])) + '</b></td>' +
+                 '<td class="num ' + (d > 0 ? 'savings-pos' : d < 0 ? 'savings-neg' : '') + '">' +
+                 (d === 0 ? '—' : (d > 0 ? '+' : '−') + escapeHTML(r[3](Math.abs(d)))) + '</td></tr>';
+             }).join('') +
+          '</tbody></table></div>' +
+        '</section>'
+      : '') +
 
     '<section class="exec-sec exec-two">' +
       '<div>' +
@@ -11434,7 +12062,7 @@ function renderExecBriefing() {
       execBars(topTools.map(g => ({ label: g.name, value: Math.round(g.net) })), { fmt: v => fmtUSD(v), title: 'Top tools' }) +
       '<div class="table-wrap"><table class="exec-table">' +
         '<thead><tr><th>Tool</th><th>Stage</th><th class="num">Uses</th><th class="num">Depts</th><th class="num">Time / mo</th><th class="num">Cost / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr></thead><tbody>' +
-        M.groups.map(g =>
+        (M.groups.length ? M.groups.map(g =>
           '<tr><td><b>' + escapeHTML(g.name) + '</b>' + (g.cats.length ? '<span class="sum-cat">' + escapeHTML(g.cats[0]) + '</span>' : '') + '</td>' +
           '<td>' + (g.stage ? escapeHTML(g.stage[0]) : '—') + '</td>' +
           '<td class="num">' + g.entries.length + '</td>' +
@@ -11442,20 +12070,23 @@ function renderExecBriefing() {
           '<td class="num">' + escapeHTML(fmtDuration(g.time)) + '</td>' +
           '<td class="num">' + escapeHTML(fmtUSD(g.ai)) + '</td>' +
           '<td class="num ' + (g.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(g.net)) + '</td>' +
-          '<td class="num">' + escapeHTML(fmtUSD(g.rev)) + '</td></tr>').join('') +
+          '<td class="num">' + escapeHTML(fmtUSD(g.rev)) + '</td></tr>').join('')
+          : '<tr><td colspan="8" class="exec-empty">No tools in this period.</td></tr>') +
       '</tbody></table></div>' +
     '</section>' +
 
     '<section class="exec-sec">' +
       '<h3>Department detail</h3>' +
       '<div class="table-wrap"><table class="exec-table">' +
-        '<thead><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours saved / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th></tr></thead><tbody>' +
+        '<thead><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours saved / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr></thead><tbody>' +
         (deptRows.length ? deptRows.map(([d, v]) =>
           '<tr><td><b>' + escapeHTML(d) + '</b></td><td class="num">' + v.count + '</td>' +
           '<td class="num">' + escapeHTML(fmtDuration(v.time)) + '</td>' +
+          '<td class="num">' + escapeHTML(fmtUSD(v.trad)) + '</td>' +
           '<td class="num">' + escapeHTML(fmtUSD(v.ai)) + '</td>' +
-          '<td class="num ' + (v.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(v.net)) + '</td></tr>').join('')
-          : '<tr><td colspan="5" class="exec-empty">No departments recorded yet.</td></tr>') +
+          '<td class="num ' + (v.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(v.net)) + '</td>' +
+          '<td class="num">' + escapeHTML(fmtUSD(v.rev)) + '</td></tr>').join('')
+          : '<tr><td colspan="7" class="exec-empty">No departments in this period.</td></tr>') +
       '</tbody></table></div>' +
     '</section>' +
 
@@ -11468,15 +12099,16 @@ function renderExecBriefing() {
     '<section class="exec-sec">' +
       '<h3>Waiting on a decision</h3>' +
       (pendingReq.length
-        ? '<p class="exec-cap">' + pendingReq.length + ' request' + (pendingReq.length === 1 ? '' : 's') + ' from the team, oldest first.</p>' +
+        ? '<p class="exec-cap">' + pendingReq.length + ' request' + (pendingReq.length === 1 ? '' : 's') + ' from the team, oldest first. Open requests carry across periods by design — they are not closed until someone decides.</p>' +
           '<div class="table-wrap"><table class="exec-table">' +
-          '<thead><tr><th>Tool</th><th>Department</th><th>Asked by</th><th>Raised</th><th>Status</th><th>The case they made</th></tr></thead><tbody>' +
-          pendingReq.sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0)).map(e =>
+          '<thead><tr><th>Tool</th><th>Department</th><th>Asked by</th><th>Raised</th><th>Status</th><th class="num">Cost / mo</th><th>The case they made</th></tr></thead><tbody>' +
+          pendingReq.slice().sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0)).map(e =>
             '<tr><td><b>' + escapeHTML(e.toolName || '—') + '</b></td>' +
             '<td>' + escapeHTML(e.department || '—') + '</td>' +
             '<td>' + escapeHTML(e.submittedBy || '—') + '</td>' +
             '<td>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</td>' +
-            '<td><span class="pill req">' + escapeHTML(e.requestStatus || 'new') + '</span></td>' +
+            '<td><span class="pill req">' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</span></td>' +
+            '<td class="num">' + escapeHTML(fmtUSD((Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0))) + '</td>' +
             '<td class="exec-why">' + escapeHTML((e.reason || e.impact || '—').slice(0, 180)) + '</td></tr>').join('') +
           '</tbody></table></div>'
         : '<div class="exec-empty">No open requests. Everything the team has asked for has been decided.</div>') +
@@ -11488,8 +12120,9 @@ function renderExecBriefing() {
     '</section>' +
 
     '<div class="exec-doc-foot">' +
-      'Swangz Avenue AI Adoption Tracker · figures are monthly unless stated · US Dollar converted at ' +
-      escapeHTML(String(settings.usdToUgx || 0)) + ' UGX' +
+      'Swangz Avenue AI Adoption Tracker · ' + escapeHTML(M.w.label) + ' · figures are monthly unless stated · ' +
+      'US Dollar converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX' +
+      (hr ? ' · hours valued at ' + escapeHTML(fmtUSD(hr)) + '/hour' : '') +
     '</div>' +
     '</article>';
 }
@@ -11499,7 +12132,7 @@ function execNarrative(M, roi, labour) {
   const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
   const top = deptRows[0];
   const bits = [];
-  bits.push('Swangz Avenue is running <strong>' + M.standing.length + '</strong> AI tool' + (M.standing.length === 1 ? '' : 's') +
+  bits.push((M.carried ? 'Swangz Avenue is running' : 'This period covers') + ' <strong>' + M.scope.length + '</strong> AI tool' + (M.scope.length === 1 ? '' : 's') +
     ' across <strong>' + Object.keys(M.byDept).length + '</strong> department' + (Object.keys(M.byDept).length === 1 ? '' : 's') +
     ', saving <strong>' + escapeHTML(fmtDuration(t.time)) + '</strong> and <strong>' + escapeHTML(fmtUSD(t.net)) + '</strong> a month against the way the work used to be done.');
   if (labour > 0) bits.push('Valued at the blended rate, the hours alone are worth <strong>' + escapeHTML(fmtUSD(labour)) + '</strong> a month.');
@@ -11544,7 +12177,7 @@ function execBriefingText() {
   L.push(M.w.label + ' · prepared ' + new Date().toLocaleString());
   L.push('');
   L.push('## Where we stand');
-  L.push('- Tools tracked: ' + M.standing.length + ' across ' + Object.keys(M.byDept).length + ' departments');
+  L.push('- Tools in scope: ' + M.scope.length + ' across ' + Object.keys(M.byDept).length + ' departments');
   L.push('- Hours saved per month: ' + fmtDuration(t.time) + (hourlyRate() ? ' (worth ' + fmtUSD(t.time * hourlyRate()) + ')' : ''));
   L.push('- Net saved per month: ' + fmtUSD(t.net) + ' (' + fmtUGX(t.net) + ')');
   L.push('- AI spend per month: ' + fmtUSD(t.ai));
@@ -11571,7 +12204,7 @@ function execBriefingText() {
   }
   L.push('## What to do next');
   const roi = t.ai > 0 ? t.net / t.ai : null;
-  execRecommendations(M, roi, M.standing.filter(needsPricing).length, pending)
+  execRecommendations(M, roi, M.scope.filter(needsPricing).length, pending)
     .forEach((r, i) => L.push((i + 1) + '. ' + r.replace(/<[^>]+>/g, '')));
   return L.join('\n');
 }
@@ -11589,13 +12222,236 @@ async function copyExecBriefing() {
   } catch (_) { toast('Could not copy — the briefing is in the console', true); console.log(text); }
 }
 
-function printExecBriefing() {
-  const doc = document.querySelector('#execReport .exec-doc');
-  if (!doc) { toast('Open the Executive Report first', true); return; }
-  document.body.setAttribute('data-print', 'exec');
-  const done = () => { document.body.removeAttribute('data-print'); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  setTimeout(() => { window.print(); setTimeout(done, 1200); }, 90);
+function printExecBriefing() { openPrintWindow(execDocHTML(), 'Save it as PDF from the print dialog'); }
+
+/* ---- The briefing as an official document ---- */
+function execDocHTML() {
+  const M = execBriefingModel();
+  const t = M.standingTotals, p = M.periodTotals;
+  const hr = hourlyRate();
+  const roi = t.ai > 0 ? t.net / t.ai : null;
+  const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
+  const pending = M.all.filter(e => e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'));
+  const strip = s => String(s).replace(/<[^>]+>/g, '');
+
+  return docShell('Swangz Avenue — ' + M.w.cadence + ' AI Adoption Briefing — ' + M.w.label,
+    '<h1>Swangz Avenue</h1>' +
+    '<p class="sub">AI Adoption — ' + escapeHTML(M.w.cadence) + ' Executive Briefing</p>' +
+    '<div class="rule"></div>' +
+    '<table style="margin-top:10pt;"><tr>' +
+      '<td class="k">Period</td><td><strong>' + escapeHTML(M.w.label) + '</strong></td>' +
+      '<td class="k">Prepared</td><td>' + escapeHTML(stamp()) + '</td></tr>' +
+      '<tr><td class="k">Prepared by</td><td>' + escapeHTML(currentEmail() || 'admin') + '</td>' +
+      '<td class="k">Basis</td><td>' + (M.carried ? 'Everything recorded to date' : 'This period only') + '</td></tr>' +
+    '</table>' +
+
+    '<h2>Summary</h2>' +
+    '<p>' + strip(execNarrative(M, roi, t.time * hr)) + '</p>' +
+    '<table>' +
+      '<tr><th>Measure</th><th class="num">Figure</th><th class="num">In shillings</th></tr>' +
+      '<tr><td>Tools in scope</td><td class="num">' + M.scope.length + '</td><td class="num">—</td></tr>' +
+      '<tr><td>Departments</td><td class="num">' + Object.keys(M.byDept).length + '</td><td class="num">—</td></tr>' +
+      '<tr><td>Hours saved per month</td><td class="num">' + escapeHTML(fmtDuration(t.time)) + '</td><td class="num">' + (hr ? fmtUGX(t.time * hr) : '—') + '</td></tr>' +
+      '<tr><td>Cost of the old way, per month</td><td class="num">' + fmtUSD(t.trad) + '</td><td class="num">' + fmtUGX(t.trad) + '</td></tr>' +
+      '<tr><td>Spent on AI, per month</td><td class="num">' + fmtUSD(t.ai) + '</td><td class="num">' + fmtUGX(t.ai) + '</td></tr>' +
+      '<tr><td><strong>Net saved per month</strong></td><td class="num ' + (t.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(t.net) + '</td><td class="num">' + fmtUGX(t.net) + '</td></tr>' +
+      '<tr><td>Annualised</td><td class="num ' + (t.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(t.net * 12) + '</td><td class="num">' + fmtUGX(t.net * 12) + '</td></tr>' +
+      '<tr><td>Revenue enabled or protected</td><td class="num">' + fmtUSD(t.rev) + '</td><td class="num">' + fmtUGX(t.rev) + '</td></tr>' +
+      '<tr><td>Return per $1 of licence spend</td><td class="num">' + (roi === null ? '—' : '$' + (1 + roi).toFixed(2)) + '</td><td class="num">—</td></tr>' +
+    '</table>' +
+
+    '<h2>Filed in this period</h2>' +
+    '<p>' + M.reports.length + ' report' + (M.reports.length === 1 ? '' : 's') + ' and ' + M.requests.length +
+      ' request' + (M.requests.length === 1 ? '' : 's') + ', adding ' + escapeHTML(fmtDuration(p.time)) +
+      ' saved a month and ' + fmtUSD(p.net) + ' net.</p>' +
+    (M.period.length
+      ? '<table><tr><th>Tool</th><th>Department</th><th>Who</th><th>Type</th><th class="num">Hours / mo</th><th class="num">Net / mo</th></tr>' +
+        M.period.map(e => { const m = monthlySavings(e);
+          return '<tr><td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
+            '<td>' + escapeHTML(e.submittedBy || '—') + '</td><td>' + (e.tag === 'request' ? 'Request' : 'Report') + '</td>' +
+            '<td class="num">' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</td>' +
+            '<td class="num">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</td></tr>'; }).join('') + '</table>'
+      : '<p><em>Nothing was filed in this period.</em></p>') +
+
+    (M.previous
+      ? '<h2>Against ' + escapeHTML(M.previous.label) + '</h2><table>' +
+        '<tr><th>Measure</th><th class="num">Before</th><th class="num">Now</th><th class="num">Change</th></tr>' +
+        [['Reports filed', M.previous.count, M.reports.length, v => String(Math.round(v))],
+         ['Hours saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
+         ['Net saved / mo', M.previous.net, p.net, v => fmtUSD(v)],
+         ['AI spend / mo', M.previous.ai, p.ai, v => fmtUSD(v)]].map(r => {
+           const d = r[2] - r[1];
+           return '<tr><td>' + r[0] + '</td><td class="num">' + escapeHTML(r[3](r[1])) + '</td>' +
+             '<td class="num">' + escapeHTML(r[3](r[2])) + '</td><td class="num ' + (d > 0 ? 'pos' : d < 0 ? 'neg' : '') + '">' +
+             (d === 0 ? '—' : (d > 0 ? '+' : '−') + escapeHTML(r[3](Math.abs(d)))) + '</td></tr>'; }).join('') +
+        '</table>'
+      : '') +
+
+    '<h2>By tool</h2>' +
+    '<table><tr><th>Tool</th><th>Stage</th><th class="num">Uses</th><th class="num">Depts</th><th class="num">Hours / mo</th><th class="num">Cost / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
+      M.groups.map(g => '<tr><td>' + escapeHTML(g.name) + '</td><td>' + (g.stage ? escapeHTML(g.stage[0]) : '—') + '</td>' +
+        '<td class="num">' + g.entries.length + '</td><td class="num">' + g.depts.size + '</td>' +
+        '<td class="num">' + escapeHTML(fmtDuration(g.time)) + '</td><td class="num">' + fmtUSD(g.ai) + '</td>' +
+        '<td class="num ' + (g.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(g.net) + '</td><td class="num">' + fmtUSD(g.rev) + '</td></tr>').join('') +
+    '</table>' +
+
+    '<h2>By department</h2>' +
+    '<table><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
+      deptRows.map(([d, v]) => '<tr><td>' + escapeHTML(d) + '</td><td class="num">' + v.count + '</td>' +
+        '<td class="num">' + escapeHTML(fmtDuration(v.time)) + '</td><td class="num">' + fmtUSD(v.trad) + '</td>' +
+        '<td class="num">' + fmtUSD(v.ai) + '</td><td class="num ' + (v.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(v.net) + '</td>' +
+        '<td class="num">' + fmtUSD(v.rev) + '</td></tr>').join('') +
+    '</table>' +
+
+    (pending.length
+      ? '<h2>Waiting on a decision</h2>' +
+        '<table><tr><th>Tool</th><th>Department</th><th>Asked by</th><th>Raised</th><th>Status</th><th class="num">Cost / mo</th></tr>' +
+        pending.map(e => '<tr><td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
+          '<td>' + escapeHTML(e.submittedBy || '—') + '</td><td>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</td>' +
+          '<td>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</td>' +
+          '<td class="num">' + fmtUSD((Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0)) + '</td></tr>').join('') +
+        '</table>'
+      : '') +
+
+    '<h2>Recommended next steps</h2><ol>' +
+      execRecommendations(M, roi, M.scope.filter(needsPricing).length, pending).map(r => '<li>' + strip(r) + '</li>').join('') +
+    '</ol>' +
+
+    '<div class="foot">Swangz Avenue AI Adoption Tracker · ' + escapeHTML(M.w.label) +
+      ' · figures monthly unless stated · US Dollar converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX' +
+      (hr ? ' · hours valued at ' + fmtUSD(hr) + '/hour' : '') + '</div>');
+}
+function downloadExecDoc() {
+  const M = execBriefingModel();
+  saveFile(slug('swangz-ai-briefing-' + M.w.label) + '.doc', execDocHTML(), 'application/msword');
+  toast('Briefing downloaded as a Word document');
+}
+
+/* ---- The spreadsheet that goes with it ----
+   Excel 2003 XML: real worksheets, real formulas. Opens in Excel and imports
+   into Google Sheets, with the arithmetic live rather than baked in — so a
+   business head can change the rate or the hourly figure and watch it move. */
+function xmlEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c])); }
+function cell(v, type, style, formula) {
+  const t = type || (typeof v === 'number' ? 'Number' : 'String');
+  return '<Cell' + (style ? ' ss:StyleID="' + style + '"' : '') + (formula ? ' ss:Formula="' + xmlEsc(formula) + '"' : '') +
+    '><Data ss:Type="' + t + '">' + xmlEsc(t === 'Number' ? (isFinite(v) ? v : 0) : v) + '</Data></Cell>';
+}
+function sheet(name, rows, widths) {
+  return '<Worksheet ss:Name="' + xmlEsc(name.slice(0, 31)) + '"><Table>' +
+    (widths || []).map((w, i) => '<Column ss:Index="' + (i + 1) + '" ss:Width="' + w + '"/>').join('') +
+    rows.map(r => '<Row>' + r + '</Row>').join('') +
+    '</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
+    '<SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>';
+}
+function execWorkbookXML() {
+  const M = execBriefingModel();
+  const t = M.standingTotals;
+  const rate = Number(settings.usdToUgx) || 0;
+  const hr = hourlyRate();
+  const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
+
+  const H = v => cell(v, 'String', 'hdr');
+  const T = v => cell(v, 'String', 'ttl');
+  const N = (v, s) => cell(Math.round((Number(v) || 0) * 100) / 100, 'Number', s || 'num');
+  const F = (f, s) => cell(0, 'Number', s || 'num', f);
+
+  /* Sheet 1 — the model. Rate and hourly rate are inputs, everything else
+     is a formula off them, so changing B3 changes the whole workbook. */
+  const summary = [
+    T('Swangz Avenue — AI Adoption') + T(M.w.cadence + ' briefing'),
+    cell('Period') + cell(M.w.label),
+    cell('Prepared') + cell(stamp()),
+    cell('Basis') + cell(M.carried ? 'Everything recorded to date' : 'This period only'),
+    '',
+    H('Inputs') + H('Value'),
+    cell('US Dollar to Ugandan Shilling') + N(rate, 'num'),
+    cell('Blended hourly rate (USD)') + N(hr, 'num'),
+    '',
+    H('Measure') + H('USD') + H('UGX') + H('Note'),
+    cell('Cost of the old way, per month') + N(t.trad) + F('=RC[-1]*R7C2', 'num') + cell('What the work used to cost'),
+    cell('Spent on AI, per month') + N(t.ai) + F('=RC[-1]*R7C2', 'num') + cell('Subscriptions and credits'),
+    cell('Net saved, per month') + F('=R11C2-R12C2', 'pos') + F('=RC[-1]*R7C2', 'pos') + cell('Old way minus AI'),
+    cell('Hours saved, per month') + N(t.time) + cell('') + cell('Reported by the departments'),
+    cell('Those hours in money, per month') + F('=R14C2*R8C2', 'num') + F('=RC[-1]*R7C2', 'num') + cell('Hours × hourly rate'),
+    cell('Total benefit, per month') + F('=R13C2+R15C2', 'pos') + F('=RC[-1]*R7C2', 'pos') + cell('Cash saved plus the value of the time'),
+    cell('Annualised benefit') + F('=R16C2*12', 'pos') + F('=RC[-1]*R7C2', 'pos') + cell('Twelve months at this rate'),
+    cell('Revenue enabled or protected') + N(t.rev) + F('=RC[-1]*R7C2', 'num') + cell('Attributed by the admin team'),
+    cell('Return per $1 of licence spend') + F('=IF(R12C2=0,0,1+R13C2/R12C2)', 'num') + cell('') + cell('One dollar in, this much back'),
+  ];
+
+  const tools = [H('Tool') + H('Category') + H('Stage') + H('Submissions') + H('Departments') +
+                 H('Hours saved / mo') + H('Old way / mo (USD)') + H('AI cost / mo (USD)') + H('Net / mo (USD)') +
+                 H('Net / mo (UGX)') + H('Annual net (USD)') + H('Revenue / mo (USD)')]
+    .concat(M.groups.map((g, i) => {
+      const r = i + 2;
+      return cell(g.name) + cell(g.cats[0] || '') + cell(g.stage ? g.stage[0] : '') +
+        N(g.entries.length) + N(g.depts.size) + N(g.time) + N(g.trad) + N(g.ai) +
+        F('=RC[-2]-RC[-1]', 'pos') + F('=RC[-1]*Summary!R7C2') + F('=R' + r + 'C9*12') + N(g.rev);
+    }));
+
+  const depts = [H('Department') + H('Tools') + H('Hours saved / mo') + H('Old way / mo (USD)') +
+                 H('AI spend / mo (USD)') + H('Net / mo (USD)') + H('Net / mo (UGX)') + H('Revenue / mo (USD)')]
+    .concat(deptRows.map(([d, v]) =>
+      cell(d) + N(v.count) + N(v.time) + N(v.trad) + N(v.ai) +
+      F('=RC[-2]-RC[-1]', 'pos') + F('=RC[-1]*Summary!R7C2') + N(v.rev)));
+
+  const filed = [H('Filed') + H('Type') + H('Tool') + H('Department') + H('Submitted by') + H('Stage') +
+                 H('Old time (h)') + H('AI time (h)') + H('Per month') + H('Hours saved / mo') +
+                 H('Old cost / deliverable') + H('Subscription / mo') + H('Extra credits / mo') + H('Net / mo') + H('Revenue / mo')]
+    .concat(M.period.map(e => {
+      const m = monthlySavings(e);
+      return cell(new Date(e.submittedAt || Date.now()).toLocaleDateString()) +
+        cell(e.tag === 'request' ? 'Request' : 'Report') + cell(e.toolName || '') + cell(e.department || '') +
+        cell(e.submittedBy || '') + cell(e.status || '') +
+        N(m.tradHoursPer) + N(m.aiHoursPer) + N(Number(e.frequency) || 0) + N(m.timeSavedMonthly) +
+        N(e.tradCost) + N(e.toolMonthlyCost) + N(e.extraCredits) + N(m.netMonthlyCostSavedUSD) + N(e.revenueAmount);
+    }));
+
+  const pending = M.all.filter(e => e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'));
+  const asks = [H('Tool') + H('Department') + H('Asked by') + H('Raised') + H('Status') + H('Cost / mo (USD)') + H('Cost / mo (UGX)') + H('The case')]
+    .concat(pending.map(e => {
+      const cost = (Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0);
+      return cell(e.toolName || '') + cell(e.department || '') + cell(e.submittedBy || '') +
+        cell(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + cell(reqStatusLabel(e.requestStatus || 'new')) +
+        N(cost) + F('=RC[-1]*Summary!R7C2') + cell((e.reason || '').slice(0, 300));
+    }));
+
+  return '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+    'xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+    'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+    '<Styles>' +
+      '<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/><Alignment ss:Vertical="Top"/></Style>' +
+      '<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#4B3F8F" ss:Pattern="Solid"/>' +
+        '<Alignment ss:Vertical="Center" ss:WrapText="1"/></Style>' +
+      '<Style ss:ID="ttl"><Font ss:Bold="1" ss:Size="14"/></Style>' +
+      '<Style ss:ID="num"><NumberFormat ss:Format="#,##0.00"/></Style>' +
+      '<Style ss:ID="pos"><Font ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/></Style>' +
+    '</Styles>' +
+    sheet('Summary', summary, [230, 130, 130, 260]) +
+    sheet('Tools', tools, [160, 120, 110, 90, 95, 105, 120, 115, 110, 115, 115, 120]) +
+    sheet('Departments', depts, [150, 70, 110, 125, 125, 110, 115, 120]) +
+    sheet('Filed this period', filed, [90, 80, 150, 120, 130, 120, 90, 90, 80, 110, 130, 120, 120, 100, 110]) +
+    sheet('Awaiting decision', asks, [150, 120, 130, 90, 100, 115, 115, 380]) +
+    '</Workbook>';
+}
+function downloadExecWorkbook() {
+  const M = execBriefingModel();
+  saveFile(slug('swangz-ai-briefing-' + M.w.label) + '.xls', execWorkbookXML(), 'application/vnd.ms-excel');
+  toast('Workbook downloaded — the totals are live formulas, so changing the rate changes everything');
+}
+function downloadExecCsv() {
+  const M = execBriefingModel();
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const rows = [['Tool', 'Category', 'Stage', 'Submissions', 'Departments', 'Hours saved per month',
+                 'Old way per month USD', 'AI cost per month USD', 'Net per month USD', 'Net per month UGX',
+                 'Annual net USD', 'Revenue per month USD'].map(q).join(',')];
+  M.groups.forEach(g => rows.push([g.name, g.cats[0] || '', g.stage ? g.stage[0] : '', g.entries.length, g.depts.size,
+    Math.round(g.time * 100) / 100, Math.round(g.trad), Math.round(g.ai), Math.round(g.net),
+    Math.round(g.net * (settings.usdToUgx || 0)), Math.round(g.net * 12), Math.round(g.rev)].map(q).join(',')));
+  saveFile(slug('swangz-ai-tools-' + M.w.label) + '.csv', rows.join('\n'), 'text/csv');
+  toast('CSV downloaded — import it straight into Google Sheets');
 }
 
 /* ============================================================
@@ -11613,12 +12469,18 @@ function printExecBriefing() {
    ============================================================ */
 function moneyIsMine() { return typeof canSeeAdmin === 'function' && canSeeAdmin(); }
 
-/* Which steps this person, filing this kind of thing, actually sees. */
+/* Which steps this person, filing this kind of thing, actually sees.
+
+   A request is an ask for budget, so the person making it says what the tool
+   costs — that is the whole point of the ask. A report is a record of work
+   already done, and there the money is the admin's: the team supplies the
+   hours, the admin supplies the price. */
 function wizardStepPlan() {
-  const isRequest = currentTag === 'request';
-  if (isRequest) return [1, 2, 4];                 // no past projects, no pricing
+  if (currentTag === 'request') return [1, 2, 4, 5];   // no past projects; cost stays with the asker
   return moneyIsMine() ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4];
 }
+/* Cost fields are the requester's on a request, the admin's on a report */
+function costIsMine() { return currentTag === 'request' || moneyIsMine(); }
 function planIndex(step) { const p = wizardStepPlan(); const i = p.indexOf(step); return i < 0 ? 0 : i; }
 function firstStep() { return wizardStepPlan()[0]; }
 function lastStep()  { const p = wizardStepPlan(); return p[p.length - 1]; }
@@ -11631,10 +12493,23 @@ function applyWizardScope() {
   if (!wiz) return;
   wiz.setAttribute('data-money', mine ? 'on' : 'off');
   wiz.setAttribute('data-kind', currentTag);
+  /* What the old way cost is a judgement about the business, not about the
+     tool — it stays with the admin whichever kind of thing this is. */
   const tradCostWrap = document.getElementById('f_tradCost')?.closest('.grid > div');
   if (tradCostWrap) tradCostWrap.style.display = mine ? '' : 'none';
   const summary = document.getElementById('costSummary');
-  if (summary && !mine) summary.style.display = 'none';
+  if (summary && !costIsMine()) summary.style.display = 'none';
+  /* On a request the cost step is about the price of the thing being asked
+     for, so it is worded as an estimate rather than a bill. */
+  const step5 = wiz.querySelector('.wizard-step[data-step="5"]');
+  if (step5) {
+    const title = step5.querySelector('.step-title');
+    const help  = step5.querySelector('.help');
+    if (title) title.textContent = currentTag === 'request' ? 'What it will cost' : 'AI Tool Costs (monthly)';
+    if (help) help.innerHTML = currentTag === 'request'
+      ? 'What the plan you need costs each month, and anything extra on top. Check the tool\'s pricing page and put the real figure here — leadership decides on this number.'
+      : 'The AI cost for this tool is the <strong>monthly subscription</strong> plus any <strong>extra credits or tokens</strong> bought on top. Leave extras blank if only the base subscription is paid.';
+  }
   /* Step 4's help text promises dollar figures — it should not, for the team */
   const step4 = wiz.querySelector('.wizard-step[data-step="4"]');
   if (step4) {
@@ -11736,17 +12611,47 @@ function prevStep() {
   });
 })();
 
-/* ---- The registry prompt only appears for a tool nobody has recorded ---- */
+/* ---- A tool nobody has recorded has to be added before you can go on ----
+   If it is already in the catalogue there is nothing to decide and nothing
+   is asked. If it is new, it must be saved with its official site, or the
+   next person to type the same name creates a second, separate tool and the
+   figures split in half without anyone noticing. */
+function toolIsKnown() {
+  const name = (document.getElementById('f_toolName') || {}).value || '';
+  return !!(name.trim() && findToolInRegistry(name));
+}
 function syncRegistryToggle() {
   const wrap = document.querySelector('.reg-toggle');
   const box  = document.getElementById('f_persistInRegistry');
-  const name = (document.getElementById('f_toolName') || {}).value || '';
+  const name = ((document.getElementById('f_toolName') || {}).value || '').trim();
   if (!wrap || !box) return;
-  const known = !!(name.trim() && findToolInRegistry(name));
-  /* A tool already in the catalogue needs no decision — asking would be noise */
-  wrap.style.display = (name.trim() && !known) ? '' : 'none';
-  if (known) box.checked = false;
+  const known = toolIsKnown();
+  wrap.style.display = (name && !known) ? '' : 'none';
+  wrap.classList.toggle('required', !!name && !known);
+  if (known) { box.checked = false; return; }
+  if (name) {
+    const strong = wrap.querySelector('strong');
+    if (strong) strong.textContent = 'Add ' + name + ' to the team registry';
+    const help = wrap.querySelector('.rt-help');
+    if (help) help.textContent = 'Nobody has recorded this tool yet. Add it — with its official site — so everyone else finds the same tool instead of creating a second copy of it.';
+  }
 }
+(function () {
+  const original = window.validateStep;
+  window.validateStep = function (n) {
+    if (n === 1) {
+      const name = ((document.getElementById('f_toolName') || {}).value || '').trim();
+      const box  = document.getElementById('f_persistInRegistry');
+      const url  = ((document.getElementById('f_officialUrl') || {}).value || '').trim();
+      if (name && !toolIsKnown()) {
+        if (box && !box.checked) return { ok: false, msg: 'This tool is not in the tracker yet — tick “Add ' + name + ' to the team registry” to add it before you continue.' };
+        if (!url) return { ok: false, msg: 'A new tool needs its official website, so everyone\'s entries for it stay together.' };
+        if (!/^https?:\/\//i.test(url)) return { ok: false, msg: 'The official website has to start with http:// or https://' };
+      }
+    }
+    return original.apply(this, arguments);
+  };
+})();
 (function () {
   ['onToolNameInput', 'loadDetailForm', 'clearDetailForm'].forEach(fn => {
     if (typeof window[fn] !== 'function') return;
@@ -11772,7 +12677,8 @@ function syncRegistryToggle() {
       o.textContent = 'Other — enter the amount manually';
       sel.appendChild(o);
     }
-    /* Requests never price anything, so the whole block stays away */
+    /* The published-plan picker is not part of the request process — a
+       requester types the figure they actually need approved. */
     const wrap = document.getElementById('planSuggestionWrap');
     if (wrap && (currentTag === 'request' || !moneyIsMine())) wrap.style.display = 'none';
     return out;
@@ -12023,37 +12929,9 @@ function renderDeptOverview() {
   wrap.style.display = list.length ? '' : 'none';
   if (!list.length) return;
 
-  /* Momentum, measured in the hours the team has given back to itself */
-  const months = lastMonths(6), bucket = {};
-  months.forEach(m => bucket[m] = 0);
-  list.forEach(e => {
-    const s = e.submittedAt || e.updatedAt; if (!s) return;
-    const k = monthKey(new Date(s)); if (k in bucket) bucket[k] += monthlySavings(e).timeSavedMonthly;
-  });
-  let run = 0; const series = months.map(m => ({ m, v: (run += bucket[m]) }));
-  const host = document.getElementById('deptTrendChart');
-  const sub = document.getElementById('deptTrendSub');
-  if (sub) sub.textContent = 'Hours your team gives back each month, adding up.';
-  if (host) {
-    const W = 560, H = 180, PL = 44, PR = 12, PT = 14, PB = 24;
-    const max = Math.max(1, ...series.map(s => s.v));
-    const x = i => PL + i * ((W - PL - PR) / Math.max(1, series.length - 1));
-    const y = v => PT + (1 - v / max) * (H - PT - PB);
-    const pts = series.map((s, i) => [x(i), y(s.v)]);
-    host.innerHTML =
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart-svg" role="img" aria-label="Cumulative hours saved ' + escapeAttr(fmtDuration(series[series.length - 1].v)) + '">' +
-        '<defs><linearGradient id="gDept" x1="0" y1="0" x2="0" y2="1">' +
-          '<stop offset="0%" stop-color="' + CHART_GOLD + '" stop-opacity="0.45"/>' +
-          '<stop offset="100%" stop-color="' + CHART_GOLD + '" stop-opacity="0"/></linearGradient></defs>' +
-        [0, .33, .66, 1].map(f => '<line x1="' + PL + '" y1="' + (PT + f * (H - PT - PB)) + '" x2="' + (W - PR) + '" y2="' + (PT + f * (H - PT - PB)) + '" class="grid-line"/>').join('') +
-        '<text x="4" y="' + (PT + 4) + '" class="axis-txt">' + escapeHTML(fmtDuration(max)) + '</text>' +
-        '<path d="' + smoothPath(pts) + ' L' + x(series.length - 1) + ',' + (H - PB) + ' L' + PL + ',' + (H - PB) + ' Z" fill="url(#gDept)"/>' +
-        '<path d="' + smoothPath(pts) + '" fill="none" stroke="' + CHART_GOLD + '" stroke-width="2.5" stroke-linecap="round" class="spark-draw"/>' +
-        series.map((s, i) => '<circle cx="' + x(i) + '" cy="' + y(s.v) + '" r="3.2" fill="' + CHART_GOLD + '"><title>' + monthLabel(s.m) + ': ' + escapeHTML(fmtDuration(s.v)) + '</title></circle>').join('') +
-        series.map((s, i) => '<text x="' + x(i) + '" y="' + (H - 6) + '" class="axis-txt" text-anchor="middle">' + monthLabel(s.m) + '</text>').join('') +
-      '</svg>';
-  }
-
+  /* The momentum chart is gone — a six-month curve of one team's own hours
+     said very little that the status rings and the top-tools list do not say
+     more plainly, and it was the tallest thing on the page. */
   const rings = document.getElementById('deptStatusRings');
   if (rings) {
     const groups = {};
@@ -12266,7 +13144,7 @@ DECK.register('saved', function (a) {
   return {
     title: isReq ? 'Request sent' : 'Report saved',
     sub: isReq ? 'It is with the admin team now' : 'It now counts towards your department\'s case',
-    icon: isReq ? 'inbox' : 'flag', size: 'slim', ephemeral: true, noAutofocus: true, noMinimise: true,
+    icon: isReq ? 'inbox' : 'flag', size: 'slim', ephemeral: true, noAutofocus: true, noMinimise: true, modal: true,
     html:
       '<div class="saved-tick">' + svgIcon('pulse') + '</div>' +
       '<p class="saved-lead">' + (isReq
@@ -12305,7 +13183,7 @@ function askConfirm(opts) {
 DECK.register('ask', function (o) {
   return {
     title: o.title, sub: '', icon: o.danger ? 'flag' : (o.icon || 'flag'),
-    size: 'slim', ephemeral: true, noAutofocus: true, noMinimise: true,
+    size: 'slim', ephemeral: true, noAutofocus: true, noMinimise: true, modal: true,
     html: '<p class="ask-body">' + (o.html || escapeHTML(o.body || '')) + '</p>',
     foot:
       '<button type="button" class="secondary" onclick="answerAsk(false)">' + escapeHTML(o.cancel) + '</button>' +
@@ -12366,8 +13244,8 @@ function renderRequestsInbox() {
   wrap.innerHTML = list.map(e => {
     const st = e.requestStatus || 'new';
     const when = e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '';
-    return '<button type="button" class="deck-row" onclick="DECK.open(\'request\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
-      '<span class="dr-ico">' + svgIcon('inbox') + '</span>' +
+    return '<button type="button" class="deck-row" onclick="DECK.open(\'entry\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
+      '<span class="dr-ico">' + svgIcon(needsDecision(e) ? 'flag' : 'inbox') + '</span>' +
       '<span class="dr-text"><b>' + escapeHTML(e.toolName || 'Untitled') + '</b>' +
         '<i>' + escapeHTML(e.submittedBy || 'Someone') + (e.isPublic ? ' · public' : '') +
         (e.department ? ' · ' + escapeHTML(e.department) : '') + (when ? ' · ' + when : '') + '</i></span>' +
@@ -12377,45 +13255,7 @@ function renderRequestsInbox() {
   }).join('');
 }
 
-DECK.register('request', function (id) {
-  const e = entries.find(x => x.id === id);
-  if (!e) return { title: 'Request', icon: 'inbox', html: '<div class="empty-state"><h3>That request has been removed</h3></div>' };
-  const st = e.requestStatus || 'new';
-  const when = e.submittedAt ? new Date(e.submittedAt).toLocaleString() : '—';
-  const m = monthlySavings(e);
-  const field = (k, v) => v ? '<div class="rc-field"><div class="k">' + k + '</div>' + escapeHTML(v) + '</div>' : '';
-  return {
-    title: e.toolName || 'Untitled request',
-    sub: (e.department || 'Unassigned') + ' · asked by ' + (e.submittedBy || 'someone'),
-    icon: 'inbox', size: 'slim', noAutofocus: true,
-    html:
-      '<div class="req-decide">' +
-        REQUEST_STATUSES.map(s => '<button type="button" class="rb' + (s.key === st ? ' active' : '') +
-          '" onclick="decideRequest(' + escapeAttr(JSON.stringify(id)) + ', \'' + s.key + '\')">' + s.label + '</button>').join('') +
-      '</div>' +
-      '<div class="mny-context" style="margin-top:16px;">' +
-        '<div><span>Raised</span><b>' + escapeHTML(when) + '</b></div>' +
-        '<div><span>Category</span><b>' + escapeHTML(e.category || '—') + '</b></div>' +
-        '<div><span>Claimed saving</span><b>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + ' / mo</b></div>' +
-      '</div>' +
-      '<div class="rc-body" style="margin-top:16px;">' +
-        field('Why we need it', e.reason) +
-        field('Expected impact', e.impact) +
-        (e.officialUrl ? '<div class="rc-field"><div class="k">Official site</div>' +
-          '<a class="tool-link plain" href="' + escapeAttr(safeUrl(e.officialUrl)) + '" target="_blank" rel="noopener">' + escapeHTML(e.officialUrl) + '</a></div>' : '') +
-      '</div>' +
-      '<div style="margin-top:16px;"><label for="rq_note">Internal note</label>' +
-        '<textarea id="rq_note" placeholder="What was decided, and why…" onchange="setRequestNote(' + escapeAttr(JSON.stringify(id)) + ', this.value)">' + escapeHTML(e.adminNote || '') + '</textarea></div>',
-    foot:
-      '<button type="button" class="secondary" onclick="DECK.open(\'money\', ' + escapeAttr(JSON.stringify(id)) + ')">Set pricing</button>' +
-      '<span class="spacer"></span>' +
-      '<button type="button" class="secondary" onclick="openTool(' + escapeAttr(JSON.stringify(id)) + ')">Open full entry</button>',
-  };
-});
-function decideRequest(id, status) {
-  setRequestStatus(id, status);
-  DECK.refresh();
-}
+/* Requests and reports open the same working tile — see 'entry' below. */
 
 /* ---- Submissions: a list, with reassignment on its own tile ---- */
 function renderManageSubmissions() {
@@ -12570,50 +13410,489 @@ function renderBusinessList() {
   }).join('');
 }
 
+/* ============================================================
+   THE ADMIN'S WORKING TILE
+   ------------------------------------------------------------
+   What the team submitted is a record of what they said. The
+   admin reads it and never rewrites it — anything the admin adds
+   (pricing, a decision, a note) is his own and is kept apart.
+   The tile stays short: everything heavy opens as a sub-tile
+   beside it, and this one folds away while you read that.
+   ============================================================ */
+const ENTRY_ID = id => 'entry|' + JSON.stringify(id);
+
 DECK.register('entry', function (id) {
   const e = entries.find(x => x.id === id);
   if (!e) return { title: 'Entry', icon: 'doc', html: '<div class="empty-state"><h3>That entry has been removed</h3></div>' };
+  const isReq = e.tag === 'request';
   const m = monthlySavings(e);
-  const box = (l, v, s) => '<div class="sav-box"><div class="sl">' + l + '</div><div class="sv">' + v + '</div><div class="sa">' + s + '</div></div>';
+  const me = ENTRY_ID(id);
+  const arg = escapeAttr(JSON.stringify(id));
+  const sub = (kind, icon, label, note, tone) =>
+    '<button type="button" class="sub-tile' + (tone ? ' ' + tone : '') + '" onclick="DECK.openFrom(\'' + escapeAttr(me) + '\', \'' + kind + '\', ' + arg + ')">' +
+      '<span class="st-ico">' + svgIcon(icon) + '</span>' +
+      '<span class="st-text"><b>' + escapeHTML(label) + '</b><i>' + escapeHTML(note) + '</i></span>' +
+      '<span class="st-go">' + svgIcon('expand') + '</span>' +
+    '</button>';
+
   return {
     title: e.toolName || 'Untitled',
-    sub: (e.department || '—') + ' · ' + (e.status || '—') + ' · submitted by ' + (e.submittedBy || '—'),
-    icon: 'doc', noAutofocus: true,
+    sub: (isReq ? 'Request' : 'Report') + ' · ' + (e.department || '—') + ' · filed by ' + (e.submittedBy || '—'),
+    icon: isReq ? 'inbox' : 'doc', size: 'slim', noAutofocus: true,
     html:
-      '<div class="rc-body">' +
-        (e.reason ? '<div class="rc-field"><div class="k">Business reason</div>' + escapeHTML(e.reason) + '</div>' : '') +
-        (e.impact ? '<div class="rc-field"><div class="k">Impact on the work</div>' + escapeHTML(e.impact) + '</div>' : '') +
+      '<div class="read-only-note">' + svgIcon('eye') + '<span><b>This is what was submitted.</b> It is read-only — anything you add is recorded separately, against your name.</span></div>' +
+      '<div class="mny-context" style="margin-top:14px;">' +
+        '<div><span>Stage</span><b>' + escapeHTML(e.status || '—') + '</b></div>' +
+        '<div><span>Filed</span><b>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</b></div>' +
+        '<div><span>Hours saved / mo</span><b>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</b></div>' +
+        (isReq ? '<div><span>Decision</span><b>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</b></div>'
+               : '<div><span>Net / mo</span><b class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</b></div>') +
       '</div>' +
-      '<div class="savings-row" style="margin-top:16px;">' +
-        box('Traditional / month', fmtDuration(m.tradHoursMonthly) + ' · ' + fmtUSD(m.tradMonthlyUSD),
-            fmtEntryTime(e.tradTime, e.tradTimeUnit) + ' × ' + (Number(e.frequency) || 0)) +
-        box('AI total / month', fmtDuration(m.aiHoursMonthly) + ' · ' + fmtUSD(m.aiMonthlyUSD),
-            fmtEntryTime(e.aiTime, e.aiTimeUnit) + ' × ' + (Number(e.frequency) || 0)) +
-        box('Net saved / month', '<span class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' +
-            fmtDuration(m.timeSavedMonthly) + ' · ' + fmtUSD(m.netMonthlyCostSavedUSD) + '</span>', fmtUGX(m.netMonthlyCostSavedUSD)) +
-      '</div>' +
-      (e.revenueDesc || e.revenueAmount
-        ? '<div class="rc-field" style="margin-top:16px;"><div class="k">Revenue impact</div>' +
-          escapeHTML(e.revenueDesc || '—') + (e.revenueAmount ? ' <span class="pill good">' + fmtUSD(e.revenueAmount) + '</span>' : '') + '</div>'
-        : '') +
-      ((e.projects || []).length
-        ? '<div class="section-title" style="margin-top:20px;">Projects (' + e.projects.length + ')</div>' +
-          '<div class="deck-list">' + e.projects.map(p =>
-            '<div class="proj-read">' +
-              '<b>' + escapeHTML(p.name || 'Untitled') + '</b>' +
-              (safeUrl(p.link) ? ' <a class="tool-link plain" href="' + escapeAttr(safeUrl(p.link)) + '" target="_blank" rel="noopener">open media ↗</a>' : '') +
-              (p.description ? '<i>' + escapeHTML(p.description) + '</i>' : '') +
-              (p.traditional ? '<p><em>Before:</em> ' + escapeHTML(p.traditional) + '</p>' : '') +
-              (p.aiWay ? '<p><em>With the tool:</em> ' + escapeHTML(p.aiWay) + '</p>' : '') +
-              (p.benefit ? '<p><em>Outcome:</em> ' + escapeHTML(p.benefit) + '</p>' : '') +
-            '</div>').join('') + '</div>'
-        : '<div class="exec-empty" style="margin-top:18px;">No projects attached to this entry.</div>'),
-    foot:
-      '<button type="button" class="secondary" onclick="DECK.open(\'money\', ' + escapeAttr(JSON.stringify(id)) + ')">Set pricing</button>' +
-      '<span class="spacer"></span>' +
-      '<button type="button" class="secondary" onclick="openTool(' + escapeAttr(JSON.stringify(id)) + ')">Edit entry</button>',
+      '<div class="sub-tiles">' +
+        sub('entryCase', 'doc', 'The case they made', 'Why it is needed, and how it changes the work') +
+        sub('entryEffort', 'clock', 'Effort and volume', fmtEntryTime(e.tradTime, e.tradTimeUnit) + ' → ' + fmtEntryTime(e.aiTime, e.aiTimeUnit) + ', ' + (Number(e.frequency) || 0) + ' a month') +
+        sub('entryProjects', 'flag', 'Projects (' + ((e.projects || []).length) + ')', (e.projects || []).length ? 'The work this tool has actually done' : 'None attached') +
+        (isReq ? sub('decide', 'gear', 'Take action', 'Decide what happens next — and tell them', needsDecision(e) ? 'urgent' : '') : '') +
+        sub('money', 'money', 'Pricing', needsPricing(e) ? 'Not costed yet — the figures above are missing it' : 'Set by ' + (e.pricedBy || 'an admin'), needsPricing(e) ? 'urgent' : '') +
+        sub('entryDocs', 'db', 'Document & delivery', 'Word, PDF, and who has been written to') +
+      '</div>',
   };
 });
+function needsDecision(e) { return e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'); }
+
+DECK.register('entryCase', function (id) {
+  const e = entries.find(x => x.id === id) || {};
+  return {
+    title: 'The case they made', sub: (e.toolName || '') + ' · ' + (e.submittedBy || ''),
+    icon: 'doc', size: 'slim', noAutofocus: true,
+    html:
+      '<div class="rc-body">' +
+        '<div class="rc-field"><div class="k">Why it is needed</div>' + escapeHTML(e.reason || '— nothing written —') + '</div>' +
+        '<div class="rc-field"><div class="k">How it changes the work</div>' + escapeHTML(e.impact || '— nothing written —') + '</div>' +
+        '<div class="rc-field"><div class="k">Category</div>' + escapeHTML(e.category || '—') + '</div>' +
+        (e.officialUrl ? '<div class="rc-field"><div class="k">Official site</div><a class="tool-link plain" href="' +
+          escapeAttr(safeUrl(e.officialUrl)) + '" target="_blank" rel="noopener">' + escapeHTML(e.officialUrl) + '</a></div>' : '') +
+      '</div>',
+  };
+});
+
+DECK.register('entryEffort', function (id) {
+  const e = entries.find(x => x.id === id) || {};
+  const m = monthlySavings(e);
+  const row = (k, v) => '<div class="mo-row"><span>' + k + '</span><b>' + v + '</b></div>';
+  return {
+    title: 'Effort and volume', sub: e.toolName || '', icon: 'clock', size: 'slim', noAutofocus: true,
+    html: '<div class="mny-out">' +
+      row('The old way, per deliverable', escapeHTML(fmtEntryTime(e.tradTime, e.tradTimeUnit))) +
+      row('With this tool, per deliverable', escapeHTML(fmtEntryTime(e.aiTime, e.aiTimeUnit))) +
+      row('Saved per deliverable', escapeHTML(fmtDuration(m.timeSavedPer))) +
+      row('Times a month', String(Number(e.frequency) || 0)) +
+      row('Hours the old way took, monthly', escapeHTML(fmtDuration(m.tradHoursMonthly))) +
+      row('Hours it takes now, monthly', escapeHTML(fmtDuration(m.aiHoursMonthly))) +
+      '<div class="mo-row total"><span>Given back each month</span><b>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) +
+        (hourlyRate() ? '<i>worth ' + fmtUSD(m.timeSavedMonthly * hourlyRate()) + '</i>' : '') + '</b></div>' +
+    '</div>',
+  };
+});
+
+DECK.register('entryProjects', function (id) {
+  const e = entries.find(x => x.id === id) || {};
+  const list = e.projects || [];
+  return {
+    title: 'Projects', sub: (e.toolName || '') + ' · ' + list.length + ' recorded',
+    icon: 'flag', noAutofocus: true,
+    html: list.length
+      ? '<div class="deck-list">' + list.map(p =>
+          '<div class="proj-read">' +
+            '<b>' + escapeHTML(p.name || 'Untitled') + '</b>' +
+            (safeUrl(p.link) ? ' <a class="tool-link plain" href="' + escapeAttr(safeUrl(p.link)) + '" target="_blank" rel="noopener">open media ↗</a>' : '') +
+            (p.description ? '<i>' + escapeHTML(p.description) + '</i>' : '') +
+            (p.traditional ? '<p><em>Before:</em> ' + escapeHTML(p.traditional) + '</p>' : '') +
+            (p.aiWay ? '<p><em>With the tool:</em> ' + escapeHTML(p.aiWay) + '</p>' : '') +
+            (p.benefit ? '<p><em>Outcome:</em> ' + escapeHTML(p.benefit) + '</p>' : '') +
+          '</div>').join('') + '</div>'
+      : '<div class="empty-state" style="padding:24px;"><h3>No projects attached</h3>' +
+        '<p>Nothing was recorded against this entry, so there is no evidence of the work behind it.</p></div>',
+  };
+});
+
+/* ---- Take action: the decision, stated plainly, with buttons to match ---- */
+const DECISIONS = [
+  { key: 'reviewed', label: 'Mark reviewed', note: 'You have read it. They are told it is being considered.', icon: 'eye',    cls: 'd-review' },
+  { key: 'approved', label: 'Approve',       note: 'The tool is granted. They are told, and asked to get set up.', icon: 'pulse', cls: 'd-approve' },
+  { key: 'declined', label: 'Decline',       note: 'Not this time. Your note below is included in what they receive.', icon: 'flag', cls: 'd-decline' },
+];
+DECK.register('decide', function (id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return { title: 'Request', icon: 'gear', html: '<div class="empty-state"><h3>That request is gone</h3></div>' };
+  const now = e.requestStatus || 'new';
+  const s = notifySettings();
+  const arg = escapeAttr(JSON.stringify(id));
+  return {
+    title: 'Take action', sub: e.toolName + ' · ' + (e.department || '—'),
+    icon: 'gear', size: 'slim',
+    html:
+      '<p class="ask-body">What happens to <strong>' + escapeHTML(e.toolName || 'this request') + '</strong>?' +
+        ' It is currently <strong>' + escapeHTML(reqStatusLabel(now)) + '</strong>.</p>' +
+      '<div class="decide-row">' +
+        DECISIONS.map(d =>
+          '<button type="button" class="decide-btn ' + d.cls + (d.key === now ? ' on' : '') + '" onclick="decide(' + arg + ', \'' + d.key + '\')">' +
+            '<span class="db-ico">' + svgIcon(d.icon) + '</span>' +
+            '<span class="db-text"><b>' + d.label + '</b><i>' + d.note + '</i></span>' +
+          '</button>').join('') +
+      '</div>' +
+      '<div style="margin-top:16px;"><label for="dc_note">Note</label>' +
+        '<textarea id="dc_note" placeholder="Why, and anything they should do next. Included in what they receive when you decline.">' + escapeHTML(e.adminNote || '') + '</textarea>' +
+        '<div class="field-caption">Saved against your name, separate from what they submitted.</div></div>' +
+      '<div class="who-told">' + svgIcon('inbox') +
+        '<span>Deciding writes to <b>' + escapeHTML(s.copySubmitter && e.submittedByEmail ? e.submittedByEmail : 'the admin team') + '</b>' +
+        (s.bcc && s.bcc.length ? ', and quietly copies <b>' + s.bcc.length + '</b> other ' + (s.bcc.length === 1 ? 'address' : 'addresses') : '') +
+        '. Change that under Notifications &amp; Documents.</span></div>',
+  };
+});
+function decide(id, status) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  const note = (document.getElementById('dc_note') || {}).value;
+  if (note !== undefined) setRequestNote(id, note);
+  setRequestStatus(id, status);
+  e.decidedBy = currentEmail() || 'admin';
+  e.decidedAt = new Date().toISOString();
+  saveEntries();
+  try { queueMail(e, status === 'approved' ? 'approved' : status === 'declined' ? 'declined' : 'reviewed'); } catch (_) {}
+  DECK.close('decide|' + JSON.stringify(id));
+  toast(e.toolName + ' marked ' + status + ' — the people set up to hear about it have been written to');
+  try { renderAdmin(); } catch (_) {}
+}
+
+/* ---- The document, and who it went to ---- */
+DECK.register('entryDocs', function (id) {
+  const e = entries.find(x => x.id === id) || {};
+  const arg = escapeAttr(JSON.stringify(id));
+  const mine = outbox().filter(m => m.entryId === id).reverse();
+  return {
+    title: 'Document & delivery', sub: e.toolName || '', icon: 'db', size: 'slim', noAutofocus: true,
+    html:
+      '<p class="ask-body">A formal record of this submission — the case, the effort, the money and the projects — laid out as a document you can table.</p>' +
+      '<div class="doc-actions">' +
+        '<button type="button" class="primary" onclick="downloadSubmissionDoc(' + arg + ')">' + svgIcon('doc') + ' Word document</button>' +
+        '<button type="button" class="secondary" onclick="printSubmissionDoc(' + arg + ')">' + svgIcon('doc') + ' Print / PDF</button>' +
+        '<button type="button" class="secondary" onclick="resendSubmission(' + arg + ')">' + svgIcon('inbox') + ' Send it again</button>' +
+      '</div>' +
+      '<div class="section-title" style="margin-top:20px;">Who has been written to</div>' +
+      (mine.length
+        ? '<div class="mny-out">' + mine.map(m => {
+            const st = MAIL_STATE[m.state] || MAIL_STATE.queued;
+            return '<div class="mo-row"><span>' + escapeHTML(new Date(m.at).toLocaleString()) + ' · ' + escapeHTML(m.event) + '</span>' +
+              '<b class="mail-' + (st.tone || 'none') + '">' + st.label + '</b></div>';
+          }).join('') + '</div>'
+        : '<div class="exec-empty">Nothing has been sent for this entry yet.</div>'),
+  };
+});
+function resendSubmission(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  queueMail(e, 'submitted');
+  toast('Queued again — check the outbox under Notifications & Documents');
+  DECK.refresh();
+}
+
+/* An admin opens a submission to read it, not to rewrite it. */
+(function () {
+  if (typeof openTool !== 'function') return;
+  const original = window.openTool;
+  window.openTool = function (id) {
+    if (canSeeAdmin()) { DECK.open('entry', id); return; }
+    return original.apply(this, arguments);
+  };
+})();
+
+/* ============================================================
+   OFFICIAL DOCUMENTS
+   ------------------------------------------------------------
+   Everything filed becomes a document a person can table in a
+   meeting: a Word file that opens in Word, a print view that
+   saves as PDF, and — for the reports — a spreadsheet that opens
+   in Excel or Google Sheets with the arithmetic already done.
+
+   The Word and Excel files are HTML carrying the right MIME type
+   and extension, which is what both applications actually read.
+   No library, no server, nothing to install.
+   ============================================================ */
+const DOC_STYLE =
+  'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;margin:0;}' +
+  'h1{font-size:20pt;margin:0 0 2pt;letter-spacing:-.3pt;}' +
+  'h2{font-size:11pt;text-transform:uppercase;letter-spacing:1.2pt;color:#7c5cff;margin:20pt 0 6pt;border-bottom:1px solid #ddd;padding-bottom:3pt;}' +
+  '.sub{color:#666;font-size:9.5pt;margin:0 0 4pt;}' +
+  '.rule{border-bottom:2.5pt solid #f5c542;margin:10pt 0 4pt;}' +
+  'table{border-collapse:collapse;width:100%;margin:6pt 0;font-size:10pt;}' +
+  'th{text-align:left;background:#f4f4f7;padding:5pt 7pt;border:1px solid #dcdce4;font-size:8.5pt;text-transform:uppercase;letter-spacing:.6pt;color:#555;}' +
+  'td{padding:5pt 7pt;border:1px solid #e3e3ea;vertical-align:top;}' +
+  'td.k{width:32%;color:#555;font-weight:bold;background:#fafafc;}' +
+  '.num{text-align:right;}' +
+  '.pos{color:#0a7d4b;font-weight:bold;} .neg{color:#b32020;font-weight:bold;}' +
+  'p{margin:0 0 7pt;line-height:1.5;}' +
+  '.foot{margin-top:22pt;padding-top:8pt;border-top:1px solid #ddd;color:#777;font-size:8.5pt;}' +
+  '.stamp{display:inline-block;padding:3pt 9pt;border:1.5pt solid #7c5cff;color:#7c5cff;font-weight:bold;font-size:9pt;letter-spacing:1pt;text-transform:uppercase;}';
+
+function docShell(title, bodyHTML) {
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">' +
+    '<head><meta charset="utf-8"><title>' + escapeHTML(title) + '</title>' +
+    '<style>@page{size:A4;margin:1.9cm;}' + DOC_STYLE + '</style></head>' +
+    '<body>' + bodyHTML + '</body></html>';
+}
+function saveFile(name, content, mime) {
+  const blob = new Blob(['﻿', content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 400);
+}
+function slug(s) { return String(s || 'document').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 60) || 'document'; }
+function stamp(d) { return new Date(d || Date.now()).toLocaleString(); }
+
+/* ---- one submission, as a document ---- */
+function submissionDocHTML(e) {
+  const isReq = e.tag === 'request';
+  const m = monthlySavings(e);
+  const money = moneyIsMine() || isReq;
+  const row = (k, v) => '<tr><td class="k">' + k + '</td><td>' + v + '</td></tr>';
+  const projects = (e.projects || []).length
+    ? '<h2>Projects this tool has worked on</h2>' + e.projects.map((p, i) =>
+        '<table><tr><th colspan="2">' + (i + 1) + '. ' + escapeHTML(p.name || 'Untitled project') + '</th></tr>' +
+        row('Description', escapeHTML(p.description || '—')) +
+        row('Media', p.link ? '<a href="' + escapeAttr(safeUrl(p.link)) + '">' + escapeHTML(p.link) + '</a>' : '—') +
+        row('How it was done before', escapeHTML(p.traditional || '—')) +
+        row('How it was done with the tool', escapeHTML(p.aiWay || '—')) +
+        row('Outcome', escapeHTML(p.benefit || '—')) +
+        '</table>').join('')
+    : '';
+
+  return docShell((isReq ? 'Tool Request' : 'Tool Report') + ' — ' + (e.toolName || 'Untitled'),
+    '<h1>Swangz Avenue</h1>' +
+    '<p class="sub">AI Adoption Tracker — ' + (isReq ? 'Tool Request' : 'Tool Report') + '</p>' +
+    '<div class="rule"></div>' +
+    '<p style="margin-top:10pt;"><span class="stamp">' + escapeHTML(isReq ? (e.requestStatus || 'new') : 'recorded') + '</span></p>' +
+
+    '<h2>Submission</h2>' +
+    '<table>' +
+      row('Tool', '<strong>' + escapeHTML(e.toolName || '—') + '</strong>' +
+        (e.officialUrl ? '<br><a href="' + escapeAttr(safeUrl(e.officialUrl)) + '">' + escapeHTML(e.officialUrl) + '</a>' : '')) +
+      row('Category', escapeHTML(e.category || '—')) +
+      row('Adoption stage', escapeHTML(e.status || '—')) +
+      row('Department', escapeHTML(e.department || '—')) +
+      row('Submitted by', escapeHTML(e.submittedBy || '—') + (e.role ? ' · ' + escapeHTML(e.role) : '') +
+        (e.submittedByEmail ? '<br>' + escapeHTML(e.submittedByEmail) : '')) +
+      row('Date filed', escapeHTML(stamp(e.submittedAt))) +
+      row('Reference', escapeHTML(e.id)) +
+    '</table>' +
+
+    '<h2>The case</h2>' +
+    '<p><strong>Why it is needed.</strong> ' + escapeHTML(e.reason || '—') + '</p>' +
+    '<p><strong>How it changes the work.</strong> ' + escapeHTML(e.impact || '—') + '</p>' +
+
+    '<h2>Effort, per deliverable</h2>' +
+    '<table>' +
+      '<tr><th>Traditional</th><th>With the tool</th><th>Times per month</th><th>Hours saved per month</th></tr>' +
+      '<tr><td>' + escapeHTML(fmtEntryTime(e.tradTime, e.tradTimeUnit)) + '</td>' +
+      '<td>' + escapeHTML(fmtEntryTime(e.aiTime, e.aiTimeUnit)) + '</td>' +
+      '<td class="num">' + (Number(e.frequency) || 0) + '</td>' +
+      '<td class="num"><strong>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</strong></td></tr>' +
+    '</table>' +
+
+    (money
+      ? '<h2>Money</h2><table>' +
+          row('Cost of the traditional way, per deliverable', fmtUSD(e.tradCost) + ' &nbsp; <span style="color:#777">' + fmtUGX(e.tradCost) + '</span>') +
+          row('Monthly subscription', fmtUSD(e.toolMonthlyCost) + ' &nbsp; <span style="color:#777">' + fmtUGX(e.toolMonthlyCost) + '</span>') +
+          row('Extra credits per month', fmtUSD(e.extraCredits)) +
+          row('Traditional cost per month', fmtUSD(m.tradMonthlyUSD)) +
+          row('Tool cost per month', fmtUSD(m.aiMonthlyUSD)) +
+          row('<strong>Net saved per month</strong>', '<span class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'pos' : 'neg') + '">' +
+            fmtUSD(m.netMonthlyCostSavedUSD) + '</span> &nbsp; <span style="color:#777">' + fmtUGX(m.netMonthlyCostSavedUSD) + '</span>') +
+          (e.revenueAmount ? row('Revenue enabled or protected', fmtUSD(e.revenueAmount)) : '') +
+          (e.revenueDesc ? row('Revenue note', escapeHTML(e.revenueDesc)) : '') +
+          (e.pricedBy ? row('Priced by', escapeHTML(e.pricedBy) + ' on ' + escapeHTML(stamp(e.pricedAt))) : '') +
+        '</table>'
+      : '') +
+
+    projects +
+
+    (isReq
+      ? '<h2>Decision</h2><table>' +
+          row('Status', '<strong>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</strong>') +
+          row('Internal note', escapeHTML(e.adminNote || '—')) +
+          row('Decided', escapeHTML(e.decidedAt ? stamp(e.decidedAt) : 'not yet')) +
+        '</table>'
+      : '') +
+
+    '<div class="foot">Generated from the Swangz Avenue AI Adoption Tracker on ' + escapeHTML(stamp()) +
+    '. US Dollar figures converted at ' + escapeHTML(String(settings.usdToUgx || 0)) + ' UGX.</div>');
+}
+
+function downloadSubmissionDoc(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  saveFile(slug((e.tag === 'request' ? 'request' : 'report') + '-' + (e.toolName || '') + '-' + (e.department || '')) + '.doc',
+           submissionDocHTML(e), 'application/msword');
+  toast('Word document downloaded');
+}
+function printSubmissionDoc(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  openPrintWindow(submissionDocHTML(e), 'Save it as PDF from the print dialog');
+}
+/* A separate window keeps the app's own styling out of the printed page */
+function openPrintWindow(html, hint) {
+  const w = window.open('', '_blank');
+  if (!w) { toast('Allow pop-ups for this site to print', true); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  if (hint) toast(hint);
+  setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 400);
+}
+
+/* ============================================================
+   TELLING PEOPLE
+   ------------------------------------------------------------
+   Who is written to, when, and how. The submitter always gets
+   their own copy. The admin decides who else is copied — the
+   general manager, say — and those recipients go in BCC, so the
+   person who filed it never learns who else was sent it.
+
+   With a mail endpoint configured (an Apps Script web app), mail
+   is sent straight out. Without one, everything is queued in the
+   outbox and can be opened in the admin's own mail client. In
+   both cases nothing is silently dropped.
+   ============================================================ */
+const NOTIFY_KEY = 'swangz_notify_v1';
+const OUTBOX_KEY = 'swangz_outbox_v1';
+const NOTIFY_EVENTS = [
+  { key: 'submitted', label: 'Something is filed',   note: 'A new report or request arrives' },
+  { key: 'reviewed',  label: 'Marked reviewed',      note: 'You have looked at a request' },
+  { key: 'approved',  label: 'Approved',             note: 'The request is granted' },
+  { key: 'declined',  label: 'Declined',             note: 'The request is turned down' },
+];
+function notifySettings() {
+  const base = { endpoint: '', fromName: 'Swangz Avenue AI Tracker', bcc: [], events: { submitted: true, reviewed: true, approved: true, declined: true }, copySubmitter: true, method: 'endpoint' };
+  try { return Object.assign(base, JSON.parse(localStorage.getItem(NOTIFY_KEY)) || {}); } catch (_) { return base; }
+}
+function saveNotifySettings(s) { localStorage.setItem(NOTIFY_KEY, JSON.stringify(s)); }
+function outbox() { try { return JSON.parse(localStorage.getItem(OUTBOX_KEY)) || []; } catch (_) { return []; } }
+function saveOutbox(list) { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list.slice(-200))); }
+
+function adminRecipients() {
+  return [...new Set(SUPER_ADMINS.concat(extraAdmins()).map(normEmail).filter(Boolean))];
+}
+
+function mailBodyFor(e, event) {
+  const isReq = e.tag === 'request';
+  const what = isReq ? 'request' : 'report';
+  const who = e.submittedBy || 'A team member';
+  const lines = {
+    submitted: who + ' filed a ' + what + ' for ' + (e.toolName || 'a tool') + ' on behalf of ' + (e.department || 'their department') + '. The full document is attached.',
+    reviewed:  'Your request for ' + (e.toolName || 'a tool') + ' has been read and is under review. You will hear again once a decision is made.',
+    approved:  'Your request for ' + (e.toolName || 'a tool') + ' has been approved. Someone will be in touch about getting you set up.',
+    declined:  'Your request for ' + (e.toolName || 'a tool') + ' has not been approved at this time.' + (e.adminNote ? ' Note: ' + e.adminNote : ''),
+  };
+  return lines[event] || lines.submitted;
+}
+
+function queueMail(e, event) {
+  const s = notifySettings();
+  if (!s.events[event]) return null;
+  const isReq = e.tag === 'request';
+  const subject = '[Swangz AI Tracker] ' +
+    (event === 'submitted' ? (isReq ? 'New tool request' : 'New tool report') : 'Request ' + event) +
+    ' — ' + (e.toolName || 'Untitled') + ' (' + (e.department || 'Unassigned') + ')';
+
+  const to = event === 'submitted' ? adminRecipients()
+                                   : (s.copySubmitter && e.submittedByEmail ? [normEmail(e.submittedByEmail)] : adminRecipients());
+  const cc = (event === 'submitted' && s.copySubmitter && e.submittedByEmail) ? [normEmail(e.submittedByEmail)] : [];
+  /* Hidden by design: BCC, not CC, so the submitter cannot see who else was told */
+  const bcc = (s.bcc || []).map(normEmail).filter(Boolean);
+
+  const item = {
+    id: 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    entryId: e.id, event, to, cc, bcc, subject,
+    body: mailBodyFor(e, event),
+    docName: slug((isReq ? 'request' : 'report') + '-' + (e.toolName || '')) + '.doc',
+    at: new Date().toISOString(),
+    state: 'queued', error: '',
+  };
+  const box = outbox();
+  box.push(item);
+  saveOutbox(box);
+  deliver(item, e);
+  return item;
+}
+
+async function deliver(item, entry) {
+  const s = notifySettings();
+  if (s.method !== 'endpoint' || !/^https?:\/\//i.test(s.endpoint || '')) {
+    markMail(item.id, 'waiting', 'No mail endpoint configured — open it from the outbox to send by hand');
+    return;
+  }
+  try {
+    const res = await fetch(s.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // avoids a CORS preflight Apps Script cannot answer
+      body: JSON.stringify({
+        kind: 'notify', fromName: s.fromName,
+        to: item.to, cc: item.cc, bcc: item.bcc,
+        subject: item.subject, body: item.body,
+        attachmentName: item.docName,
+        attachmentHtml: entry ? submissionDocHTML(entry) : '',
+      }),
+    });
+    if (!res.ok) throw new Error('the mail endpoint answered ' + res.status);
+    markMail(item.id, 'sent', '');
+  } catch (err) {
+    markMail(item.id, 'failed', humanBackendMsg(String(err && err.message || err)));
+  }
+}
+function markMail(id, state, error) {
+  const box = outbox();
+  const it = box.find(x => x.id === id);
+  if (!it) return;
+  it.state = state; it.error = error || '';
+  it.settledAt = new Date().toISOString();
+  saveOutbox(box);
+  try { renderOutbox(); DECK.refresh(); } catch (_) {}
+}
+function openInMailClient(id) {
+  const it = outbox().find(x => x.id === id);
+  if (!it) return;
+  const q = [];
+  if (it.cc.length)  q.push('cc=' + encodeURIComponent(it.cc.join(',')));
+  if (it.bcc.length) q.push('bcc=' + encodeURIComponent(it.bcc.join(',')));
+  q.push('subject=' + encodeURIComponent(it.subject));
+  q.push('body=' + encodeURIComponent(it.body + '\n\n— attach the downloaded document before sending —'));
+  const e = entries.find(x => x.id === it.entryId);
+  if (e) downloadSubmissionDoc(e.id);
+  window.location.href = 'mailto:' + encodeURIComponent(it.to.join(',')) + '?' + q.join('&');
+  markMail(id, 'handed-off', 'Opened in your mail client');
+}
+function retryMail(id) {
+  const it = outbox().find(x => x.id === id);
+  if (!it) return;
+  markMail(id, 'queued', '');
+  deliver(it, entries.find(x => x.id === it.entryId));
+}
+
+/* Filing something tells the people who need to know. */
+(function () {
+  if (typeof saveDetail !== 'function') return;
+  const original = window.saveDetail;
+  window.saveDetail = function () {
+    const before = entries.length;
+    const out = original.apply(this, arguments);
+    if (entries.length > before) {
+      const e = entries[entries.length - 1];
+      try { queueMail(e, 'submitted'); } catch (err) { console.warn('notify skipped:', err); }
+    }
+    return out;
+  };
+})();
 
 /* The new sections have to exist before the rail is built, so they are
    injected ahead of the original render and filled in after it. */
@@ -12626,12 +13905,13 @@ DECK.register('entry', function (id) {
     try {
       renderToolsSummary();
       renderFinance();
+      renderNotify();
       renderBusinessList();
       populateCalcPicker();
       const hr = document.getElementById('c_hourly');
       if (hr && !hr.value) hr.value = hourlyRate() || '';
       runCalc();
-      renderExecBriefing();
+      execLaunchNote();        // the briefing itself waits to be asked for
       DECK.refresh();          // anything on screen shows the new numbers
     } catch (e) { console.warn('admin extras skipped:', e); }
     return out;
