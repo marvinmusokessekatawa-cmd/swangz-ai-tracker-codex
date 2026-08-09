@@ -10905,9 +10905,16 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
 
   const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---- where we are, so a panel knows which tab it belongs to ---- */
+  /* ---- where we are, so a panel knows which tab it belongs to ----
+     Read the view's own class, not body[data-section]: that attribute is
+     set by a MutationObserver, so for one microtask after entering the
+     portal it still says "app". A tile opened in that window would be
+     filed under a scope you can never navigate back to, and its icon
+     would never re-form. */
   function scope() {
-    const inAdmin = document.body.getAttribute('data-section') === 'admin';
+    const av = document.getElementById('adminView');
+    const inAdmin = av ? av.classList.contains('active')
+                       : document.body.getAttribute('data-section') === 'admin';
     if (inAdmin) return 'admin:' + (typeof adminSection !== 'undefined' ? adminSection : 'overview');
     return 'view:' + (typeof currentView !== 'undefined' ? currentView : 'auth');
   }
