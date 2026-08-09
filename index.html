@@ -5201,11 +5201,18 @@ async function supabasePullAll() {
 
 function fmtUSD(n) {
   const v = Number(n) || 0;
-  return '$' + new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(v);
+  /* A figure that is not a figure must read as one — "$∞" in a board paper
+     is worse than an honest dash. */
+  if (!isFinite(v)) return '—';
+  /* The sign belongs in front of the currency: -$2,500, never $-2,500. */
+  const s = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.abs(v));
+  return (v < 0 ? '-$' : '$') + s;
 }
 function fmtUGX(n) {
   const v = (Number(n) || 0) * (settings.usdToUgx || 0);
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(v) + ' UGX';
+  if (!isFinite(v)) return '—';
+  const s = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.abs(v));
+  return (v < 0 ? '-' : '') + s + ' UGX';
 }
 function fmtHours(n) {
   if (!isFinite(n)) return '—';
@@ -14578,16 +14585,51 @@ function decide(id, status) {
   const e = entries.find(x => x.id === id);
   if (!e) return;
   const note = (document.getElementById('dc_note') || {}).value;
+  /* The note first, so it travels in the message the status change sends */
   if (note !== undefined) setRequestNote(id, note);
-  setRequestStatus(id, status);
-  e.decidedBy = currentEmail() || 'admin';
-  e.decidedAt = new Date().toISOString();
-  saveEntries();
-  try { queueMail(e, status === 'approved' ? 'approved' : status === 'declined' ? 'declined' : 'reviewed'); } catch (_) {}
+  setRequestStatus(id, status);          // stamps the decision and writes to people
   DECK.close('decide|' + JSON.stringify(id));
   toast(e.toolName + ' marked ' + status + ' — the people set up to hear about it have been written to');
   try { renderAdmin(); } catch (_) {}
 }
+
+/* ============================================================
+   A DECISION NOTIFIES, WHICHEVER BUTTON MADE IT
+   ------------------------------------------------------------
+   There are two ways to decide a request: the "Take action" tile
+   and the older status buttons still rendered on each card in
+   the inbox. Only the tile sent the email, so deciding from the
+   inbox silently told nobody — the submitter's status update
+   just never arrived, with no sign anything was wrong.
+
+   Notifying is a property of the status changing, not of the
+   button that changed it, so it lives here and every route gets
+   it exactly once.
+   ============================================================ */
+(function () {
+  if (typeof setRequestStatus !== 'function') return;
+  const original = window.setRequestStatus;
+  const EVENT = { approved: 'approved', declined: 'declined', reviewed: 'reviewed' };
+  window.setRequestStatus = function (id, status) {
+    const e = entries.find(x => x.id === id);
+    const was = e ? (e.requestStatus || 'new') : null;
+    const out = original.apply(this, arguments);
+    if (!e || was === status) return out;      // no change, nothing to announce
+    /* Back to "new" is un-deciding: clear the stamp rather than announce it */
+    if (status === 'new') {
+      delete e.decidedBy; delete e.decidedAt;
+      saveEntries();
+      try { DECK.refresh(); } catch (_) {}
+      return out;
+    }
+    e.decidedBy = currentEmail() || 'admin';
+    e.decidedAt = new Date().toISOString();
+    saveEntries();
+    if (EVENT[status]) { try { queueMail(e, EVENT[status]); } catch (err) { console.warn('notify skipped:', err); } }
+    try { DECK.refresh(); } catch (_) {}
+    return out;
+  };
+})();
 
 /* ---- The document, and who it went to ---- */
 DECK.register('entryDocs', function (id) {
