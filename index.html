@@ -5856,77 +5856,6 @@ function renderProfileBadge() {
   document.getElementById('profileSub').textContent  = `${profile.department || '—'}${profile.role ? ' · ' + profile.role : ''}${profile.email ? ' · ' + profile.email : ''}`;
 }
 
-function renderMyHistoryCard() {
-  const card = document.getElementById('myHistoryCard');
-  if (!card) return;
-  const list = myEntries();
-  if (!list.length) { card.style.display = 'none'; return; }
-  let totalNet = 0, totalTimeMo = 0, totalRevenue = 0;
-  const statusCount = {};
-  list.forEach(e => {
-    const m = monthlySavings(e);
-    totalNet     += m.netMonthlyCostSavedUSD;
-    totalTimeMo  += m.timeSavedMonthly;
-    totalRevenue += Number(e.revenueAmount) || 0;
-    if (e.status) statusCount[e.status] = (statusCount[e.status] || 0) + 1;
-  });
-  const stages = Object.entries(statusCount).map(([k,v]) => `${k.split(' ')[0]}: ${v}`).join(' · ');
-  card.style.display = 'block';
-  document.getElementById('myHistoryStats').innerHTML = `
-    <div><div class="lbl">Tools submitted</div><div class="val">${list.length}</div></div>
-    <div><div class="lbl">Time saved / mo</div><div class="val">${fmtDuration(totalTimeMo)}</div></div>
-    <div><div class="lbl">Net cost saved / mo</div><div class="val ${totalNet>=0?'savings-pos':'savings-neg'}">${fmtUSD(totalNet)}</div></div>
-    <div><div class="lbl">Revenue / mo</div><div class="val">${fmtUSD(totalRevenue)}</div></div>
-    ${stages ? `<div><div class="lbl">Status mix</div><div class="val" style="font-size:13px; font-weight:700;">${escapeHTML(stages)}</div></div>` : ''}
-  `;
-}
-
-function renderToolsList() {
-  renderProfileBadge();
-  renderMyHistoryCard();
-  renderClaimBanner();
-  const list = myEntries();
-  const wrap = document.getElementById('toolsList');
-
-  if (!list.length) {
-    wrap.innerHTML = `
-      <div class="empty-state">
-        <h3>No tools added yet</h3>
-        <p>Click <strong>+ Add Tool</strong> above to report a tool you use or request a new one.</p>
-      </div>`;
-    return;
-  }
-
-  const rows = list.map(e => {
-    const m = monthlySavings(e);
-    const net = m.netMonthlyCostSavedUSD;
-    const tag = (e.tag === 'request') ? 'request' : 'report';
-    const tagLabel = tag === 'request' ? 'Request' : 'Report';
-    return `
-      <tr onclick="openTool(${jsArg(e.id)})">
-        <td><span class="tt-name">${toolLinkHTML(e.toolName || 'Untitled tool', e.officialUrl)}</span></td>
-        <td><span class="pill tag-${tag}">${tagLabel}</span></td>
-        <td>${e.category ? escapeHTML(e.category) : '—'}</td>
-        <td>${e.status ? `<span class="pill ${statusPillClass(e.status)}">${escapeHTML(e.status)}</span>` : '—'}</td>
-        <td><b class="${net>=0?'savings-pos':'savings-neg'}">${fmtUSD(net)}</b></td>
-        <td>${fmtDuration(m.timeSavedMonthly)}</td>
-        <td>${e.revenueAmount ? fmtUSD(e.revenueAmount) : '—'}</td>
-        <td><button class="tt-remove" title="Remove tool" onclick="event.stopPropagation(); removeTool(${jsArg(e.id)})">−</button></td>
-      </tr>`;
-  }).join('');
-
-  wrap.innerHTML = `
-    <div class="tools-table-wrap">
-      <table class="tools-table">
-        <thead><tr>
-          <th>Tool</th><th>Type</th><th>Category</th><th>Status</th>
-          <th>Monthly saved</th><th>Time saved</th><th>Revenue</th><th></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-}
-
 function statusPillClass(s) {
   if (!s) return 'muted';
   if (s.startsWith('Requesting')) return 'warn';
@@ -5998,50 +5927,10 @@ function backToTools() {
   closeWizard();
 }
 
-/* --------------------------------------------------------
-   Detail form — projects sub-list
----------------------------------------------------------*/
-function addProject(proj) {
-  const p = proj || { id: 'p_' + Math.random().toString(36).slice(2,8), name:'', link:'', description:'', traditional:'', aiWay:'', benefit:'' };
-  projectsInForm.push(p);
-  renderProjects();
-  onDetailDirty();
-}
-function removeProject(id) {
-  projectsInForm = projectsInForm.filter(p => p.id !== id);
-  renderProjects();
-  onDetailDirty();
-}
 function updateProject(id, field, value) {
   const p = projectsInForm.find(x => x.id === id);
   if (p) { p[field] = value; onDetailDirty(); }
 }
-function renderProjects() {
-  const wrap = document.getElementById('projectsList');
-  if (!projectsInForm.length) { wrap.innerHTML = '<p class="help" style="margin-bottom:10px;">No projects added yet.</p>'; return; }
-  wrap.innerHTML = projectsInForm.map(p => `
-    <div class="project-item">
-      <div class="phead">
-        <strong>Project</strong>
-        <button class="danger" type="button" onclick="removeProject(${jsArg(p.id)})">Remove</button>
-      </div>
-      <div class="grid cols-3">
-        <div><label>Project Name</label><input type="text" value="${escapeAttr(p.name)}" oninput="updateProject(${jsArg(p.id)},'name',this.value)" placeholder="e.g. Hare & Ogre EP1" /></div>
-        <div><label>Project Link</label><input type="url" value="${escapeAttr(p.link||'')}" oninput="updateProject(${jsArg(p.id)},'link',this.value)" placeholder="https://…" /></div>
-        <div><label>Term / Short Description</label><input type="text" value="${escapeAttr(p.description)}" oninput="updateProject(${jsArg(p.id)},'description',this.value)" placeholder="e.g. 18-shot animated pilot" /></div>
-      </div>
-      <div class="grid cols-2" style="margin-top:10px;">
-        <div><label>Traditional Way</label><textarea oninput="updateProject(${jsArg(p.id)},'traditional',this.value)" placeholder="How this was done without AI — people, time, cost">${escapeHTML(p.traditional)}</textarea></div>
-        <div><label>AI-Assisted Way</label><textarea oninput="updateProject(${jsArg(p.id)},'aiWay',this.value)" placeholder="What AI did — which tool, what workflow, time, cost">${escapeHTML(p.aiWay)}</textarea></div>
-      </div>
-      <div style="margin-top:10px;">
-        <label>Benefit / Outcome</label>
-        <textarea oninput="updateProject(${jsArg(p.id)},'benefit',this.value)" placeholder="e.g. Delivered in 2 weeks instead of 3 months; client approved first pass">${escapeHTML(p.benefit)}</textarea>
-      </div>
-    </div>
-  `).join('');
-}
-
 /* --------------------------------------------------------
    Detail form — load / save
 ---------------------------------------------------------*/
@@ -6389,65 +6278,6 @@ function setWizardTag(tag) {
   document.querySelectorAll('#wizTagSeg button').forEach(b => b.classList.toggle('active', b.dataset.tag === currentTag));
   if (wizardOpen) updateWizardFooter();
 }
-function gotoStep(n) {
-  n = Math.max(1, Math.min(WIZARD_STEPS, n));
-  // New entries are gated: a forward jump (via the stepper) must satisfy earlier
-  // required steps. Existing entries (currentToolId set) navigate freely.
-  if (!currentToolId && n > wizardStep) {
-    for (let i = 1; i < n; i++) {
-      const v = validateStep(i);
-      if (!v.ok) { n = i; showStepError(i, v.msg); break; }
-    }
-  }
-  wizardStep = n;
-  if (n > wizardMaxStep) wizardMaxStep = n;
-  document.querySelectorAll('#detailView .wizard-step').forEach(s => {
-    s.classList.toggle('active', Number(s.dataset.step) === n);
-  });
-  renderWizardProgress();
-  updateWizardFooter();
-  const body = document.querySelector('#detailView .wizard-body');
-  if (body) body.scrollTop = 0;
-}
-function renderWizardProgress() {
-  const wrap = document.getElementById('wizProgress');
-  if (!wrap) return;
-  let html = '';
-  for (let i = 1; i <= WIZARD_STEPS; i++) {
-    const state = i === wizardStep ? 'current' : (i < wizardStep ? 'done' : '');
-    const back  = (i <= wizardMaxStep && i !== wizardStep);
-    const mark  = (i < wizardStep) ? '✓' : i;
-    html += `<div class="ws ${state}${back ? ' clickable' : ''}" ${back ? `onclick="gotoStep(${i})"` : ''}>
-      <span class="dot">${mark}</span><span class="lbl">${WIZARD_LABELS[i-1]}</span></div>`;
-    if (i < WIZARD_STEPS) html += '<span class="sep"></span>';
-  }
-  wrap.innerHTML = html;
-}
-function updateWizardFooter() {
-  const back  = document.getElementById('wizBackBtn');
-  const next  = document.getElementById('wizNextBtn');
-  const save  = document.getElementById('wizSaveBtn');
-  const count = document.getElementById('wizCount');
-  const del   = document.getElementById('wizDeleteBtn');
-  const last  = wizardStep === WIZARD_STEPS;
-  if (count) count.textContent = `Step ${wizardStep} of ${WIZARD_STEPS}`;
-  if (back)  back.style.display = wizardStep > 1 ? '' : 'none';
-  if (next)  next.style.display = last ? 'none' : '';
-  if (save) {
-    save.style.display = last ? '' : 'none';
-    save.textContent = wizardMode === 'public' ? 'Submit request' : (currentTag === 'request' ? 'Save request' : 'Save tool');
-  }
-  if (del) del.style.display = (wizardMode !== 'public' && currentToolId) ? '' : 'none';
-}
-function nextStep() {
-  if (!currentToolId) {   // gating applies to new submissions; existing entries advance freely
-    const v = validateStep(wizardStep);
-    if (!v.ok) { showStepError(wizardStep, v.msg); return; }
-    clearStepError(wizardStep);
-  }
-  if (wizardStep < WIZARD_STEPS) gotoStep(wizardStep + 1);
-}
-function prevStep() { if (wizardStep > 1) gotoStep(wizardStep - 1); }
 function validateStep(n) {
   if (n === 1) {
     if (!val('f_toolName')) return { ok:false, msg:'Tool name is required.' };
@@ -6572,49 +6402,6 @@ const REQUEST_STATUSES = [
   { key:'approved', label:'Approved' }, { key:'declined', label:'Declined' },
 ];
 function requestEntries() { return dashboardEntries().filter(e => e.tag === 'request'); }
-function renderRequestsInbox() {
-  const wrap = document.getElementById('requestsInboxList');
-  if (!wrap) return;
-  const statusFilter = (document.getElementById('reqStatusFilter') || {}).value || '';
-  const q = ((document.getElementById('reqSearch') || {}).value || '').toLowerCase().trim();
-  let list = requestEntries();
-  const meta = document.getElementById('acc_requestsMeta');
-  const newCount = list.filter(e => (e.requestStatus || 'new') === 'new').length;
-  if (meta) meta.textContent = list.length + (list.length === 1 ? ' request' : ' requests') + (newCount ? ' · ' + newCount + ' new' : '');
-  if (statusFilter) list = list.filter(e => (e.requestStatus || 'new') === statusFilter);
-  if (q) list = list.filter(e =>
-    (e.toolName || '').toLowerCase().includes(q) ||
-    (e.submittedBy || '').toLowerCase().includes(q) ||
-    (e.department || '').toLowerCase().includes(q));
-  list.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-  if (!list.length) {
-    wrap.innerHTML = '<div class="empty-state"><h3>No requests</h3><p>Tool requests from the team and public submissions will appear here.</p></div>';
-    return;
-  }
-  wrap.innerHTML = list.map(e => {
-    const st = e.requestStatus || 'new';
-    const when = e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '';
-    const stLabel = (REQUEST_STATUSES.find(s => s.key === st) || {}).label || 'New';
-    const buttons = REQUEST_STATUSES.map(s =>
-      `<button class="rb ${s.key === st ? 'active' : ''}" onclick="setRequestStatus(${jsArg(e.id)},${jsArg(s.key)})">${s.label}</button>`).join('');
-    return `<div class="req-card">
-      <div class="rc-head">
-        <div>
-          <h3 class="rc-title">${toolLinkHTML(e.toolName || 'Untitled', e.officialUrl)}</h3>
-          <div class="rc-meta">${escapeHTML(e.submittedBy || 'Someone')}${e.isPublic ? ' · public' : ''}${e.department ? ' · ' + escapeHTML(e.department) : ''}${e.category ? ' · ' + escapeHTML(e.category) : ''}${when ? ' · ' + when : ''}</div>
-        </div>
-        <span class="req-status s-${st}">${stLabel}</span>
-      </div>
-      <div class="rc-body">
-        ${e.reason ? `<div class="rc-field"><div class="k">Why we need it</div>${escapeHTML(e.reason)}</div>` : ''}
-        ${e.impact ? `<div class="rc-field"><div class="k">Expected impact</div>${escapeHTML(e.impact)}</div>` : ''}
-        ${e.toolMonthlyCost ? `<div class="rc-field"><div class="k">Est. monthly cost</div>${fmtUSD(e.toolMonthlyCost)} <span style="color:var(--muted)">(${fmtUGX(e.toolMonthlyCost)})</span></div>` : ''}
-      </div>
-      <div class="req-actions">${buttons}<button class="rb" style="margin-left:auto;" onclick="openTool(${jsArg(e.id)})">Open full entry →</button></div>
-      <textarea class="req-note" placeholder="Admin note (internal)…" onchange="setRequestNote(${jsArg(e.id)}, this.value)">${escapeHTML(e.adminNote || '')}</textarea>
-    </div>`;
-  }).join('');
-}
 function setRequestStatus(id, status) {
   const e = entries.find(x => x.id === id);
   if (!e) return;
@@ -7025,51 +6812,6 @@ function _toolGroups(list) {
   });
   return Object.values(groups);
 }
-/* --------------------------------------------------------
-   Manage Submissions — admin tool to reassign entries.
-   Use case: someone clicked "Adopt these are mine" on entries that weren't
-   actually theirs. Admin can correct attribution by typing the right name +
-   email + department on any entry. Updates push to the shared backend.
----------------------------------------------------------*/
-function renderManageSubmissions() {
-  const host = document.getElementById('manageList');
-  const meta = document.getElementById('acc_manageMeta');
-  if (!host) return;
-  const search = (document.getElementById('manageSearchInput')?.value || '').toLowerCase().trim();
-  const all = entries.filter(e => !isRegistryStub(e));
-  if (meta) meta.textContent = all.length + ' submission' + (all.length===1?'':'s');
-
-  const filtered = all.filter(e => {
-    if (!search) return true;
-    const hay = [e.toolName, e.submittedBy, e.submittedByEmail, e.department, e.role].filter(Boolean).join(' ').toLowerCase();
-    return hay.includes(search);
-  });
-
-  if (!filtered.length) {
-    host.innerHTML = `<div class="manage-empty">${all.length === 0 ? 'No submissions yet.' : 'No matches for &ldquo;' + escapeHTML(search) + '&rdquo;.'}</div>`;
-    return;
-  }
-
-  // Sort: most recent first
-  filtered.sort((a,b) => new Date(b.updatedAt || b.submittedAt || 0) - new Date(a.updatedAt || a.submittedAt || 0));
-  host.innerHTML = filtered.map(e => `
-    <div class="manage-row" id="mrow_${escapeAttr(e.id)}">
-      <div class="head">
-        <div>
-          ${toolLinkHTML(e.toolName, e.officialUrl)}
-          <div class="who">
-            <strong>${escapeHTML(e.submittedBy || '(no name)')}</strong> ${e.submittedByEmail ? '· ' + escapeHTML(e.submittedByEmail) : '<span style="color:var(--warn);">· no email</span>'}
-            · <span class="pill dept" style="font-size:10px;">${escapeHTML(e.department || '—')}</span>
-            ${e.submittedAt ? '· ' + new Date(e.submittedAt).toLocaleDateString() : ''}
-          </div>
-        </div>
-        <button class="secondary" onclick="startReassign(${jsArg(e.id)})">Reassign</button>
-      </div>
-      <div class="reassign-form" id="rform_${escapeAttr(e.id)}" style="display:none;"></div>
-    </div>
-  `).join('');
-}
-
 function startReassign(entryId) {
   const e = entries.find(x => x.id === entryId);
   const form = document.getElementById('rform_' + entryId);
@@ -7480,34 +7222,6 @@ function renderRegistryManager() {
         ${urlCellHTML(t.url, 'rr-url')}
       </div>`).join('')}
   `;
-}
-
-function renameRegistryTool(url) {
-  const key = _stripUrlTrail(url);
-  const matches = entries.filter(e => _stripUrlTrail(e.officialUrl) === key);
-  if (!matches.length) return;
-  const currentName = canonicalToolName(matches[0].toolName);
-  const newName = prompt(`Rename "${currentName}" to:`, currentName);
-  if (!newName || newName.trim() === currentName) return;
-  const trimmed = newName.trim();
-  matches.forEach(e => { e.toolName = trimmed; e.toolNameRaw = e.toolNameRaw || trimmed; e.updatedAt = new Date().toISOString(); });
-  saveEntries();
-  renderAdmin();
-  toast('Renamed to "' + trimmed + '" (' + matches.length + ' record' + (matches.length===1?'':'s') + ')');
-}
-
-function editRegistryUrl(url) {
-  const key = _stripUrlTrail(url);
-  const matches = entries.filter(e => _stripUrlTrail(e.officialUrl) === key);
-  if (!matches.length) return;
-  const currentUrl = matches[0].officialUrl || url;
-  const newUrl = prompt('Update the official URL:', currentUrl);
-  if (!newUrl || newUrl.trim() === currentUrl) return;
-  const trimmed = newUrl.trim();
-  matches.forEach(e => { e.officialUrl = trimmed; e.updatedAt = new Date().toISOString(); });
-  saveEntries();
-  renderAdmin();
-  toast('URL updated for ' + matches.length + ' record' + (matches.length===1?'':'s'));
 }
 
 /* Admin manual add — seeds a kind:'registry' stub directly without going
@@ -8108,7 +7822,11 @@ function boot() {
   renderProjects();
   updateConversions();
 }
-boot();
+/* boot() is CALLED at the very end of the second script block, not here.
+   The redesign replaced several of the functions it reaches — renderToolsList,
+   renderProjects, renderMyHistoryCard and others — further down the page, and
+   a call from this block would resolve to the older definitions, so the first
+   paint disagreed with every render after it. */
 </script>
 <!-- ============================================================
      PROFILE SETTINGS — photo, nickname, role, department,
@@ -9033,23 +8751,6 @@ function buildFindings() {
 
   return out;
 }
-function renderAiFindings() {
-  const host = document.getElementById('aiFindings');
-  if (!host) return;
-  const f = buildFindings();
-  if (!f.length) {
-    host.innerHTML = '<div class="empty-state" style="padding:26px 12px;"><h3>Nothing to report yet</h3><p>Findings are generated once tools are recorded.</p></div>';
-    return;
-  }
-  host.innerHTML = f.map(x =>
-    `<div class="finding f-${x.sev}">
-       <div class="fd-head">
-         <span class="fd-title">${escapeHTML(x.title)}</span>
-         <span class="fd-subject">${escapeHTML(String(x.subject))} <i>↗</i></span>
-       </div>
-       <p class="fd-body">${x.body}</p>
-     </div>`).join('');
-}
 function aiReportText() {
   const f = buildFindings();
   const strip = t => String(t).replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
@@ -9710,14 +9411,6 @@ function showDone(kind, toolName) {
   };
 })();
 
-/* Route by role the moment someone lands in the app. */
-function routeAfterSignIn() {
-  if (!authUser && !currentEmail()) { switchView('auth'); return; }
-  if (canSeeAdmin()) { switchView('admin'); return; }   // owners/admins go to the portal
-  if (!profile.department || !profile.name) { switchView('landing'); return; }
-  startPurpose();                                        // everyone else is asked the question
-}
-
 /* Replace the app's own "go to the tools list" entry point: normal users must
    never land on a dashboard again. */
 (function () {
@@ -9993,202 +9686,6 @@ function deptEntries() {
   const d = (typeof profile !== 'undefined' && profile.department) || '';
   return d ? all.filter(e => e.department === d) : [];
 }
-function renderQuickStats() {
-  const host = document.getElementById('quickStats');
-  if (!host) return;
-  const list = deptEntries();
-  let time = 0, net = 0, rev = 0;
-  list.forEach(e => { const m = monthlySavings(e); time += m.timeSavedMonthly; net += m.netMonthlyCostSavedUSD; rev += Number(e.revenueAmount) || 0; });
-  const stats = [
-    { ico: '◆', val: String(list.length), lbl: 'Tools tracked' },
-    { ico: '◷', val: fmtDuration(time),   lbl: 'Saved / month' },
-    { ico: '⤢', val: fmtUSD(net),         lbl: 'Net saving / mo' },
-  ];
-  if (rev) stats.push({ ico: '↗', val: fmtUSD(rev), lbl: 'Revenue impact' });
-  host.innerHTML = stats.map(s =>
-    `<div class="qs"><span class="qs-ico">${s.ico}</span>
-       <span class="qs-text"><b>${escapeHTML(s.val)}</b><i>${s.lbl}</i></span></div>`).join('');
-}
-function renderDeptOverview() {
-  const wrap = document.getElementById('deptOverview');
-  if (!wrap) return;
-  const list = deptEntries();
-  wrap.style.display = list.length ? '' : 'none';
-  if (!list.length) return;
-
-  // --- momentum area chart (cumulative net savings by month) ---
-  const months = lastMonths(6), bucket = {};
-  months.forEach(m => bucket[m] = 0);
-  list.forEach(e => {
-    const s = e.submittedAt || e.updatedAt; if (!s) return;
-    const k = monthKey(new Date(s)); if (k in bucket) bucket[k] += monthlySavings(e).netMonthlyCostSavedUSD;
-  });
-  let run = 0; const series = months.map(m => ({ m, v: (run += bucket[m]) }));
-  const host = document.getElementById('deptTrendChart');
-  if (host) {
-    const W = 560, H = 180, PL = 40, PR = 12, PT = 14, PB = 24;
-    const max = Math.max(1, ...series.map(s => s.v));
-    const x = i => PL + i * ((W - PL - PR) / Math.max(1, series.length - 1));
-    const y = v => PT + (1 - v / max) * (H - PT - PB);
-    const pts = series.map((s, i) => [x(i), y(s.v)]);
-    host.innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="Department cumulative savings ${fmtUSD(series[series.length-1].v)}">
-        <defs><linearGradient id="gDept" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${CHART_GOLD}" stop-opacity="0.45"/>
-          <stop offset="100%" stop-color="${CHART_GOLD}" stop-opacity="0"/></linearGradient></defs>
-        ${[0,.33,.66,1].map(f => `<line x1="${PL}" y1="${PT+f*(H-PT-PB)}" x2="${W-PR}" y2="${PT+f*(H-PT-PB)}" class="grid-line"/>`).join('')}
-        <text x="4" y="${PT+4}" class="axis-txt">${fmtUSD(max)}</text>
-        <path d="${smoothPath(pts)} L${x(series.length-1)},${H-PB} L${PL},${H-PB} Z" fill="url(#gDept)"/>
-        <path d="${smoothPath(pts)}" fill="none" stroke="${CHART_GOLD}" stroke-width="2.5" stroke-linecap="round" class="spark-draw"/>
-        ${series.map((s,i)=>`<circle cx="${x(i)}" cy="${y(s.v)}" r="3.2" fill="${CHART_GOLD}"><title>${monthLabel(s.m)}: ${fmtUSD(s.v)}</title></circle>`).join('')}
-        ${series.map((s,i)=>`<text x="${x(i)}" y="${H-6}" class="axis-txt" text-anchor="middle">${monthLabel(s.m)}</text>`).join('')}
-      </svg>`;
-  }
-
-  // --- status rings ---
-  const rings = document.getElementById('deptStatusRings');
-  if (rings) {
-    const groups = {};
-    list.forEach(e => { const s = e.status || 'Unspecified'; groups[s] = (groups[s] || 0) + 1; });
-    const colors = { 'In Active Use': CHART_GREEN, 'Piloting': CHART_VIOLET, 'Scaling Across Team': CHART_SKY, 'Requesting (need to invest)': CHART_ROSE };
-    rings.innerHTML = Object.entries(groups).map(([label, n]) => {
-      const pct = Math.round(n / list.length * 100), col = colors[label] || CHART_GOLD;
-      const R = 26, C = 2 * Math.PI * R, len = C * pct / 100;
-      return `<div class="ring">
-        <svg viewBox="0 0 64 64" aria-label="${escapeHTML(label)} ${pct}%">
-          <circle cx="32" cy="32" r="${R}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
-          <circle cx="32" cy="32" r="${R}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round"
-            stroke-dasharray="${len} ${C-len}" transform="rotate(-90 32 32)"/>
-          <text x="32" y="37" text-anchor="middle" class="ring-num">${pct}%</text>
-        </svg>
-        <span class="ring-lbl">${escapeHTML(label)}<i>${n} tool${n>1?'s':''}</i></span>
-      </div>`;
-    }).join('');
-  }
-
-  // --- top tools in this department ---
-  const top = document.getElementById('deptTopList');
-  if (top) {
-    const agg = {};
-    list.forEach(e => {
-      const n = e.toolName || '—';
-      if (!agg[n]) agg[n] = 0;
-      agg[n] += monthlySavings(e).netMonthlyCostSavedUSD;
-    });
-    const rows = Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,4);
-    const max = Math.max(1, ...rows.map(r => Math.abs(r[1])));
-    top.innerHTML = '<div class="section-title" style="font-size:12px; margin:18px 0 8px;">Top tools here</div>' +
-      rows.map(([n,v]) =>
-        `<div class="top-tool" style="padding:8px 6px;">
-           <span class="tt-name" style="font-size:12.5px;">${escapeHTML(n)}</span>
-           <span class="tt-bar"><i style="width:${Math.max(4,Math.abs(v)/max*100)}%; background:linear-gradient(90deg,#ddd6fe,${CHART_GOLD})"></i></span>
-           <span class="tt-val ${v>=0?'savings-pos':'savings-neg'}" style="font-size:12px;">${fmtUSD(v)}</span>
-         </div>`).join('');
-  }
-}
-/* Department standing, activity feed and next-step insight */
-function renderDeptExtra() {
-  const wrap = document.getElementById('deptExtra');
-  const insight = document.getElementById('deptInsight');
-  const all = (typeof entries !== 'undefined' && Array.isArray(entries)) ? entries : [];
-  const myDept = (typeof profile !== 'undefined' && profile.department) || '';
-  const mine = deptEntries();
-  if (wrap) wrap.style.display = mine.length ? '' : 'none';
-
-  /* --- Next-step insight (always useful, even with no data) --- */
-  if (insight) {
-    let icon = '✦', title = '', body = '', tone = 'info';
-    if (!myDept) {
-      title = 'Set your department';
-      body = 'Choose your department from the ⋯ menu so your reports land in the right place.';
-      tone = 'warn';
-    } else if (!mine.length) {
-      title = 'Add your first tool';
-      body = 'Record one AI tool you use in <strong>' + escapeHTML(myDept) + '</strong>. Even a rough estimate of time saved builds the case leadership sees.';
-      tone = 'warn';
-    } else {
-      const missing = mine.filter(e => !Number(e.frequency) || (!Number(e.tradTime) && !Number(e.tradCost)));
-      const negative = mine.filter(e => monthlySavings(e).netMonthlyCostSavedUSD < 0);
-      const noRev = mine.filter(e => !Number(e.revenueAmount));
-      if (missing.length) {
-        title = 'Finish ' + missing.length + ' incomplete record' + (missing.length > 1 ? 's' : '');
-        body = 'Some entries are missing frequency or the "before AI" numbers, so their savings read as zero. Open ' +
-               missing.slice(0, 2).map(e => '<strong>' + escapeHTML(e.toolName || 'a tool') + '</strong>').join(' and ') + ' to complete them.';
-        tone = 'warn';
-      } else if (negative.length) {
-        title = negative.length + ' tool' + (negative.length > 1 ? 's are' : ' is') + ' costing more than it saves';
-        body = 'Review ' + negative.slice(0, 2).map(e => '<strong>' + escapeHTML(e.toolName || '?') + '</strong>').join(', ') +
-               ' — either the plan is too big, or the value is in revenue rather than cost.';
-        tone = 'bad';
-      } else if (noRev.length === mine.length) {
-        title = 'Add revenue impact where it applies';
-        body = 'Cost savings are recorded, but no revenue yet. If a tool helped win or protect work, adding that figure makes the strongest case.';
-        tone = 'info';
-      } else {
-        const best = [...mine].sort((a, b) => monthlySavings(b).netMonthlyCostSavedUSD - monthlySavings(a).netMonthlyCostSavedUSD)[0];
-        title = 'Your department is on track';
-        body = '<strong>' + escapeHTML(best.toolName || 'Your top tool') + '</strong> is your strongest performer at ' +
-               fmtUSD(monthlySavings(best).netMonthlyCostSavedUSD) + ' net per month. Keep records current so the figures stay credible.';
-        tone = 'good';
-      }
-    }
-    insight.style.display = '';
-    insight.className = 'card insight-card tone-' + tone;
-    insight.innerHTML =
-      '<div class="ins-ico">' + icon + '</div>' +
-      '<div class="ins-text"><h3>' + escapeHTML(title) + '</h3><p>' + body + '</p></div>' +
-      '<div class="ins-act"><button type="button" class="primary" onclick="openAddChooser()">+ Add tool</button></div>';
-  }
-
-  if (!mine.length) return;
-
-  /* --- Standing vs other departments --- */
-  const rankHost = document.getElementById('deptRank');
-  if (rankHost) {
-    const agg = {};
-    all.forEach(e => {
-      const d = e.department || 'Unassigned';
-      if (!agg[d]) agg[d] = { net: 0, tools: new Set() };
-      agg[d].net += monthlySavings(e).netMonthlyCostSavedUSD;
-      if (e.toolName) agg[d].tools.add(e.toolName);
-    });
-    const rows = Object.entries(agg).map(([d, v]) => ({ d, net: v.net, tools: v.tools.size }))
-      .sort((a, b) => b.net - a.net);
-    const pos = rows.findIndex(r => r.d === myDept) + 1;
-    const max = Math.max(1, ...rows.map(r => Math.abs(r.net)));
-    rankHost.innerHTML =
-      (pos ? `<div class="rank-badge"><b>#${pos}</b><span>of ${rows.length} departments reporting</span></div>` : '') +
-      rows.slice(0, 5).map(r =>
-        `<div class="top-tool${r.d === myDept ? ' is-me' : ''}" style="padding:8px 6px;">
-           <span class="tt-name" style="font-size:12.5px;">${escapeHTML(r.d)}${r.d === myDept ? ' <em>(you)</em>' : ''}
-             <span class="tt-sub">${r.tools} tool${r.tools > 1 ? 's' : ''}</span></span>
-           <span class="tt-bar"><i style="width:${Math.max(4, Math.abs(r.net) / max * 100)}%; background:linear-gradient(90deg, var(--accent-strong), var(--accent))"></i></span>
-           <span class="tt-val ${r.net >= 0 ? 'savings-pos' : 'savings-neg'}" style="font-size:12px;">${fmtUSD(r.net)}</span>
-         </div>`).join('');
-  }
-
-  /* --- Recent activity --- */
-  const actHost = document.getElementById('deptActivity');
-  if (actHost) {
-    const recent = [...mine].sort((a, b) =>
-      new Date(b.updatedAt || b.submittedAt || 0) - new Date(a.updatedAt || a.submittedAt || 0)).slice(0, 6);
-    actHost.innerHTML = recent.map(e => {
-      const when = e.updatedAt || e.submittedAt;
-      const d = when ? new Date(when) : null;
-      const days = d ? Math.floor((Date.now() - d.getTime()) / 86400000) : null;
-      const ago = days === null ? '' : days === 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? days + ' days ago' : d.toLocaleDateString();
-      const net = monthlySavings(e).netMonthlyCostSavedUSD;
-      const isReq = e.tag === 'request';
-      return `<div class="act-row">
-         <span class="act-dot ${isReq ? 'req' : net >= 0 ? 'pos' : 'neg'}"></span>
-         <span class="act-main"><b>${escapeHTML(e.toolName || '—')}</b>
-           <i>${isReq ? 'requested' : 'reported'} by ${escapeHTML(e.submittedBy || 'someone')} · ${ago}</i></span>
-         <span class="act-val ${net >= 0 ? 'savings-pos' : 'savings-neg'}">${isReq ? '—' : fmtUSD(net)}</span>
-       </div>`;
-    }).join('') || '<div class="manage-empty">No activity yet.</div>';
-  }
-}
-
 /* Refresh department widgets whenever the tools list re-renders */
 (function () {
   if (typeof renderToolsList !== 'function') return;
@@ -15939,6 +15436,9 @@ function openSettingsTile() { DECK.open('settings'); }
   };
 })();
 
+/* Everything is defined now, so the first paint uses the same code every
+   later render will. Still ahead of DOMContentLoaded, exactly as before. */
+boot();
 </script>
 </body>
 </html>
