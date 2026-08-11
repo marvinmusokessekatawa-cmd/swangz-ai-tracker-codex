@@ -408,6 +408,8 @@
   .reg-row .rr-name { font-weight: 700; min-width: 160px; }
   .reg-row .rr-url  { color: var(--accent); font-size: 12px; word-break: break-all; flex: 1; min-width: 220px; }
   .reg-row .rr-meta { color: var(--muted); font-size: 11px; }
+  /* An address the app refused to link — shown so it can be found and fixed */
+  .reg-row .rr-bad { color: var(--bad); text-decoration: line-through dotted; cursor: help; }
   .reg-row.read-only { opacity: 0.7; }
   .reg-row .rr-actions { display:flex; gap: 6px; }
   .reg-empty { padding: 20px; text-align:center; color: var(--muted); border: 1px dashed var(--border); border-radius: 10px; margin-top: 8px; }
@@ -3968,11 +3970,14 @@
 
     <div id="claimBanner" class="card claim-banner" style="display:none;"></div>
 
+    <!-- The status breakdown was removed from the department side: which
+         stage a tool sits at is an admin's read of the portfolio, not
+         something a team needs shown back to them. What is left is the
+         team's own work — the tools carrying it. -->
     <div class="dept-overview" id="deptOverview" style="display:none;">
       <div class="card">
-        <div class="section-title" style="margin-top:0;">Tool Status Breakdown</div>
-        <p class="help" style="margin:-4px 0 12px;">Where your department's tools are in the adoption journey.</p>
-        <div id="deptStatusRings" class="rings-row"></div>
+        <div class="section-title" style="margin-top:0;">Top tools here</div>
+        <p class="help" style="margin:-4px 0 12px;">Where your department's hours are going.</p>
         <div id="deptTopList" class="dept-top-list"></div>
       </div>
     </div>
@@ -4143,10 +4148,10 @@
               <option value="sec">seconds</option>
               <option value="min">minutes</option>
               <option value="h" selected>hours</option>
-              <option value="d">days</option>
-              <option value="wk">weeks</option>
-              <option value="mo">months</option>
-              <option value="yr">years</option>
+              <option value="d">working days (8 h)</option>
+              <option value="wk">working weeks (40 h)</option>
+              <option value="mo">working months (160 h)</option>
+              <option value="yr">working years (1,920 h)</option>
             </select>
           </div>
           <div class="field-caption" id="cap_tradTime">≈ — h</div>
@@ -4159,10 +4164,10 @@
               <option value="sec">seconds</option>
               <option value="min">minutes</option>
               <option value="h" selected>hours</option>
-              <option value="d">days</option>
-              <option value="wk">weeks</option>
-              <option value="mo">months</option>
-              <option value="yr">years</option>
+              <option value="d">working days (8 h)</option>
+              <option value="wk">working weeks (40 h)</option>
+              <option value="mo">working months (160 h)</option>
+              <option value="yr">working years (1,920 h)</option>
             </select>
           </div>
           <div class="field-caption" id="cap_aiTime">≈ — h</div>
@@ -5074,20 +5079,24 @@ async function sheetsPushAll() {
   const url = (settings.backend.sheetsUrl || '').trim();
   if (!url) throw new Error('Sheets URL not configured');
   // Apps Script POST: { action:'replaceAll', entries:[...] }
+  /* This replaces the whole sheet, so demo rows must never be in it — see
+     supabasePushAll for why a reviewer can be holding them. */
+  const real = entries.filter(e => !e.isDemo);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoid CORS preflight
-    body: JSON.stringify({ action: 'replaceAll', entries }),
+    body: JSON.stringify({ action: 'replaceAll', entries: real }),
   });
   const txt = await res.text();
   let data; try { data = JSON.parse(txt); } catch { throw new Error('Bad response: ' + txt.slice(0,120)); }
   if (!data.ok) throw new Error(data.error || 'Sheets rejected push');
   settings.backend.lastSyncAt = new Date().toISOString();
   settings.backend.lastSyncOk = true;
-  settings.backend.lastSyncMsg = 'Pushed ' + entries.length + ' entries to Sheets';
+  settings.backend.lastSyncMsg = 'Pushed ' + real.length + ' entries to Sheets' +
+    (entries.length !== real.length ? ' (' + (entries.length - real.length) + ' demo rows not sent)' : '');
   saveSettings();
   renderBackendStatus();
-  return { ok: true, count: entries.length };
+  return { ok: true, count: real.length };
 }
 async function sheetsPullAll() {
   const url = (settings.backend.sheetsUrl || '').trim();
@@ -5141,8 +5150,13 @@ async function supabasePushAll() {
   // handled explicitly via supabaseDeleteIds / wipeAll.
   const ep = supabaseEndpoint();
   const headers = await supabaseHeaders();
-  if (entries.length) {
-    const rows = entries.map(e => ({ id: e.id, payload: e, updated_at: e.updatedAt || new Date().toISOString() }));
+  /* Demo rows are for looking at, never for keeping. Seeding is preview-only,
+     but a reviewer can also sign in for real on a preview host — and then the
+     push would carry invented departments and figures into the live table,
+     where they would read as the team's own numbers. They stop here. */
+  const real = entries.filter(e => !e.isDemo);
+  if (real.length) {
+    const rows = real.map(e => ({ id: e.id, payload: e, updated_at: e.updatedAt || new Date().toISOString() }));
     const upHeaders = { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' };
     const res = await fetch(ep + '?on_conflict=id', { method: 'POST', headers: upHeaders, body: JSON.stringify(rows) });
     if (!res.ok) {
@@ -5152,10 +5166,12 @@ async function supabasePushAll() {
   }
   settings.backend.lastSyncAt = new Date().toISOString();
   settings.backend.lastSyncOk = true;
-  settings.backend.lastSyncMsg = 'Synced ' + entries.length + ' entries to Supabase';
+  /* Report what actually went, not what was held — demo rows were left behind */
+  settings.backend.lastSyncMsg = 'Synced ' + real.length + ' entries to Supabase' +
+    (entries.length !== real.length ? ' (' + (entries.length - real.length) + ' demo rows not sent)' : '');
   saveSettings();
   renderBackendStatus();
-  return { ok: true, count: entries.length };
+  return { ok: true, count: real.length };
 }
 /* Targeted delete by id (PostgREST id=in.(...)). Used when an entry is removed
    locally — since the push is now upsert-only, removals must be propagated. */
@@ -5200,7 +5216,10 @@ async function supabasePullAll() {
 }
 
 function fmtUSD(n) {
-  const v = Number(n) || 0;
+  /* An absent figure is genuinely zero; an uncomputable one is not. They
+     must not be coerced together — `Number(n) || 0` turns NaN into a
+     confident "$0", which states a fact nobody established. */
+  const v = (n === null || n === undefined || n === '') ? 0 : Number(n);
   /* A figure that is not a figure must read as one — "$∞" in a board paper
      is worse than an honest dash. */
   if (!isFinite(v)) return '—';
@@ -5209,7 +5228,8 @@ function fmtUSD(n) {
   return (v < 0 ? '-$' : '$') + s;
 }
 function fmtUGX(n) {
-  const v = (Number(n) || 0) * (settings.usdToUgx || 0);
+  const usd = (n === null || n === undefined || n === '') ? 0 : Number(n);
+  const v = usd * (settings.usdToUgx || 0);
   if (!isFinite(v)) return '—';
   const s = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.abs(v));
   return (v < 0 ? '-' : '') + s + ' UGX';
@@ -5446,7 +5466,14 @@ function toolLinkHTML(toolName, officialUrl, opts) {
 
 /* Time unit conversion & formatting
    All storage is (value, unit). All math is in hours. */
-const UNIT_HOURS = { sec: 1/3600, min: 1/60, h: 1, d: 24, wk: 168, mo: 720, yr: 8760 };
+/* Every figure the tracker holds is WORK, not elapsed calendar time, so a
+   day here is a working day and a week a working week. Someone reporting
+   "the old way took 2 days" means two days at a desk — sixteen hours, not
+   forty-eight. Calendar units (24 h, 168 h) would inflate every saving in
+   the business case threefold against the reading any person would give it.
+   Stated once, here, because smartUnit and the appendix both read it. */
+const UNIT_HOURS = { sec: 1/3600, min: 1/60, h: 1, d: 8, wk: 40, mo: 160, yr: 1920 };
+const WORKDAY_HOURS = 8, WORKWEEK_HOURS = 40;
 const UNIT_SHORT = { sec: 's',   min: 'min', h: 'h', d: 'd', wk: 'wk', mo: 'mo', yr: 'yr' };
 const UNIT_LABEL = { sec: 'seconds', min: 'minutes', h: 'hours', d: 'days', wk: 'weeks', mo: 'months', yr: 'years' };
 
@@ -5455,16 +5482,21 @@ function toHours(value, unit) {
   const u = UNIT_HOURS[unit] !== undefined ? UNIT_HOURS[unit] : 1;
   return v * u;
 }
+/* Read the thresholds off the table above rather than restating them —
+   hard-coded boundaries silently disagreed with it the moment a working
+   day stopped being 24 hours. */
 function smartUnit(hours) {
   const h = Math.abs(Number(hours) || 0);
-  if (h === 0)    return 'h';
-  if (h < 1/60)   return 'sec';
-  if (h < 1)      return 'min';
-  if (h < 24)     return 'h';
-  if (h < 168)    return 'd';
-  if (h < 720)    return 'wk';
-  if (h < 8760)   return 'mo';
-  return 'yr';
+  if (h === 0)             return 'h';
+  if (h < UNIT_HOURS.min)  return 'sec';
+  if (h < UNIT_HOURS.h)    return 'min';
+  if (h < UNIT_HOURS.d)    return 'h';
+  if (h < UNIT_HOURS.wk)   return 'd';
+  /* Stop at weeks. Nearly every figure here is a rate per month, and "3.5
+     months saved each month" reads as nonsense even though the arithmetic
+     is right. Months and years stay available for what a person types in —
+     they are just never the unit an answer is given in. */
+  return 'wk';
 }
 function fmtDuration(hours, preferredUnit) {
   const h = Number(hours);
@@ -5871,7 +5903,7 @@ function renderToolsList() {
     const tag = (e.tag === 'request') ? 'request' : 'report';
     const tagLabel = tag === 'request' ? 'Request' : 'Report';
     return `
-      <tr onclick="openTool('${e.id}')">
+      <tr onclick="openTool(${jsArg(e.id)})">
         <td><span class="tt-name">${toolLinkHTML(e.toolName || 'Untitled tool', e.officialUrl)}</span></td>
         <td><span class="pill tag-${tag}">${tagLabel}</span></td>
         <td>${e.category ? escapeHTML(e.category) : '—'}</td>
@@ -5879,7 +5911,7 @@ function renderToolsList() {
         <td><b class="${net>=0?'savings-pos':'savings-neg'}">${fmtUSD(net)}</b></td>
         <td>${fmtDuration(m.timeSavedMonthly)}</td>
         <td>${e.revenueAmount ? fmtUSD(e.revenueAmount) : '—'}</td>
-        <td><button class="tt-remove" title="Remove tool" onclick="event.stopPropagation(); removeTool('${e.id}')">−</button></td>
+        <td><button class="tt-remove" title="Remove tool" onclick="event.stopPropagation(); removeTool(${jsArg(e.id)})">−</button></td>
       </tr>`;
   }).join('');
 
@@ -5991,20 +6023,20 @@ function renderProjects() {
     <div class="project-item">
       <div class="phead">
         <strong>Project</strong>
-        <button class="danger" type="button" onclick="removeProject('${p.id}')">Remove</button>
+        <button class="danger" type="button" onclick="removeProject(${jsArg(p.id)})">Remove</button>
       </div>
       <div class="grid cols-3">
-        <div><label>Project Name</label><input type="text" value="${escapeAttr(p.name)}" oninput="updateProject('${p.id}','name',this.value)" placeholder="e.g. Hare & Ogre EP1" /></div>
-        <div><label>Project Link</label><input type="url" value="${escapeAttr(p.link||'')}" oninput="updateProject('${p.id}','link',this.value)" placeholder="https://…" /></div>
-        <div><label>Term / Short Description</label><input type="text" value="${escapeAttr(p.description)}" oninput="updateProject('${p.id}','description',this.value)" placeholder="e.g. 18-shot animated pilot" /></div>
+        <div><label>Project Name</label><input type="text" value="${escapeAttr(p.name)}" oninput="updateProject(${jsArg(p.id)},'name',this.value)" placeholder="e.g. Hare & Ogre EP1" /></div>
+        <div><label>Project Link</label><input type="url" value="${escapeAttr(p.link||'')}" oninput="updateProject(${jsArg(p.id)},'link',this.value)" placeholder="https://…" /></div>
+        <div><label>Term / Short Description</label><input type="text" value="${escapeAttr(p.description)}" oninput="updateProject(${jsArg(p.id)},'description',this.value)" placeholder="e.g. 18-shot animated pilot" /></div>
       </div>
       <div class="grid cols-2" style="margin-top:10px;">
-        <div><label>Traditional Way</label><textarea oninput="updateProject('${p.id}','traditional',this.value)" placeholder="How this was done without AI — people, time, cost">${escapeHTML(p.traditional)}</textarea></div>
-        <div><label>AI-Assisted Way</label><textarea oninput="updateProject('${p.id}','aiWay',this.value)" placeholder="What AI did — which tool, what workflow, time, cost">${escapeHTML(p.aiWay)}</textarea></div>
+        <div><label>Traditional Way</label><textarea oninput="updateProject(${jsArg(p.id)},'traditional',this.value)" placeholder="How this was done without AI — people, time, cost">${escapeHTML(p.traditional)}</textarea></div>
+        <div><label>AI-Assisted Way</label><textarea oninput="updateProject(${jsArg(p.id)},'aiWay',this.value)" placeholder="What AI did — which tool, what workflow, time, cost">${escapeHTML(p.aiWay)}</textarea></div>
       </div>
       <div style="margin-top:10px;">
         <label>Benefit / Outcome</label>
-        <textarea oninput="updateProject('${p.id}','benefit',this.value)" placeholder="e.g. Delivered in 2 weeks instead of 3 months; client approved first pass">${escapeHTML(p.benefit)}</textarea>
+        <textarea oninput="updateProject(${jsArg(p.id)},'benefit',this.value)" placeholder="e.g. Delivered in 2 weeks instead of 3 months; client approved first pass">${escapeHTML(p.benefit)}</textarea>
       </div>
     </div>
   `).join('');
@@ -6101,8 +6133,10 @@ function populatePlanSuggestions(toolEntry) {
     }).join('');
 
   // Pricing link
-  if (pricingUrl && link) {
-    link.href = pricingUrl;
+  /* Registry entries can carry a URL a teammate typed, so this sink needs
+     the same guard as every other href in the app. */
+  if (pricingUrl && link && safeUrl(pricingUrl)) {
+    link.href = safeUrl(pricingUrl);
     link.style.display = '';
     link.textContent = 'Check current pricing →';
   } else if (link) {
@@ -6562,7 +6596,7 @@ function renderRequestsInbox() {
     const when = e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '';
     const stLabel = (REQUEST_STATUSES.find(s => s.key === st) || {}).label || 'New';
     const buttons = REQUEST_STATUSES.map(s =>
-      `<button class="rb ${s.key === st ? 'active' : ''}" onclick="setRequestStatus('${e.id}','${s.key}')">${s.label}</button>`).join('');
+      `<button class="rb ${s.key === st ? 'active' : ''}" onclick="setRequestStatus(${jsArg(e.id)},${jsArg(s.key)})">${s.label}</button>`).join('');
     return `<div class="req-card">
       <div class="rc-head">
         <div>
@@ -6576,8 +6610,8 @@ function renderRequestsInbox() {
         ${e.impact ? `<div class="rc-field"><div class="k">Expected impact</div>${escapeHTML(e.impact)}</div>` : ''}
         ${e.toolMonthlyCost ? `<div class="rc-field"><div class="k">Est. monthly cost</div>${fmtUSD(e.toolMonthlyCost)} <span style="color:var(--muted)">(${fmtUGX(e.toolMonthlyCost)})</span></div>` : ''}
       </div>
-      <div class="req-actions">${buttons}<button class="rb" style="margin-left:auto;" onclick="openTool('${e.id}')">Open full entry →</button></div>
-      <textarea class="req-note" placeholder="Admin note (internal)…" onchange="setRequestNote('${e.id}', this.value)">${escapeHTML(e.adminNote || '')}</textarea>
+      <div class="req-actions">${buttons}<button class="rb" style="margin-left:auto;" onclick="openTool(${jsArg(e.id)})">Open full entry →</button></div>
+      <textarea class="req-note" placeholder="Admin note (internal)…" onchange="setRequestNote(${jsArg(e.id)}, this.value)">${escapeHTML(e.adminNote || '')}</textarea>
     </div>`;
   }).join('');
 }
@@ -7029,7 +7063,7 @@ function renderManageSubmissions() {
             ${e.submittedAt ? '· ' + new Date(e.submittedAt).toLocaleDateString() : ''}
           </div>
         </div>
-        <button class="secondary" onclick="startReassign('${escapeAttr(e.id)}')">Reassign</button>
+        <button class="secondary" onclick="startReassign(${jsArg(e.id)})">Reassign</button>
       </div>
       <div class="reassign-form" id="rform_${escapeAttr(e.id)}" style="display:none;"></div>
     </div>
@@ -7061,8 +7095,8 @@ function startReassign(entryId) {
       </div>
     </div>
     <div class="row-actions" style="justify-content: flex-start; margin-top: 10px; gap: 8px;">
-      <button class="primary" onclick="saveReassign('${escapeAttr(entryId)}')">Save reassignment</button>
-      <button class="ghost" onclick="cancelReassign('${escapeAttr(entryId)}')">Cancel</button>
+      <button class="primary" onclick="saveReassign(${jsArg(entryId)})">Save reassignment</button>
+      <button class="ghost" onclick="cancelReassign(${jsArg(entryId)})">Cancel</button>
     </div>
     <div class="field-caption" style="margin-top:6px;">Saving updates this entry on the shared backend. The previous submitter will lose it from their My History; the new submitter will see it on every device.</div>
   `;
@@ -7128,7 +7162,7 @@ function renderToolsEntered(list) {
      rather than pushing the page down. */
   grid.className = 'deck-list';
   grid.innerHTML = groups.map(g => `
-    <button type="button" class="deck-row" onclick="showToolDrillDown('${escapeAttr(g.key)}')">
+    <button type="button" class="deck-row" onclick="showToolDrillDown(${jsArg(g.key)})">
       <span class="dr-ico">${svgIcon('wand')}</span>
       <span class="dr-text">
         <b>${escapeHTML(g.name)}</b>
@@ -7276,7 +7310,7 @@ function toolDrillHTML(groupKey) {
         </div>
         <p class="exec-narrative">${escapeHTML(r.narrative)}</p>
         <div class="exec-actions">
-          <button class="secondary" onclick="copyToolReport('${escapeAttr(g.key)}')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg> Copy executive report</button>
+          <button class="secondary" onclick="copyToolReport(${jsArg(g.key)})"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg> Copy executive report</button>
           <button class="ghost" onclick="window.print()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 18H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg> Print</button>
         </div>
       </div>
@@ -7417,7 +7451,7 @@ function renderRegistryManager() {
       ${TOOL_REGISTRY.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t => `
         <div class="reg-row read-only">
           <span class="rr-name">${escapeHTML(t.name)}</span>
-          <a href="${escapeAttr(t.url)}" target="_blank" rel="noopener" class="rr-url">${escapeHTML((t.url||'').replace(/^https?:\/\//,''))}</a>
+          ${urlCellHTML(t.url, 'rr-url')}
         </div>`).join('')}
     `;
     return;
@@ -7429,12 +7463,12 @@ function renderRegistryManager() {
     return `
       <div class="reg-row">
         <span class="rr-name">${escapeHTML(t.name)}</span>
-        <a href="${escapeAttr(t.url)}" target="_blank" rel="noopener" class="rr-url">${escapeHTML((t.url||'').replace(/^https?:\/\//,''))}</a>
+        ${urlCellHTML(t.url, 'rr-url')}
         <span class="rr-meta">added by ${escapeHTML(t.addedByName||'unknown')}${stubLabel}${usage}</span>
         <span class="rr-actions">
-          <button class="ghost" onclick="renameRegistryTool('${escapeAttr(t.url)}')">Rename</button>
-          <button class="ghost" onclick="editRegistryUrl('${escapeAttr(t.url)}')">Fix URL</button>
-          <button class="danger" onclick="deleteRegistryTool('${escapeAttr(t.url)}')">Remove</button>
+          <button class="ghost" onclick="renameRegistryTool(${jsArg(t.url)})">Rename</button>
+          <button class="ghost" onclick="editRegistryUrl(${jsArg(t.url)})">Fix URL</button>
+          <button class="danger" onclick="deleteRegistryTool(${jsArg(t.url)})">Remove</button>
         </span>
       </div>
     `;
@@ -7443,7 +7477,7 @@ function renderRegistryManager() {
     ${TOOL_REGISTRY.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t => `
       <div class="reg-row read-only">
         <span class="rr-name">${escapeHTML(t.name)}</span>
-        <a href="${escapeAttr(t.url)}" target="_blank" rel="noopener" class="rr-url">${escapeHTML((t.url||'').replace(/^https?:\/\//,''))}</a>
+        ${urlCellHTML(t.url, 'rr-url')}
       </div>`).join('')}
   `;
 }
@@ -7696,6 +7730,26 @@ function safeUrl(u){
   try { const p = new URL(s, window.location.href); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : ''; }
   catch (_) { return ''; }
 }
+/* A value that is about to be interpolated into an inline handler is JS
+   source, not text. The HTML parser decodes &#39; back to ' before the
+   handler is compiled, so HTML-escaping alone does NOT keep a quote from
+   closing the string literal and running whatever follows. JSON.stringify
+   writes the quoted literal properly escaped; escapeAttr then keeps it
+   inside the attribute. Both steps are required — use this everywhere a
+   value reaches an on* attribute. */
+function jsArg(v) { return escapeAttr(JSON.stringify(v === undefined ? null : v)); }
+
+/* A stored address is only a link if it is a real web address. Anything
+   else — javascript:, data:, or a typo — is shown as plain text so an
+   admin can still see and fix it, but can never follow it. */
+function urlCellHTML(u, cls) {
+  const safe  = safeUrl(u);
+  const label = escapeHTML((u || '').toString().replace(/^https?:\/\//, ''));
+  return safe
+    ? `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener" class="${cls}">${label}</a>`
+    : `<span class="${cls} rr-bad" title="Not a usable web address — open Fix URL to correct it">${label}</span>`;
+}
+
 function toast(msg, isErr) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -8797,7 +8851,7 @@ function renderUsageGraph() {
       const col = t.net < 0 ? '#ff5c7a' : (STATUS_COLOR[t.status] || '#7c5cff');
       edges += `<line x1="${dx}" y1="${dy}" x2="${tx}" y2="${ty}" stroke="${col}" stroke-width="1" opacity=".3" stroke-dasharray="2 3"/>`;
       toolNodes += `<g class="gnode" tabindex="0" role="button"
-          onclick="selectGraphNode('tool',${JSON.stringify(t.name).replace(/"/g,'&quot;')})"
+          onclick="selectGraphNode('tool',${jsArg(t.name)})"
           onkeydown="if(event.key==='Enter')selectGraphNode('tool',${JSON.stringify(t.name).replace(/"/g,'&quot;')})">
           <circle cx="${tx}" cy="${ty}" r="${rad + 5}" fill="${col}" opacity=".13"/>
           <circle cx="${tx}" cy="${ty}" r="${rad}" fill="${col}"/>
@@ -8805,7 +8859,7 @@ function renderUsageGraph() {
         </g>`;
     });
     deptNodes += `<g class="gnode" tabindex="0" role="button"
-        onclick="selectGraphNode('dept',${JSON.stringify(d.name).replace(/"/g,'&quot;')})"
+        onclick="selectGraphNode('dept',${jsArg(d.name)})"
         onkeydown="if(event.key==='Enter')selectGraphNode('dept',${JSON.stringify(d.name).replace(/"/g,'&quot;')})">
         <circle cx="${dx}" cy="${dy}" r="${dr + 9}" fill="url(#deptGlow)" opacity=".5"/>
         <circle cx="${dx}" cy="${dy}" r="${dr}" fill="url(#deptFill)" stroke="rgba(255,255,255,.32)" stroke-width="1"/>
@@ -9117,7 +9171,13 @@ function clearDemoData() {
   const cv = document.getElementById('starfield');
   if (!cv) return;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  /* A 2d context is not guaranteed — a hardened browser, a headless run or
+     an exhausted context pool all hand back null. This IIFE is at the top
+     level of the script, so throwing here would abandon everything defined
+     below it, the Deck included. The background is decoration; losing it
+     must never cost the app. */
   const ctx = cv.getContext('2d');
+  if (!ctx) return;
   let w = 0, h = 0, dots = [], raf = null;
   const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
   function size() {
@@ -9170,7 +9230,7 @@ function buildAdminNav() {
   );
   nav.innerHTML = items.map(i =>
     `<button type="button" data-sec="${i.id}" class="${i.id === adminSection ? 'active' : ''}"
-       onclick="showAdminSection('${i.id}')">${escapeHTML(i.label.trim())}</button>`).join('');
+       onclick="showAdminSection(${jsArg(i.id)})">${escapeHTML(i.label.trim())}</button>`).join('');
 }
 function showAdminSection(id) {
   adminSection = id;
@@ -9259,7 +9319,7 @@ function renderDeptPicker() {
   host.innerHTML = Object.keys(DEPT_META).map(d => {
     const on = d === current;
     return `<button type="button" role="radio" aria-checked="${on}" class="dept-tile${on ? ' on' : ''}"
-      data-dept="${escapeHTML(d)}" onclick="pickDepartment('${escapeAttr(d)}')">
+      data-dept="${escapeHTML(d)}" onclick="pickDepartment(${jsArg(d)})">
       <span class="dt-name">${escapeHTML(d)}</span>
       <span class="dt-sub">${escapeHTML(DEPT_META[d])}</span>
     </button>`;
@@ -9761,6 +9821,7 @@ function onProfilePhoto(ev) {
       const size = 256, c = document.createElement('canvas');
       c.width = c.height = size;
       const ctx = c.getContext('2d');
+      if (!ctx) { toast('This browser cannot resize the photo', true); return; }
       const side = Math.min(img.width, img.height);
       ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
       profile.avatarUrl = c.toDataURL('image/jpeg', 0.85);
@@ -11529,7 +11590,7 @@ DECK.register('toolNumbers', function (key) {
     html: '<div class="mny-out">' +
       row('Submissions', String(g.entries.length)) +
       row('Departments', String(g.depts.size)) +
-      row('Hours saved', escapeHTML(fmtDuration(r.timeSav)) + (hourlyRate() ? ' <i>worth ' + fmtUSD(r.timeSav * hourlyRate()) + '</i>' : '')) +
+      row('Time saved', escapeHTML(fmtDuration(r.timeSav)) + (hourlyRate() ? ' <i>worth ' + fmtUSD(r.timeSav * hourlyRate()) + '</i>' : '')) +
       row('What the old way cost', fmtUSD(r.tradMo)) +
       row('What this tool costs', fmtUSD(r.aiMo) + ' <i>≈ ' + fmtUGX(r.aiMo) + '</i>') +
       row('Net saved', fmtUSD(r.netSav) + ' <i>≈ ' + fmtUGX(r.netSav) + '</i>', 'total') +
@@ -11585,14 +11646,14 @@ function downloadToolDoc(key) {
     '<h2>The read on it</h2><p>' + escapeHTML(r.narrative) + '</p>' +
     '<h2>The numbers, monthly</h2><table>' +
       row('Submissions', g.entries.length + ' from ' + g.people.size + ' across ' + g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's')) +
-      row('Hours saved', fmtDuration(r.timeSav)) +
+      row('Time saved', fmtDuration(r.timeSav)) +
       row('Traditional cost', fmtUSD(r.tradMo)) +
       row('Tool cost', fmtUSD(r.aiMo)) +
       row('Net saved', fmtUSD(r.netSav) + ' (' + fmtUGX(r.netSav) + ')') +
       row('Revenue attributed', fmtUSD(r.revenue)) +
       row('Return per $1 spent', r.aiMo > 0 ? '$' + (1 + r.netSav / r.aiMo).toFixed(2) : '—') +
     '</table>' +
-    (r.byDept.length ? '<h2>By department</h2><table><tr><th>Department</th><th class="num">Submissions</th><th class="num">Hours saved</th><th class="num">Net saved</th></tr>' +
+    (r.byDept.length ? '<h2>By department</h2><table><tr><th>Department</th><th class="num">Submissions</th><th class="num">Time saved</th><th class="num">Net saved</th></tr>' +
       r.byDept.map(d => '<tr><td>' + escapeHTML(d.dept) + '</td><td class="num">' + d.count + '</td><td class="num">' + fmtDuration(d.time) + '</td><td class="num">' + fmtUSD(d.sav) + '</td></tr>').join('') + '</table>' : '') +
     (r.useCases.length ? '<h2>What it is used for</h2><ul>' + r.useCases.map(u => '<li>' + escapeHTML(u) + '</li>').join('') + '</ul>' : '') +
     '<div class="foot">Generated ' + escapeHTML(stamp()) + '.</div>'), 'application/msword');
@@ -11801,10 +11862,10 @@ function injectAdminSections() {
     '<div class="grid cols-3 calc-grid">' +
       '<div><label for="c_tradTime">Traditional time, per deliverable</label>' +
         '<div class="time-input"><input id="c_tradTime" type="number" min="0" step="0.5" oninput="runCalc()" />' +
-        '<select id="c_tradUnit" onchange="runCalc()"><option value="min">minutes</option><option value="h" selected>hours</option><option value="d">days</option><option value="wk">weeks</option></select></div></div>' +
+        '<select id="c_tradUnit" onchange="runCalc()"><option value="min">minutes</option><option value="h" selected>hours</option><option value="d">working days (8 h)</option><option value="wk">working weeks (40 h)</option></select></div></div>' +
       '<div><label for="c_aiTime">AI-assisted time, per deliverable</label>' +
         '<div class="time-input"><input id="c_aiTime" type="number" min="0" step="0.5" oninput="runCalc()" />' +
-        '<select id="c_aiUnit" onchange="runCalc()"><option value="min">minutes</option><option value="h" selected>hours</option><option value="d">days</option><option value="wk">weeks</option></select></div></div>' +
+        '<select id="c_aiUnit" onchange="runCalc()"><option value="min">minutes</option><option value="h" selected>hours</option><option value="d">working days (8 h)</option><option value="wk">working weeks (40 h)</option></select></div></div>' +
       '<div><label for="c_freq">Deliverables per month</label><input id="c_freq" type="number" min="0" step="1" oninput="runCalc()" /></div>' +
       '<div><label for="c_tradCost">Traditional cost, per deliverable (USD)</label><input id="c_tradCost" type="number" min="0" step="1" oninput="runCalc()" /></div>' +
       '<div><label for="c_sub">Monthly subscription (USD)</label><input id="c_sub" type="number" min="0" step="1" oninput="runCalc()" /></div>' +
@@ -11923,7 +11984,7 @@ function renderToolsSummary() {
   if (meta) meta.textContent = rows.length + ' tool' + (rows.length === 1 ? '' : 's');
   if (strip) strip.innerHTML =
     stat('Tools in use', rows.length, [...new Set(rows.flatMap(g => [...g.depts]))].length + ' departments') +
-    stat('Hours saved / mo', fmtDuration(tot.time), hourlyRate() ? 'worth ' + fmtUSD(tot.time * hourlyRate()) : 'set an hourly rate to value this') +
+    stat('Time saved / mo', fmtDuration(tot.time), hourlyRate() ? 'worth ' + fmtUSD(tot.time * hourlyRate()) : 'set an hourly rate to value this') +
     stat('AI spend / mo', fmtUSD(tot.ai), '≈ ' + fmtUGX(tot.ai)) +
     stat('Net saved / mo', fmtUSD(tot.net), '≈ ' + fmtUGX(tot.net), tot.net >= 0 ? 'pos' : 'neg') +
     stat('Revenue / mo', fmtUSD(tot.rev), tot.unpriced ? tot.unpriced + ' entries still need pricing' : 'every entry priced');
@@ -12171,7 +12232,7 @@ function renderFinance() {
     stat('Old way / mo', fmtUSD(trad), 'cost the tools replace') +
     stat('Net saved / mo', fmtUSD(net), '≈ ' + fmtUGX(net), net >= 0 ? 'pos' : 'neg') +
     stat('Revenue / mo', fmtUSD(rev), 'enabled or protected') +
-    stat('Hours saved / mo', fmtDuration(time), hourlyRate() ? 'worth ' + fmtUSD(time * hourlyRate()) : 'no hourly rate set');
+    stat('Time saved / mo', fmtDuration(time), hourlyRate() ? 'worth ' + fmtUSD(time * hourlyRate()) : 'no hourly rate set');
 
   /* One row per tool. A tool is "waiting on you" while any of its entries
      is uncosted, because the tool's figure is not settled until they all are. */
@@ -12272,7 +12333,7 @@ function runCalc() {
     '</div>' +
     '<div class="calc-head">Per month (' + freq + ' deliverable' + (freq === 1 ? '' : 's') + ')</div>' +
     '<div class="calc-rows">' +
-      row('Hours saved', fmtDuration(savedMo)) +
+      row('Time saved', fmtDuration(savedMo)) +
       row('Those hours in money', hourly > 0 ? money(labourMo) : '<span class="calc-muted">set an hourly rate to value this</span>') +
       row('Old way, total', money(tradMo)) +
       row('Tool, total', money(aiMo)) +
@@ -12485,8 +12546,8 @@ function execLaunchNote() {
   if (!el) return;
   const M = execBriefingModel();
   el.innerHTML = '<b>' + escapeHTML(M.w.label) + '</b> — ' + M.period.length + ' submission' + (M.period.length === 1 ? '' : 's') +
-    ' filed in this period, ' + M.scope.length + ' tool' + (M.scope.length === 1 ? '' : 's') + ' in scope' +
-    (execCarryTotals ? ' (everything to date)' : ' (this period only)') + '.';
+    ' filed' + (M.w.from ? ' in this period' : ' to date') + ', ' + M.scope.length + ' tool' + (M.scope.length === 1 ? '' : 's') + ' in scope' +
+    (execCarryTotals || !M.w.from ? ' (everything to date)' : ' (this period only)') + '.';
 }
 
 /* The briefing is prepared on request and opens as its own tile, so the
@@ -12496,7 +12557,9 @@ DECK.register('execdoc', function () {
   const M = execBriefingModel();
   return {
     title: M.w.cadence + ' Executive Briefing',
-    sub: M.w.label + (execCarryTotals ? ' · running total carried in' : ' · this period only'),
+    /* The subtitle is the first thing read; it must not contradict the
+       document underneath it when the window is everything. */
+    sub: M.w.label + (!M.w.from ? '' : execCarryTotals ? ' · running total carried in' : ' · this period only'),
     icon: 'doc', size: 'wide', noAutofocus: true,
     html: '<div id="execReport" class="exec-report"></div>',
     mount(body) { try { renderExecBriefing(); } catch (e) { body.innerHTML = '<div class="exec-empty">Could not build the briefing: ' + escapeHTML(String(e.message)) + '</div>'; } },
@@ -12696,18 +12759,21 @@ function renderExecBriefing() {
         '<span>Prepared ' + escapeHTML(generated.toLocaleString()) + ' · ' + escapeHTML(currentEmail() || 'admin') + '</span></div>' +
     '</div>' +
 
-    '<div class="exec-scope">' + svgIcon(M.carried ? 'db' : 'clock') +
-      '<span>' + (M.carried
-        ? 'Figures cover <b>everything recorded to date</b>, with this period called out separately below.'
-        : 'Figures cover <b>this period only</b>. Nothing from an earlier week or month is mixed in.') +
+    /* When the window IS everything, "this period only" contradicts itself */
+    '<div class="exec-scope">' + svgIcon(M.carried || !M.w.from ? 'db' : 'clock') +
+      '<span>' + (!M.w.from
+        ? 'Figures cover <b>every report recorded to date</b>. There is no earlier period to leave out.'
+        : M.carried
+          ? 'Figures cover <b>everything recorded to date</b>, with this period called out separately below.'
+          : 'Figures cover <b>this period only</b>. Nothing from an earlier week or month is mixed in.') +
       '</span></div>' +
 
     '<section class="exec-sec">' +
-      '<h3>' + (M.carried ? 'Where we stand' : 'What this period produced') + '</h3>' +
+      '<h3>' + (M.carried || !M.w.from ? 'Where we stand' : 'What this period produced') + '</h3>' +
       '<div class="exec-kpis">' +
-        '<div><span>Tools ' + (M.carried ? 'in the tracker' : 'reported') + '</span><b>' + M.scope.length + '</b>' +
+        '<div><span>Tools ' + (M.carried || !M.w.from ? 'in the tracker' : 'reported') + '</span><b>' + M.scope.length + '</b>' +
           '<i>' + Object.keys(M.byDept).length + ' department' + (Object.keys(M.byDept).length === 1 ? '' : 's') + '</i></div>' +
-        '<div><span>Hours saved each month</span><b>' + escapeHTML(fmtDuration(t.time)) + '</b>' +
+        '<div><span>Time saved each month</span><b>' + escapeHTML(fmtDuration(t.time)) + '</b>' +
           (M.previous && !M.carried ? delta(t.time, M.previous.time, v => fmtDuration(v)) : '<i>' + (hr ? 'worth ' + fmtUSD(labour) : 'no hourly rate set') + '</i>') + '</div>' +
         '<div><span>Net saved each month</span><b class="' + (t.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(t.net)) + '</b>' +
           (M.previous && !M.carried ? delta(t.net, M.previous.net, v => fmtUSD(v)) : '<i>≈ ' + escapeHTML(fmtUGX(t.net)) + '</i>') + '</div>' +
@@ -12719,12 +12785,12 @@ function renderExecBriefing() {
     '</section>' +
 
     '<section class="exec-sec">' +
-      '<h3>Filed in this period</h3>' +
+      '<h3>' + (M.w.from ? 'Filed in this period' : 'Filed to date') + '</h3>' +
       '<div class="exec-period-grid">' +
         '<div><span>Reports</span><b>' + M.reports.length + '</b></div>' +
         '<div><span>Requests</span><b>' + M.requests.length + '</b></div>' +
         '<div><span>Savings added</span><b class="' + (p.net >= 0 ? 'savings-pos' : '') + '">' + escapeHTML(fmtUSD(p.net)) + '</b></div>' +
-        '<div><span>Hours added</span><b>' + escapeHTML(fmtDuration(p.time)) + '</b></div>' +
+        '<div><span>Time added</span><b>' + escapeHTML(fmtDuration(p.time)) + '</b></div>' +
         '<div><span>Departments active</span><b>' + new Set(M.period.map(e => e.department).filter(Boolean)).size + '</b></div>' +
       '</div>' +
       (M.period.length
@@ -12739,7 +12805,7 @@ function renderExecBriefing() {
                 '<td class="num">' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</td>' +
                 '<td class="num ' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + escapeHTML(fmtUSD(m.netMonthlyCostSavedUSD)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
-        : '<div class="exec-empty">Nothing was filed in this period.</div>') +
+        : '<div class="exec-empty">Nothing has been filed' + (M.w.from ? ' in this period' : ' yet') + '.</div>') +
     '</section>' +
 
     (M.previous
@@ -12748,7 +12814,7 @@ function renderExecBriefing() {
           '<div class="table-wrap"><table class="exec-table">' +
             '<thead><tr><th>Measure</th><th class="num">' + escapeHTML(M.previous.label.replace('the ', '')) + '</th><th class="num">This period</th><th class="num">Change</th></tr></thead><tbody>' +
             [['Reports filed', M.previous.count, M.reports.length, v => String(Math.round(v))],
-             ['Hours saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
+             ['Time saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
              ['Net saved / mo', M.previous.net, p.net, v => fmtUSD(v)],
              ['AI spend / mo', M.previous.ai, p.ai, v => fmtUSD(v)],
              ['Revenue / mo', M.previous.rev, p.rev, v => fmtUSD(v)]].map(r => {
@@ -12797,7 +12863,7 @@ function renderExecBriefing() {
     '<section class="exec-sec">' +
       '<h3>Department detail</h3>' +
       '<div class="table-wrap"><table class="exec-table">' +
-        '<thead><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours saved / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr></thead><tbody>' +
+        '<thead><tr><th>Department</th><th class="num">Tools</th><th class="num">Time saved / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr></thead><tbody>' +
         (deptRows.length ? deptRows.map(([d, v]) =>
           '<tr><td><b>' + escapeHTML(d) + '</b></td><td class="num">' + v.count + '</td>' +
           '<td class="num">' + escapeHTML(fmtDuration(v.time)) + '</td>' +
@@ -12851,14 +12917,14 @@ function execNarrative(M, roi, labour) {
   const deptRows = Object.entries(M.byDept).sort((a, b) => b[1].net - a[1].net);
   const top = deptRows[0];
   const bits = [];
-  bits.push((M.carried ? 'Swangz Avenue is running' : 'This period covers') + ' <strong>' + M.scope.length + '</strong> AI tool' + (M.scope.length === 1 ? '' : 's') +
+  bits.push((M.carried || !M.w.from ? 'Swangz Avenue is running' : 'This period covers') + ' <strong>' + M.scope.length + '</strong> AI tool' + (M.scope.length === 1 ? '' : 's') +
     ' across <strong>' + Object.keys(M.byDept).length + '</strong> department' + (Object.keys(M.byDept).length === 1 ? '' : 's') +
     ', saving <strong>' + escapeHTML(fmtDuration(t.time)) + '</strong> and <strong>' + escapeHTML(fmtUSD(t.net)) + '</strong> a month against the way the work used to be done.');
   if (labour > 0) bits.push('Valued at the blended rate, the hours alone are worth <strong>' + escapeHTML(fmtUSD(labour)) + '</strong> a month.');
   if (top) bits.push('<em>' + escapeHTML(top[0]) + '</em> is carrying the most, at <strong>' + escapeHTML(fmtUSD(top[1].net)) + '</strong> a month from ' + top[1].count + ' tool' + (top[1].count === 1 ? '' : 's') + '.');
   if (roi !== null) bits.push('Every dollar of licence spend is returning <strong>$' + (1 + roi).toFixed(2) + '</strong>.');
   if (t.rev > 0) bits.push('On top of that, <strong>' + escapeHTML(fmtUSD(t.rev)) + '</strong> of monthly revenue is attributed to work these tools made possible.');
-  if (M.requests.length) bits.push('<strong>' + M.requests.length + '</strong> new request' + (M.requests.length === 1 ? '' : 's') + ' came in during this period.');
+  if (M.requests.length) bits.push('<strong>' + M.requests.length + '</strong> new request' + (M.requests.length === 1 ? '' : 's') + ' came in' + (M.w.from ? ' during this period' : ' so far') + '.');
   return bits.join(' ');
 }
 
@@ -12897,14 +12963,14 @@ function execBriefingText() {
   L.push('');
   L.push('## Where we stand');
   L.push('- Tools in scope: ' + M.scope.length + ' across ' + Object.keys(M.byDept).length + ' departments');
-  L.push('- Hours saved per month: ' + fmtDuration(t.time) + (hourlyRate() ? ' (worth ' + fmtUSD(t.time * hourlyRate()) + ')' : ''));
+  L.push('- Time saved per month: ' + fmtDuration(t.time) + (hourlyRate() ? ' (worth ' + fmtUSD(t.time * hourlyRate()) + ')' : ''));
   L.push('- Net saved per month: ' + fmtUSD(t.net) + ' (' + fmtUGX(t.net) + ')');
   L.push('- AI spend per month: ' + fmtUSD(t.ai));
   L.push('- Revenue enabled: ' + fmtUSD(t.rev));
   L.push('');
   L.push('## This period');
   L.push('- Reported: ' + M.reports.length + ' · Requested: ' + M.requests.length);
-  L.push('- Savings added: ' + fmtUSD(M.periodTotals.net) + ' · Hours added: ' + fmtDuration(M.periodTotals.time));
+  L.push('- Savings added: ' + fmtUSD(M.periodTotals.net) + ' · Time added: ' + fmtDuration(M.periodTotals.time));
   L.push('');
   L.push('## Tools');
   M.groups.forEach(g => L.push('- ' + g.name + ' — ' + g.entries.length + ' submission' + (g.entries.length === 1 ? '' : 's') +
@@ -12991,10 +13057,14 @@ function execDocBody() {
       '<td class="k">Cadence</td><td>' + escapeHTML(M.w.cadence) + '</td></tr>' +
       '<tr><td class="k">Prepared</td><td>' + escapeHTML(stamp()) + '</td>' +
       '<td class="k">Prepared by</td><td>' + escapeHTML(currentEmail() || 'Administrator') + '</td></tr>' +
+      /* "This period only" is a contradiction when the period IS everything —
+         say what is actually true of the window that was chosen. */
       '<tr><td class="k">Basis of figures</td><td colspan="3">' +
-        (M.carried
-          ? 'Everything recorded to date, with this period stated separately in section 6.'
-          : 'This period only. No figure from an earlier period is carried in.') +
+        (!M.w.from
+          ? 'Every report recorded to date. There is no earlier period to exclude.'
+          : M.carried
+            ? 'Everything recorded to date, with this period stated separately in section 6.'
+            : 'This period only. No figure from an earlier period is carried in.') +
       '</td></tr>' +
       '<tr><td class="k">Classification</td><td colspan="3">Internal — management use</td></tr>' +
     '</table>' +
@@ -13003,7 +13073,8 @@ function execDocBody() {
     H('Purpose and basis') +
     '<p>This briefing sets out what Swangz Avenue is getting from the AI tools its teams use: the ' +
       'time returned to the business, what that time and the tools cost, and what remains to be decided. ' +
-      'It is written from the entries departments filed in the tracker over ' + escapeHTML(M.w.label) + '.</p>' +
+      'It is written from the entries departments filed in the tracker' +
+      (M.w.from ? ' over ' + escapeHTML(M.w.label) : ' to date') + '.</p>' +
     '<p>Departments report the <strong>work</strong> — what the task is, how long it used to take and how long ' +
       'it takes now. Every figure in money is set by the administration team, so the cost side has one author ' +
       'and one method throughout.</p>' +
@@ -13015,7 +13086,7 @@ function execDocBody() {
       '<tr><th>Measure</th><th class="num">Figure</th><th class="num">In shillings</th></tr>' +
       '<tr><td>Tools in scope</td><td class="num">' + M.scope.length + '</td><td class="num">—</td></tr>' +
       '<tr><td>Departments represented</td><td class="num">' + Object.keys(M.byDept).length + '</td><td class="num">—</td></tr>' +
-      '<tr><td>Hours saved per month</td><td class="num">' + escapeHTML(fmtDuration(t.time)) + '</td><td class="num">' + (hr ? fmtUGX(t.time * hr) : '—') + '</td></tr>' +
+      '<tr><td>Time saved per month</td><td class="num">' + escapeHTML(fmtDuration(t.time)) + '</td><td class="num">' + (hr ? fmtUGX(t.time * hr) : '—') + '</td></tr>' +
       '<tr><td>Cost of the old way, per month</td><td class="num">' + fmtUSD(t.trad) + '</td><td class="num">' + fmtUGX(t.trad) + '</td></tr>' +
       '<tr><td>Spent on AI, per month</td><td class="num">' + fmtUSD(t.ai) + '</td><td class="num">' + fmtUGX(t.ai) + '</td></tr>' +
       '<tr><td><strong>Net saved per month</strong></td><td class="num ' + (t.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(t.net) + '</td><td class="num">' + fmtUGX(t.net) + '</td></tr>' +
@@ -13048,7 +13119,7 @@ function execDocBody() {
 
     /* ---- 4. by tool ---- */
     H('Performance by tool') +
-    '<table><tr><th>Tool</th><th>Stage</th><th class="num">Uses</th><th class="num">Depts</th><th class="num">Hours / mo</th><th class="num">Cost / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
+    '<table><tr><th>Tool</th><th>Stage</th><th class="num">Uses</th><th class="num">Depts</th><th class="num">Time / mo</th><th class="num">Cost / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
       (M.groups.length ? M.groups.map(g => '<tr><td>' + escapeHTML(g.name) + '</td><td>' + (g.stage ? escapeHTML(g.stage[0]) : '—') + '</td>' +
         '<td class="num">' + g.entries.length + '</td><td class="num">' + g.depts.size + '</td>' +
         '<td class="num">' + escapeHTML(fmtDuration(g.time)) + '</td><td class="num">' + fmtUSD(g.ai) + '</td>' +
@@ -13058,7 +13129,7 @@ function execDocBody() {
 
     /* ---- 5. by department ---- */
     H('Performance by department') +
-    '<table><tr><th>Department</th><th class="num">Tools</th><th class="num">Hours / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
+    '<table><tr><th>Department</th><th class="num">Tools</th><th class="num">Time / mo</th><th class="num">Old way / mo</th><th class="num">AI spend / mo</th><th class="num">Net / mo</th><th class="num">Revenue / mo</th></tr>' +
       (deptRows.length ? deptRows.map(([d, v]) => '<tr><td>' + escapeHTML(d) + '</td><td class="num">' + v.count + '</td>' +
         '<td class="num">' + escapeHTML(fmtDuration(v.time)) + '</td><td class="num">' + fmtUSD(v.trad) + '</td>' +
         '<td class="num">' + fmtUSD(v.ai) + '</td><td class="num ' + (v.net >= 0 ? 'pos' : 'neg') + '">' + fmtUSD(v.net) + '</td>' +
@@ -13072,14 +13143,14 @@ function execDocBody() {
       ' request' + (M.requests.length === 1 ? '' : 's') + ' were filed, adding ' + escapeHTML(fmtDuration(p.time)) +
       ' saved a month and ' + fmtUSD(p.net) + ' net.</p>' +
     (M.period.length
-      ? '<table><tr><th>Filed</th><th>Tool</th><th>Department</th><th>Submitted by</th><th>Type</th><th class="num">Hours / mo</th><th class="num">Net / mo</th></tr>' +
+      ? '<table><tr><th>Filed</th><th>Tool</th><th>Department</th><th>Submitted by</th><th>Type</th><th class="num">Time / mo</th><th class="num">Net / mo</th></tr>' +
         M.period.slice().sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)).map(e => { const m = monthlySavings(e);
           return '<tr><td>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</td>' +
             '<td>' + escapeHTML(e.toolName || '—') + '</td><td>' + escapeHTML(e.department || '—') + '</td>' +
             '<td>' + escapeHTML(e.submittedBy || '—') + '</td><td>' + (e.tag === 'request' ? 'Request' : 'Report') + '</td>' +
             '<td class="num">' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</td>' +
             '<td class="num">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</td></tr>'; }).join('') + '</table>'
-      : '<p><em>Nothing was filed in this period.</em></p>') +
+      : '<p><em>Nothing has been filed' + (M.w.from ? ' in this period' : ' yet') + '.</em></p>') +
 
     /* ---- 7. movement ---- */
     (M.previous
@@ -13087,7 +13158,7 @@ function execDocBody() {
         '<table>' +
         '<tr><th>Measure</th><th class="num">' + escapeHTML(M.previous.label.replace(/^the /, '')) + '</th><th class="num">This period</th><th class="num">Change</th></tr>' +
         [['Reports filed', M.previous.count, M.reports.length, v => String(Math.round(v))],
-         ['Hours saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
+         ['Time saved / mo', M.previous.time, p.time, v => fmtDuration(v)],
          ['Net saved / mo', M.previous.net, p.net, v => fmtUSD(v)],
          ['AI spend / mo', M.previous.ai, p.ai, v => fmtUSD(v)],
          ['Revenue / mo', M.previous.rev, p.rev, v => fmtUSD(v)]].map(r => {
@@ -13122,15 +13193,20 @@ function execDocBody() {
     '<h2>Appendix A — Method and definitions</h2>' +
     '<table>' +
       '<tr><th style="width:32%">Term</th><th>How it is calculated</th></tr>' +
-      '<tr><td class="k">Hours saved per month</td><td>(time the old way − time with the tool) × deliverables per month, summed across every entry in scope.</td></tr>' +
+      '<tr><td class="k">Time saved per month</td><td>(time the old way − time with the tool) × deliverables per month, summed across every entry in scope. Figures are person-hours of work.</td></tr>' +
+      '<tr><td class="k">Days and weeks</td><td>Working time, not calendar time: a day is ' + WORKDAY_HOURS +
+        ' hours and a week is ' + WORKWEEK_HOURS + '. A saving shown as one week is ' + WORKWEEK_HOURS +
+        ' person-hours returned to the team.</td></tr>' +
       '<tr><td class="k">Cost of the old way</td><td>Cost per deliverable × deliverables per month. Set by an administrator, never by the reporting department.</td></tr>' +
       '<tr><td class="k">Spent on AI</td><td>Monthly subscription + extra credits, per tool.</td></tr>' +
       '<tr><td class="k">Net saved</td><td>Cost of the old way − spent on AI. It does not include the value of the hours, which is stated separately.</td></tr>' +
-      '<tr><td class="k">Value of hours</td><td>' + (hr ? 'Hours saved × ' + fmtUSD(hr) + ' per hour, the blended rate set by the administration team.' : 'Not stated — no blended hourly rate has been set, so hours are reported as hours only.') + '</td></tr>' +
+      '<tr><td class="k">Value of the time</td><td>' + (hr ? 'Hours saved × ' + fmtUSD(hr) + ' per hour, the blended rate set by the administration team.' : 'Not stated — no blended hourly rate has been set, so the time saved is reported as time only.') + '</td></tr>' +
       '<tr><td class="k">Revenue enabled</td><td>Revenue attributed by an administrator to work these tools made possible. Not counted as a saving.</td></tr>' +
       '<tr><td class="k">Return per $1</td><td>1 + (net saved ÷ spend on AI). Undefined where nothing has been spent.</td></tr>' +
       '<tr><td class="k">Currency</td><td>Figures are in US Dollars, converted at ' + escapeHTML(String(rate)) + ' UGX to the Dollar.</td></tr>' +
-      '<tr><td class="k">Scope</td><td>' + (M.carried ? 'Every report recorded to date.' : 'Reports filed within ' + escapeHTML(M.w.label) + ' only.') +
+      '<tr><td class="k">Scope</td><td>' +
+        (M.carried || !M.w.from ? 'Every report recorded to date.'
+                                : 'Reports filed within ' + escapeHTML(M.w.label) + ' only.') +
         ' Requests are excluded from every money figure — they are proposals, not results.</td></tr>' +
     '</table>' +
 
@@ -13216,7 +13292,11 @@ function execFindings(M, roi, unpriced, pending) {
   if (roi !== null) {
     add('Return on licence spend',
       'Every dollar spent on licences is returning $' + (1 + roi).toFixed(2) + '. ' +
-      (roi >= 1 ? 'The programme is paying for itself more than twice over.'
+      /* The sentence has to keep pace with the number. "More than twice
+         over" is true of a 95× return and reads as though it were written
+         for someone else's figures. */
+      (roi >= 9 ? 'At that rate the licences are returning about ' + Math.round(1 + roi) + ' times what they cost.'
+                : roi >= 1 ? 'The programme is paying for itself more than twice over.'
                 : roi > 0 ? 'The programme is ahead, but not yet doubling its spend.'
                           : 'The programme is behind at current volumes.'),
       roi >= 1 ? 'good' : roi > 0 ? 'watch' : 'risk',
@@ -13283,7 +13363,7 @@ function execWorkbookModel() {
     [T('Swangz Avenue — AI Adoption'), T(M.w.cadence + ' briefing')],
     [S('Period'), S(M.w.label)],
     [S('Prepared'), S(stamp())],
-    [S('Basis'), S(M.carried ? 'Everything recorded to date' : 'This period only')],
+    [S('Basis'), S(M.carried || !M.w.from ? 'Everything recorded to date' : 'This period only')],
     gap,
     [H('Inputs'), H('Value')],
     [S('US Dollar to Ugandan Shilling'), N(rate)],
@@ -13921,19 +14001,18 @@ function renderMyHistoryCard() {
   const list = myEntries();
   if (!list.length) { card.style.display = 'none'; return; }
   let time = 0, projects = 0;
-  const statusCount = {};
   list.forEach(e => {
     time += monthlySavings(e).timeSavedMonthly;
     projects += (e.projects || []).length;
-    if (e.status) statusCount[e.status] = (statusCount[e.status] || 0) + 1;
   });
-  const stages = Object.entries(statusCount).map(([k, v]) => k.split(' ')[0] + ': ' + v).join(' · ');
   card.style.display = 'block';
+  /* No status mix here either — the same reason the breakdown left the
+     department overview. A person's own history is what they did, not a
+     tally of the labels they picked. */
   document.getElementById('myHistoryStats').innerHTML =
     '<div><div class="lbl">Tools submitted</div><div class="val">' + list.length + '</div></div>' +
     '<div><div class="lbl">Time saved / mo</div><div class="val">' + fmtDuration(time) + '</div></div>' +
-    '<div><div class="lbl">Projects logged</div><div class="val">' + projects + '</div></div>' +
-    (stages ? '<div><div class="lbl">Status mix</div><div class="val" style="font-size:13px; font-weight:700;">' + escapeHTML(stages) + '</div></div>' : '');
+    '<div><div class="lbl">Projects logged</div><div class="val">' + projects + '</div></div>';
 }
 
 function renderDeptOverview() {
@@ -13944,27 +14023,12 @@ function renderDeptOverview() {
   if (!list.length) return;
 
   /* The momentum chart is gone — a six-month curve of one team's own hours
-     said very little that the status rings and the top-tools list do not say
-     more plainly, and it was the tallest thing on the page. */
-  const rings = document.getElementById('deptStatusRings');
-  if (rings) {
-    const groups = {};
-    list.forEach(e => { const s = e.status || 'Unspecified'; groups[s] = (groups[s] || 0) + 1; });
-    const colors = { 'In Active Use': CHART_GREEN, 'Piloting': CHART_VIOLET, 'Scaling Across Team': CHART_SKY, 'Requesting (need to invest)': CHART_ROSE };
-    rings.innerHTML = Object.entries(groups).map(([label, n]) => {
-      const pct = Math.round(n / list.length * 100), col = colors[label] || CHART_GOLD;
-      const R = 26, C = 2 * Math.PI * R, len = C * pct / 100;
-      return '<div class="ring">' +
-        '<svg viewBox="0 0 64 64" aria-label="' + escapeAttr(label) + ' ' + pct + '%">' +
-          '<circle cx="32" cy="32" r="' + R + '" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>' +
-          '<circle cx="32" cy="32" r="' + R + '" fill="none" stroke="' + col + '" stroke-width="7" stroke-linecap="round" ' +
-            'stroke-dasharray="' + len + ' ' + (C - len) + '" transform="rotate(-90 32 32)"/>' +
-          '<text x="32" y="37" text-anchor="middle" class="ring-num">' + pct + '%</text>' +
-        '</svg>' +
-        '<span class="ring-lbl">' + escapeHTML(label) + '<i>' + n + ' tool' + (n > 1 ? 's' : '') + '</i></span>' +
-      '</div>';
-    }).join('');
-  }
+     said very little that the top-tools list does not say more plainly, and
+     it was the tallest thing on the page. The status breakdown is gone too:
+     which stage a tool sits at is the admin's read of the portfolio, and
+     showing a team a ring chart of its own statuses told them nothing they
+     had not just typed in. What remains is the one useful answer — which
+     tools are carrying the hours. */
 
   const top = document.getElementById('deptTopList');
   if (top) {
@@ -13972,7 +14036,8 @@ function renderDeptOverview() {
     list.forEach(e => { const n = e.toolName || '—'; agg[n] = (agg[n] || 0) + monthlySavings(e).timeSavedMonthly; });
     const rows = Object.entries(agg).sort((a, b) => b[1] - a[1]).slice(0, 4);
     const max = Math.max(1, ...rows.map(r => Math.abs(r[1])));
-    top.innerHTML = '<div class="section-title" style="font-size:12px; margin:18px 0 8px;">Top tools here</div>' +
+    /* The card states the heading now, so the list does not repeat it */
+    top.innerHTML =
       rows.map(([n, v]) =>
         '<div class="top-tool" style="padding:8px 6px;">' +
           '<span class="tt-name" style="font-size:12.5px;">' + escapeHTML(n) + '</span>' +
@@ -14779,7 +14844,7 @@ DECK.register('deptAnalysis', function (dept) {
     html:
       '<div class="sum-strip">' +
         stat('Tools', tools.length, people.length + ' reporting') +
-        stat('Hours / mo', fmtDuration(time), hourlyRate() ? 'worth ' + fmtUSD(time * hourlyRate()) : 'no hourly rate') +
+        stat('Time / mo', fmtDuration(time), hourlyRate() ? 'worth ' + fmtUSD(time * hourlyRate()) : 'no hourly rate') +
         stat('Net / mo', fmtUSD(net), '≈ ' + fmtUGX(net), net >= 0 ? 'pos' : 'neg') +
         stat('AI spend / mo', fmtUSD(ai), 'against ' + fmtUSD(trad) + ' the old way') +
         (rev ? stat('Revenue / mo', fmtUSD(rev), 'attributed here') : '') +
