@@ -1378,12 +1378,7 @@
   .pm-sep { height: 1px; background: var(--glass-border); margin: 5px 8px; }
 
   .dept-overview { margin-bottom: 18px; }
-  .rings-row { display: flex; gap: 16px; flex-wrap: wrap; }
-  .ring { display: flex; align-items: center; gap: 9px; }
-  .ring svg { width: 58px; height: 58px; flex: 0 0 auto; }
-  .ring-num { fill: var(--text); font-size: 15px; font-weight: 800; font-family: var(--font-mono); }
-  .ring-lbl { display: flex; flex-direction: column; font-size: 12px; font-weight: 700; line-height: 1.35; }
-  .ring-lbl i { font-style: normal; font-size: 11px; color: var(--muted); font-weight: 500; }
+  /* the status rings left the department view; their styles went with them */
   .dept-top-list .top-tool:hover { transform: none; }
 
   @media (max-width: 919px) {
@@ -1391,7 +1386,6 @@
     .quick-stats { gap: 8px; }
     .qs { flex: 1 1 calc(50% - 4px); padding: 9px 11px; }
     .qs-text b { font-size: 13.5px; }
-    .rings-row { justify-content: space-between; }
   }
 
   /* ============================================================
@@ -2254,9 +2248,6 @@
     .quick-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .qs { flex: none; }
 
-    /* Charts and rings need room to breathe rather than being squeezed */
-    .rings-row { gap: 12px; }
-    .ring svg { width: 52px; height: 52px; }
     .chart-wrap { overflow-x: hidden; }
   }
 
@@ -5614,7 +5605,7 @@ function renderAdminGate() {
       <div class="card lock-card">
         <div class="lock-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
         <h2>Admin Access</h2>
-        <p class="help">Enter the admin password to view the dashboard.</p>
+        <p class="help">Enter the admin password to view the dashboard.${otpAvailable() ? '' : ' Sign-in is your Google account and this password; email codes stay off until a mail endpoint is set.'}</p>
         <div id="adm_error" class="gate-error" style="display:none;"></div>
         <div style="margin:14px 0;">
           <label>Password</label>
@@ -5689,19 +5680,19 @@ function lockAdmin() {
   toast('Admin locked');
 }
 
-async function changeAdminPassword() {
-  const current = prompt('Enter current admin password:');
-  if (current === null) return;
-  const curHash = await sha256(current);
-  if (curHash !== settings.adminPasswordHash) { toast('Wrong current password', true); return; }
-  const a = prompt('Enter new password (min 4 chars):');
-  if (a === null) return;
-  if (!a || a.length < 4) { toast('Too short', true); return; }
-  const b = prompt('Confirm new password:');
-  if (b !== a) { toast('Passwords do not match', true); return; }
-  settings.adminPasswordHash = await sha256(a);
-  saveSettings();
-  toast('Password changed');
+/* This asked three chained native prompt()s. Each freezes the whole page, no
+   test can drive them, and a password typed into one is shown in clear text.
+   Profile & Settings already carries a proper form with masked fields, so
+   this opens that instead of asking anything itself. */
+function changeAdminPassword() {
+  if (typeof openProfileSettings !== 'function') { toast('Open Profile & Settings to change the password', true); return; }
+  openProfileSettings();
+  /* the tile builds on the next frame; put the cursor where it belongs */
+  setTimeout(() => {
+    const f = document.getElementById('psPwdOld') || document.getElementById('psPwdNew');
+    if (!f) return;
+    try { f.scrollIntoView({ block: 'center', behavior: 'smooth' }); f.focus(); } catch (_) {}
+  }, 220);
 }
 
 function requestPasswordReset() {
@@ -8117,8 +8108,11 @@ async function sendAdminOtp() {
       toast('Could not send the code — check the backend', true);
       return;
     }
+  } else if (typeof isLocalDev === 'function' && isLocalDev()) {
+    state.preview = code;                 // preview hosts only, so the flow can be shown
   } else {
-    state.preview = code;                 // preview delivery only
+    toast('No mail endpoint is set, so a code cannot be sent', true);
+    return;
   }
   setOtpState(state);
   renderAdminGate();
@@ -8141,6 +8135,18 @@ function otpVerified() {
   return !!(st && st.verified && st.email === currentEmail() && Date.now() < st.exp + 60 * 60 * 1000);
 }
 
+/* A code emailed to you is a second factor. A code printed on the screen in
+   front of you is not — it proves nothing about who is reading it, and a
+   step that proves nothing is worse than no step, because it looks like
+   security. So: with no endpoint configured, the email step runs only on a
+   preview host, where showing the code is how the flow gets demonstrated.
+   On the real site the app says plainly that it is Google plus a password
+   until someone sets OTP_ENDPOINT. */
+function otpAvailable() {
+  if (OTP_ENDPOINT) return true;
+  return typeof isLocalDev === 'function' && isLocalDev();
+}
+
 /* Admin gate: refuse non-admins BEFORE the password screen is shown. */
 (function () {
   if (typeof renderAdminGate !== 'function') return;
@@ -8149,7 +8155,8 @@ function otpVerified() {
     const gate = document.getElementById('adminGate');
     if (canSeeAdmin()) {
       // Step 2 of the gate: email OTP, between Google sign-in and the password.
-      if (!otpVerified()) {
+      // Skipped outright where the code cannot actually be emailed — see otpAvailable().
+      if (!otpVerified() && otpAvailable()) {
         if (typeof showAdminGateOnly === 'function') showAdminGateOnly();
         if (!gate) return;
         const st = otpState();
@@ -8434,7 +8441,7 @@ function renderAdminsPanel() {
   ).concat(extraAdmins().map(e =>
     '<div class="reg-row"><span class="rr-name">' + esc(e) + '</span>' +
     '<span class="pill dept">Admin</span>' +
-    (isOwner ? '<span class="rr-actions"><button type="button" class="danger" onclick="removeAdminEmail(\'' + esc(e) + '\')">Remove</button></span>' : '') +
+    (isOwner ? '<span class="rr-actions"><button type="button" class="danger" onclick="removeAdminEmail(' + jsArg(e) + ')">Remove</button></span>' : '') +
     '</div>'
   ));
   list.innerHTML = rows.join('');
@@ -8570,7 +8577,7 @@ function renderUsageGraph() {
       edges += `<line x1="${dx}" y1="${dy}" x2="${tx}" y2="${ty}" stroke="${col}" stroke-width="1" opacity=".3" stroke-dasharray="2 3"/>`;
       toolNodes += `<g class="gnode" tabindex="0" role="button"
           onclick="selectGraphNode('tool',${jsArg(t.name)})"
-          onkeydown="if(event.key==='Enter')selectGraphNode('tool',${JSON.stringify(t.name).replace(/"/g,'&quot;')})">
+          onkeydown="if(event.key==='Enter')selectGraphNode('tool',${jsArg(t.name)})">
           <circle cx="${tx}" cy="${ty}" r="${rad + 5}" fill="${col}" opacity=".13"/>
           <circle cx="${tx}" cy="${ty}" r="${rad}" fill="${col}"/>
           <title>${escapeHTML(t.name)} — ${escapeHTML(d.name)} · ${fmtUSD(t.net)}/mo</title>
@@ -8578,7 +8585,7 @@ function renderUsageGraph() {
     });
     deptNodes += `<g class="gnode" tabindex="0" role="button"
         onclick="selectGraphNode('dept',${jsArg(d.name)})"
-        onkeydown="if(event.key==='Enter')selectGraphNode('dept',${JSON.stringify(d.name).replace(/"/g,'&quot;')})">
+        onkeydown="if(event.key==='Enter')selectGraphNode('dept',${jsArg(d.name)})">
         <circle cx="${dx}" cy="${dy}" r="${dr + 9}" fill="url(#deptGlow)" opacity=".5"/>
         <circle cx="${dx}" cy="${dy}" r="${dr}" fill="url(#deptFill)" stroke="rgba(255,255,255,.32)" stroke-width="1"/>
         <text x="${dx + (Math.cos(a) >= 0 ? dr + 9 : -(dr + 9))}" y="${dy - 1}"
@@ -10402,20 +10409,9 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
   });
 })();
 
-/* 4. "Change password" in Admin Actions fired three chained native prompt()s —
-   each one freezes the page, and the password is typed in clear text. Profile &
-   Settings already carries a proper form for this, so send them there. */
-(function () {
-  if (typeof changeAdminPassword !== 'function' || typeof openProfileSettings !== 'function') return;
-  window.changeAdminPassword = function () {
-    openProfileSettings();
-    setTimeout(() => {
-      const f = document.getElementById('psPwdOld') || document.getElementById('psPwdNew');
-      if (!f) return;
-      try { f.scrollIntoView({ block: 'center', behavior: 'smooth' }); f.focus(); } catch (_) {}
-    }, 220);
-  };
-})();
+/* 4. "Change password" used to be patched here to stop it firing native
+   prompt()s. It now does the right thing where it is defined, so there is
+   nothing left to wrap. */
 
 /* ============================================================
    THE DECK

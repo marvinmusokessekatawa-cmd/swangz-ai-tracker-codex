@@ -1,2 +1,8 @@
 # Local Netlify folder
 .netlify
+
+# Test harness dependencies
+test/node_modules
+test/*.json
+!test/package.json
+shots/

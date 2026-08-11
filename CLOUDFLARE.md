@@ -62,3 +62,26 @@ under **Waiting on you**.
   `index.html` so the sign-in bypass cannot reach any deployed host.
 - Ask Marvin to add the final URL to Supabase → **Authentication → URL
   Configuration → Redirect URLs**, or Google sign-in will not complete.
+- Decide about the admin email code — see below.
+
+Run `cd test && npm run audit` to be told which of these are still outstanding.
+
+## The admin's second factor
+
+The admin gate can be three steps — Google, then a 6-digit code emailed to you,
+then the admin password. The middle step needs a server: a browser cannot send
+email. `OTP_ENDPOINT` at the top of the script is where that server goes; it
+receives `{email, code}` and sends the message.
+
+**Until it is set, the email step does not run on the live site.** Sign-in is
+your Google account plus the admin password, and the gate says so. It is not
+skipped quietly, and the code is never printed on screen on a real host — a
+code shown to whoever is already looking at the screen proves nothing about who
+they are, and a step that proves nothing is worse than no step, because it
+looks like security.
+
+On a preview host the step still runs and shows the code, so the flow can be
+demonstrated to Marvin without a backend.
+
+To turn it on for real: deploy an Apps Script or Supabase Edge Function that
+takes `{email, code}` and mails it, then set `OTP_ENDPOINT` to its URL.
