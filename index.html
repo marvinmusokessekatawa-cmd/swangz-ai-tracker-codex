@@ -513,6 +513,11 @@
                 box-shadow .34s cubic-bezier(.16,.84,.32,1);
   }
   .wiz-progress .ws:not(:disabled) { cursor: pointer; }
+  /* The bar is 4px tall by design; a 4px tap target is not. The hit area is
+     expanded with a transparent overlay so the mark stays thin and the
+     finger still lands. */
+  .wiz-progress .ws { position: relative; }
+  .wiz-progress .ws::after { content: ''; position: absolute; inset: -12px 0; }
   .wiz-progress .ws:not(:disabled):hover { background: rgba(255,255,255,0.26); transform: scaleY(1.5); }
   .wiz-progress .ws:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .wiz-progress .ws.done { background: linear-gradient(90deg, var(--accent-strong), var(--accent)); }
@@ -3837,6 +3842,22 @@
   /* Buttons that carry an icon and a word need the gap stated, or the two
      touch on the narrow ones */
   .ash-btn, .dp-foot button, .exec-launch-actions button, .doc-actions button { gap: 8px; }
+
+  /* ==================================================================
+     TOUCH TARGETS — last, because equal-specificity rules further up the
+     sheet would otherwise win. Scoped to a coarse pointer so the desktop
+     cannot be affected by anything in here; the two have to be right
+     independently of each other.
+     ================================================================== */
+  @media (pointer: coarse) {
+    input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; }
+    label > input[type="checkbox"], label > input[type="radio"] { margin-right: 9px; }
+    .gt-btn, .wiz-close, .bot-close, .profile-menu-btn { width: 42px; height: 42px; }
+    .dp-btn { width: 40px; height: 40px; }
+    /* the filter/period pill rows sit right on the 44px guidance */
+    .fin-tabs button, .exec-periods button, #execPeriods button { min-height: 42px; }
+  }
+
 </style>
 </head>
 <body>

@@ -9,7 +9,8 @@
     "sweep": "node sweep.js",
     "shots": "node shots.js",
     "report": "node report.js",
-    "chrome": "node chrome.js"
+    "chrome": "node chrome.js",
+    "mobile": "node mobile.js"
   },
   "devDependencies": {
     "acorn": "^8.14.0",
