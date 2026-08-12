@@ -494,27 +494,41 @@
   }
   .seg button.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0d12; }
 
-  /* Progress stepper */
-  .wiz-progress { display:flex; align-items:center; gap: 6px; margin-top: 16px; overflow-x: auto; padding-bottom: 2px; }
-  .wiz-progress .ws { display:flex; align-items:center; gap: 6px; flex: 0 0 auto; }
-  .wiz-progress .ws .dot {
-    width: 26px; height: 26px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
-    font-size: 12px; font-weight: 700; border: 1px solid var(--border-2);
-    background: var(--panel); color: var(--muted); flex: 0 0 auto;
+  /* Progress: one dash per step, nothing else. Every dash is a button, so a
+     step already visited can be gone back to by clicking its dash. */
+  .wiz-progress { display:flex; align-items:center; gap: 7px; margin-top: 18px; }
+  .wiz-progress .ws {
+    flex: 1 1 0; height: 4px; min-width: 12px; padding: 0; border: 0; border-radius: 999px;
+    background: rgba(255,255,255,0.10); cursor: default; appearance: none;
+    /* transform and background only — both composite without a repaint */
+    transition: background .34s cubic-bezier(.16,.84,.32,1),
+                transform .34s cubic-bezier(.16,.84,.32,1),
+                box-shadow .34s cubic-bezier(.16,.84,.32,1);
   }
-  .wiz-progress .ws .lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
-  .wiz-progress .ws.current .dot { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0b0d12; border-color: transparent; }
-  .wiz-progress .ws.current .lbl { color: var(--text); font-weight: 700; }
-  .wiz-progress .ws.done .dot { background: var(--good); color:#0b0d12; border-color: transparent; cursor: pointer; }
-  .wiz-progress .ws.done .lbl { color: var(--text); cursor: pointer; }
-  .wiz-progress .ws.clickable { cursor: pointer; }
-  .wiz-progress .sep { flex: 1 1 14px; min-width: 12px; height: 1px; background: var(--border); }
+  .wiz-progress .ws:not(:disabled) { cursor: pointer; }
+  .wiz-progress .ws:not(:disabled):hover { background: rgba(255,255,255,0.26); transform: scaleY(1.5); }
+  .wiz-progress .ws:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .wiz-progress .ws.done { background: linear-gradient(90deg, var(--accent-strong), var(--accent)); }
+  .wiz-progress .ws.current {
+    background: linear-gradient(90deg, var(--accent-strong), var(--accent-2));
+    transform: scaleY(1.75);
+    box-shadow: 0 0 0 3px rgba(245,197,66,0.10);
+  }
 
-  /* Body: only the active step shows; steps slide in */
+  /* Body: only the active step shows. The panel's height is animated in
+     gotoStep — without that the box snapped to the new height while the
+     content was still sliding, which is what read as "not smooth". */
   .wizard-body { padding: 20px 24px; overflow-y: auto; }
+  .wizard-body.measuring { overflow: hidden; }
   .wizard-step { display: none; }
-  .wizard-step.active { display: block; animation: step-in .22s ease; }
-  @keyframes step-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+  .wizard-step.active { display: block; animation: step-in .34s cubic-bezier(.16,.84,.32,1); }
+  @keyframes step-in { from { opacity: 0; transform: translate3d(10px,0,0); } to { opacity: 1; transform: none; } }
+  .wizard-step.active.back { animation-name: step-in-back; }
+  @keyframes step-in-back { from { opacity: 0; transform: translate3d(-10px,0,0); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .wizard-step.active { animation: none; }
+    .wiz-progress .ws { transition: none; }
+  }
   .wizard-step .step-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
   .wizard-step .step-help { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
   .wiz-error { display:none; margin-top: 12px; padding: 9px 12px; border-radius: 8px;
@@ -531,7 +545,6 @@
     .wizard-overlay { padding: 0; }
     .wizard { max-width: none; min-height: 100vh; min-height: 100dvh; max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
     .wizard-foot { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-    .wiz-progress .ws .lbl { display: none; }
   }
 
   /* Request / Report tag pills */
@@ -839,6 +852,7 @@
   /* One mark only: the Swangz badge beside the product name. */
   .brand-badge { height: 32px; width: auto; display: block; flex: 0 0 auto;
                  filter: drop-shadow(0 4px 14px var(--accent-glow)); }
+  .brand-name .brand-line2 { display: block; }
   .brand-name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.2;
                 letter-spacing: .2px; color: var(--text); }
   img.auth-logo {
@@ -1833,19 +1847,9 @@
   .wizard-body .field-caption { line-height: 1.5; }
 
   /* Progress stepper — clearer states */
-  .wiz-progress { gap: 8px; margin-top: 18px; padding-bottom: 4px; }
-  .wiz-progress .ws .dot {
-    width: 28px; height: 28px; font-size: 12.5px;
-    background: rgba(255,255,255,0.05); border-color: var(--glass-border);
-    transition: background .25s, color .25s, box-shadow .25s;
-  }
-  .wiz-progress .ws.current .dot {
-    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-    color: #0b0616; box-shadow: 0 4px 16px var(--accent-glow);
-  }
-  .wiz-progress .ws.done .dot { background: var(--c-emerald); color: #04120c; }
-  .wiz-progress .ws .lbl { font-size: 11.5px; }
-  .wiz-progress .sep { background: var(--glass-border); }
+  /* the numbered dots became dashes — the bar's own rules carry it now */
+  .wiz-progress { gap: 8px; margin-top: 18px; }
+  .wiz-progress .ws.current { box-shadow: 0 0 0 3px var(--accent-glow); }
 
   /* Segmented Report / Request control */
   .seg { background: rgba(255,255,255,0.05); border-color: var(--glass-border); padding: 4px; }
@@ -2201,7 +2205,7 @@
   @media (max-width: 919px) {
     /* The brand is stacked on two lines for the desktop rail; on a horizontal
        top bar that made the header tall and pushed everything down. */
-    .brand-name br { display: none; }
+    .brand-name .brand-line2 { display: inline; }
     .brand-name { font-size: 14px; white-space: nowrap; line-height: 1.15; }
     header {
       align-items: center; gap: 10px; flex-wrap: nowrap;
@@ -2443,8 +2447,6 @@
   #detailView .wizard-head { text-align: left; }
   /* The submission type was already chosen on the way in */
   body[data-flow="guided"] #wizTagRow { display: none; }
-  /* Progress reads as a slim bar rather than a row of numbered dots */
-  .wiz-progress .ws.done .dot { background: var(--c-emerald); }
 
   /* ============================================================
      DISCLOSURES — heavy panels stay folded until asked for
@@ -3554,21 +3556,26 @@
     transition: border-color .18s, background .18s;
   }
   .ps-pane[open] { border-color: rgba(167,139,250,0.28); background: rgba(255,255,255,0.045); }
+  /* Compact rows: three of these stacked used to fill the screen before a
+     single field was reached. One opens at a time, so the tile stays the
+     size of the thing being edited. */
   .ps-pane > summary {
     list-style: none; cursor: pointer; user-select: none;
-    display: flex; align-items: center; gap: 12px; padding: 13px 15px;
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
   }
   .ps-pane > summary::-webkit-details-marker { display: none; }
-  .ps-pane > summary:hover { background: rgba(255,255,255,0.04); }
+  .ps-pane > summary:hover { background: rgba(255,255,255,0.05); }
+  .ps-pane > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
   .pp-ico {
-    flex: 0 0 auto; width: 32px; height: 32px; border-radius: 10px;
+    flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px;
     display: grid; place-items: center; color: var(--accent);
     background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.2);
   }
-  .pp-ico .ico { width: 16px; height: 16px; }
+  .pp-ico .ico { width: 14px; height: 14px; }
   .pp-text { min-width: 0; flex: 1; }
-  .pp-text b { display: block; font-size: 13.5px; font-weight: 700; }
-  .pp-text i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted-2); margin-top: 2px; font-weight: 600; }
+  .pp-text b { display: block; font-size: 12.75px; font-weight: 700; line-height: 1.25; }
+  .pp-text i { display: block; font-style: normal; font-size: 11px; color: var(--muted-2); margin-top: 1px; font-weight: 600;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pp-caret { flex: 0 0 auto; color: var(--muted-2); display: grid; place-items: center; transition: transform .28s cubic-bezier(.16,.84,.32,1); }
   .pp-caret .ico { width: 16px; height: 16px; }
   .ps-pane[open] > summary .pp-caret { transform: rotate(180deg); color: var(--accent); }
@@ -3761,7 +3768,10 @@
 <header>
   <div class="brand">
     <img class="brand-badge" src="assets/swangz-badge.webp" alt="Swangz" />
-    <h1 class="brand-name">Swangz<br/>AI&nbsp;Tracker</h1>
+    <!-- A real space between the words, with the second word promoted to its
+         own line on desktop. Hiding a <br> collapsed the two into
+         "SwangzAI Tracker" the moment the rule applied. -->
+    <h1 class="brand-name">Swangz <span class="brand-line2">AI&nbsp;Tracker</span></h1>
   </div>
   <div class="view-toggle" role="tablist">
     <button id="btnUser" class="active" onclick="goToUser()">Departments</button>
@@ -6912,6 +6922,15 @@ function renderToolsEntered(list) {
 /* Build a per-tool executive report — verdict, narrative, ROI, dept breakdown.
    Used by the drill-down view AND by copyToolReport() to produce a clean
    markdown block executives can paste into Slack or email. */
+/* One definition of "return per $1", used by the briefing, the workbook and
+   the verdict on a tool. It had two: the verdict quietly folded revenue in,
+   so a tile could read "115.0× on every dollar spent" directly above
+   "Return per $1 — $78.33". Revenue is reported, never counted as a saving —
+   Appendix A says so, and now the code agrees with it. */
+function returnPerDollar(netMonthlyUSD, aiMonthlyUSD) {
+  return aiMonthlyUSD > 0 ? 1 + (netMonthlyUSD / aiMonthlyUSD) : null;
+}
+
 function buildToolReport(g) {
   // Aggregate
   let netSav = 0, timeSav = 0, revenue = 0, tradMo = 0, aiMo = 0;
@@ -6924,8 +6943,9 @@ function buildToolReport(g) {
     aiMo    += m.aiMonthlyUSD;
   });
 
-  // ROI multiplier: how many dollars of value (savings + revenue) per dollar of AI cost
-  const roi = aiMo > 0 ? (netSav + aiMo + revenue) / aiMo : (netSav > 0 ? 99 : 0);
+  // What a dollar of licence spend returns — the same figure the briefing states
+  const roi = returnPerDollar(netSav, aiMo) !== null ? returnPerDollar(netSav, aiMo)
+                                                     : (netSav > 0 ? 99 : 0);
 
   // Verdict bucket
   let verdict, verdictClass, verdictReason;
@@ -6934,13 +6954,14 @@ function buildToolReport(g) {
     verdictReason = 'No subscription cost or savings recorded yet.';
   } else if (roi >= 5) {
     verdict = 'Strong investment'; verdictClass = 'good';
-    verdictReason = `Returning ${roi.toFixed(1)}× on every dollar spent.`;
+    verdictReason = `Returning ${fmtUSD(roi)} for every dollar of licence spend.` +
+      (revenue > 0 ? ` ${fmtUSD(revenue)} of monthly revenue is attributed on top.` : '');
   } else if (roi >= 2) {
     verdict = 'Solid value'; verdictClass = 'good';
-    verdictReason = `Healthy ${roi.toFixed(1)}× return.`;
+    verdictReason = `Healthy return — ${fmtUSD(roi)} back for every dollar spent.`;
   } else if (roi >= 1) {
     verdict = 'Marginal — watch'; verdictClass = 'warn';
-    verdictReason = `Just barely paying for itself at ${roi.toFixed(1)}×. Worth a check-in.`;
+    verdictReason = `Barely paying for itself — ${fmtUSD(roi)} back per dollar. Worth a look.`;
   } else if (netSav < 0) {
     verdict = 'Reconsider'; verdictClass = 'bad';
     verdictReason = `Costing more than it saves. ${fmtUSD(-netSav)}/mo net loss.`;
@@ -7840,7 +7861,7 @@ function boot() {
          reader (saveProfileSettings, renderDeptAccess, the theme sync) keeps
          finding its fields by id and there is never a second copy. -->
     <div class="wizard-body">
-      <div class="ps-group" id="psg_photo" data-title="Your photo" data-hint="A face on your entries" data-icon="user" data-of="profile">
+      <div class="ps-group" id="psg_photo" data-title="Your photo" data-hint="A face on your entries" data-icon="camera" data-of="profile">
         <div class="ps-avatar-row">
           <div class="ps-avatar" id="psAvatarPreview">?</div>
           <div class="ps-avatar-actions">
@@ -9073,6 +9094,8 @@ const ICONS = {
   doc:     '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
   grid:    '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>',
+  user:  '<circle cx="12" cy="8" r="3.6"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/>',
+  camera:'<path d="M4 8.5h3L8.4 6h7.2L17 8.5h3v10.5H4z"/><circle cx="12" cy="13.5" r="3.4"/>',
   users:   '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 6a3 3 0 0 1 0 6M18 20a6 6 0 0 0-3-5"/>',
   cog:     '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>',
   list:    '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
@@ -10008,7 +10031,9 @@ const RAIL_GROUPS = [
   /* Configuration is not daily work — it lives at the foot of the rail,
      outside the scrolling list, so it is always in reach. */
   { id: '__settings', label: 'Settings', icon: 'gear', atFoot: true,
-    sections: ['acc_notify', 'acc_actions', 'acc_admins', 'acc_backend'] },
+    sections: ['acc_notify', 'acc_actions', 'acc_admins', 'acc_backend'],
+    badgeCount: () => (typeof settingsPending === 'function' ? settingsPending() : 0),
+    badgeTitle: 'waiting on you' },
 ];
 const CARET_SVG =
   '<svg class="nav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -10027,11 +10052,34 @@ function groupOf(sectionId) {
   return RAIL_GROUPS.find(g => g.sections.includes(sectionId)) || null;
 }
 /* "3 requests · 2 new" -> 2. No match means no badge, never a wrong one. */
+/* A badge is a claim that something needs doing. It has to be counted from
+   the data, not left on as decoration — work it and it goes. */
 function groupBadge(g) {
+  if (typeof g.badgeCount === 'function') {
+    const n = g.badgeCount() || 0;
+    return n > 0 ? String(n) : '';
+  }
   if (!g.badgeFrom) return '';
   const el = document.getElementById(g.badgeFrom);
   const m = el && el.textContent.match(/(\d+)\s*new/i);
   return m && +m[1] > 0 ? m[1] : '';
+}
+
+/* What is genuinely waiting under Settings. Each of these is something an
+   admin can finish, and finishing it clears the mark. */
+function settingsPending() {
+  let n = 0;
+  try {
+    /* Mail that has nowhere to go yet — it is written and waiting */
+    const queued = outbox().filter(m => m && m.status !== 'sent').length;
+    n += queued;
+    /* No endpoint at all, while notifications are switched on: nothing will
+       ever leave the browser until somebody sets one. Counted once. */
+    const ns = notifySettings();
+    const wantsMail = ns && ns.events && Object.keys(ns.events).some(k => ns.events[k]);
+    if (wantsMail && !(ns.endpoint || '').trim() && queued === 0) n += 1;
+  } catch (_) {}
+  return n;
 }
 
 function buildRailGroups() {
@@ -10071,7 +10119,7 @@ function buildRailGroups() {
     btn.setAttribute('aria-controls', 'railMenu');
     const badge = groupBadge(g);
     btn.innerHTML = svgIcon(g.icon) + '<span class="nav-label">' + escapeHTML(g.label) + '</span>' +
-      (badge ? '<span class="nav-badge" title="' + badge + ' new">' + badge + '</span>' : '') + CARET_SVG;
+      (badge ? '<span class="nav-badge" title="' + escapeAttr(badge + ' ' + (g.badgeTitle || 'new')) + '">' + badge + '</span>' : '') + CARET_SVG;
     btn.addEventListener('click', function (e) { e.stopPropagation(); toggleRailMenu(g.id); });
 
     if (g.atFoot) {
@@ -10537,7 +10585,13 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     const p = { id, kind, args, scope: scope(), min: false, spec, live: null, parent: parent ? parent.id : null };
     panels.push(p);
     show(p, true, anchor);
-    if (parent) minimize(parent.id, true);
+    /* The tile you opened this from STAYS OPEN. It used to fold away, which
+       meant opening the numbers took the tool away from beside them — the
+       one arrangement you were trying to build. Tiles are only folded away
+       by leaving the section (see onScopeChange); within a section what is
+       on the desk is the reader's business, not ours. The parent link is
+       kept for placement, and for restoring it if it was minimised by hand. */
+    if (parent) focus(p.id);
     persist();
     return p;
   }
@@ -13120,32 +13174,73 @@ function gotoStep(n) {
       if (!v.ok) { n = i; showStepError(i, v.msg); break; }
     }
   }
+  const goingBack = planIndex(n) < planIndex(wizardStep);
   wizardStep = n;
   if (planIndex(n) > planIndex(wizardMaxStep)) wizardMaxStep = n;
+
+  /* Steps are different heights, so swapping one for another moved the
+     footer under the cursor mid-click. Measure the old height, swap, measure
+     the new one, and let the box travel between them while the incoming step
+     fades in. Height is the one property here that cannot be composited, but
+     it runs on the panel alone, once per step. */
+  const body = document.querySelector('#detailView .wizard-body');
+  const from = body ? body.getBoundingClientRect().height : 0;
+
   document.querySelectorAll('#detailView .wizard-step').forEach(s => {
     const num = Number(s.dataset.step);
-    s.classList.toggle('active', num === n);
+    const on = num === n;
+    s.classList.toggle('active', on);
+    s.classList.toggle('back', on && goingBack);
     s.hidden = !plan.includes(num);
   });
   renderWizardProgress();
   updateWizardFooter();
-  const body = document.querySelector('#detailView .wizard-body');
-  if (body) body.scrollTop = 0;
+
+  if (body) {
+    body.scrollTop = 0;
+    const to = body.scrollHeight;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduce && from && Math.abs(to - from) > 4) {
+      body.classList.add('measuring');
+      body.style.height = from + 'px';
+      /* one frame at the old height so the browser has something to move from */
+      requestAnimationFrame(() => {
+        body.style.transition = 'height .34s cubic-bezier(.16,.84,.32,1)';
+        body.style.height = to + 'px';
+        const done = () => {
+          body.style.transition = ''; body.style.height = '';
+          body.classList.remove('measuring');
+          body.removeEventListener('transitionend', done);
+        };
+        body.addEventListener('transitionend', done);
+        /* a transition that never fires must not leave the panel pinned */
+        setTimeout(done, 420);
+      });
+    }
+  }
 }
 function renderWizardProgress() {
   const wrap = document.getElementById('wizProgress');
   if (!wrap) return;
   const plan = wizardStepPlan();
   const here = planIndex(wizardStep), furthest = planIndex(wizardMaxStep);
+  /* Dashes, not numbered badges with titles beside them. Six circles each
+     captioned "Why & Impact" competed with the step heading directly below
+     and read like a form someone had to fill in. The step names itself in
+     its own title; the bar only has to say how far along you are. */
+  wrap.setAttribute('role', 'progressbar');
+  wrap.setAttribute('aria-valuemin', '1');
+  wrap.setAttribute('aria-valuemax', String(plan.length));
+  wrap.setAttribute('aria-valuenow', String(here + 1));
   wrap.innerHTML = plan.map((step, i) => {
     const state = i === here ? 'current' : (i < here ? 'done' : '');
     const back  = (i <= furthest && i !== here);
-    const mark  = i < here ? '✓' : (i + 1);
     /* Step 4 is only "Time & Cost" for the person who sets the cost */
     const label = (step === 4 && !moneyIsMine()) ? 'Time' : WIZARD_LABELS[step - 1];
-    return '<div class="ws ' + state + (back ? ' clickable' : '') + '"' + (back ? ' onclick="gotoStep(' + step + ')"' : '') + '>' +
-      '<span class="dot">' + mark + '</span><span class="lbl">' + label + '</span></div>' +
-      (i < plan.length - 1 ? '<span class="sep"></span>' : '');
+    return '<button type="button" class="ws ' + state + '" ' +
+      (back ? 'onclick="gotoStep(' + step + ')"' : 'disabled') +
+      ' title="' + escapeAttr(label) + '"' +
+      ' aria-label="Step ' + (i + 1) + ' of ' + plan.length + ' — ' + escapeAttr(label) + '"></button>';
   }).join('');
 }
 function updateWizardFooter() {
@@ -15237,6 +15332,21 @@ function buildPsPanes(body, which) {
     g.style.display = '';                     // the pane now controls visibility
     wrap.appendChild(d);
   });
+
+  /* One at a time. Opening every pane at once made the tile taller than the
+     screen and handed the reader a wall to scan instead of a thing to pick.
+     Clicking a closed pane opens it and folds the others. */
+  wrap.addEventListener('toggle', e => {
+    const pane = e.target;
+    if (!pane.open || !wrap.contains(pane)) return;
+    wrap.querySelectorAll('.ps-pane[open]').forEach(other => { if (other !== pane) other.open = false; });
+  }, true);
+
+  /* Land on the first pane rather than on nothing */
+  if (!wrap.querySelector('.ps-pane[open]')) {
+    const first = wrap.querySelector('.ps-pane');
+    if (first) first.open = true;
+  }
   body.appendChild(wrap);
 }
 /* Back to the stash on close, or the next open finds nothing to move. */
