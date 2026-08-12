@@ -3880,7 +3880,8 @@
     -webkit-backdrop-filter: blur(30px) saturate(170%);
     border: 1px solid var(--glass-border);
     box-shadow: 0 50px 120px -28px rgba(0,0,0,0.82), inset 0 1px 0 rgba(255,255,255,0.13);
-    animation: dpz-in .42s cubic-bezier(.16,.84,.32,1) both;
+    animation: dpz-in .62s cubic-bezier(.19,1,.22,1) both;
+    will-change: transform, opacity;
   }
   /* the lit rim, same language as the tiles */
   .dept-prompt .dp-card::before {
@@ -3890,9 +3891,20 @@
     -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     mask-composite: exclude; opacity: .75;
   }
-  @keyframes dpz-in { from { opacity: 0; transform: translate3d(0,16px,0) scale(.97); } to { opacity: 1; transform: none; } }
-  .dept-prompt.closing .dp-card { animation: dpz-out .26s cubic-bezier(.4,0,.7,.2) both; }
-  @keyframes dpz-out { to { opacity: 0; transform: translate3d(0,10px,0) scale(.97); } }
+  @keyframes dpz-in {
+    from { opacity: 0; transform: translate3d(0,26px,0) scale(.965); }
+    60%  { opacity: 1; }
+    to   { opacity: 1; transform: none; }
+  }
+  .dept-prompt.closing .dp-card { animation: dpz-out .34s cubic-bezier(.36,0,.66,-.2) both; }
+  @keyframes dpz-out { to { opacity: 0; transform: translate3d(0,14px,0) scale(.965); } }
+  /* the choices arrive just behind the card, so it assembles rather than
+     appearing all at once */
+  .dept-prompt .dpz-choice { animation: dpz-rise .55s cubic-bezier(.19,1,.22,1) both; }
+  .dept-prompt .dpz-choice:nth-of-type(1) { animation-delay: .10s; }
+  .dept-prompt .dpz-choice:nth-of-type(2) { animation-delay: .17s; }
+  .dept-prompt .dpz-skip { animation: dpz-rise .55s cubic-bezier(.19,1,.22,1) .24s both; }
+  @keyframes dpz-rise { from { opacity: 0; transform: translate3d(0,10px,0); } to { opacity: 1; transform: none; } }
 
   .dpz-eyebrow { margin: 0 0 3px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.6px;
                  text-transform: uppercase; color: var(--accent); }
@@ -3936,20 +3948,24 @@
      and it comes back the moment the question is answered. */
   body.dept-asking #quickStats,
   body.dept-asking #myHistoryCard,
-  body.dept-asking #deptOverview,
-  body.dept-asking #deptExtra,
   body.dept-asking #deptInsight {
-    filter: blur(6px) saturate(.65);
-    opacity: .5;
-    transition: filter .42s cubic-bezier(.16,.84,.32,1), opacity .42s cubic-bezier(.16,.84,.32,1);
+    filter: blur(7px) saturate(.6);
+    opacity: .45;
+    transform: scale(.992);
+    transition: filter .62s cubic-bezier(.19,1,.22,1),
+                opacity .62s cubic-bezier(.19,1,.22,1),
+                transform .62s cubic-bezier(.19,1,.22,1);
   }
-  #quickStats, #myHistoryCard, #deptOverview, #deptExtra, #deptInsight {
-    transition: filter .42s cubic-bezier(.16,.84,.32,1), opacity .42s cubic-bezier(.16,.84,.32,1);
+  #quickStats, #myHistoryCard, #deptInsight {
+    transform: scale(1);
+    transition: filter .52s cubic-bezier(.19,1,.22,1),
+                opacity .52s cubic-bezier(.19,1,.22,1),
+                transform .52s cubic-bezier(.19,1,.22,1);
   }
   @media (prefers-reduced-motion: reduce) {
     body.dept-asking #quickStats, body.dept-asking #myHistoryCard,
-    body.dept-asking #deptOverview, body.dept-asking #deptExtra,
     body.dept-asking #deptInsight { transition: none; }
+    .dept-prompt .dpz-choice, .dept-prompt .dpz-skip { animation: none; }
   }
 
   @media (max-width: 600px) {
@@ -4170,7 +4186,7 @@
     <div class="greet-row">
       <div class="greet-hero" aria-hidden="false">
         <h1><span id="greetTime">Welcome back</span><span id="greetName"></span></h1>
-        <p>Here's your department's AI adoption at a glance.</p>
+        <p>Record a tool your team uses, or ask for one you need.</p>
       </div>
       <div class="quick-stats" id="quickStats"></div>
     </div>
@@ -4183,30 +4199,16 @@
 
     <div id="claimBanner" class="card claim-banner" style="display:none;"></div>
 
-    <!-- The status breakdown was removed from the department side: which
-         stage a tool sits at is an admin's read of the portfolio, not
-         something a team needs shown back to them. What is left is the
-         team's own work — the tools carrying it. -->
-    <div class="dept-overview" id="deptOverview" style="display:none;">
-      <div class="card">
-        <div class="section-title" style="margin-top:0;">Top tools here</div>
-        <p class="help" style="margin:-4px 0 12px;">Where your department's hours are going.</p>
-        <div id="deptTopList" class="dept-top-list"></div>
-      </div>
+    <!-- Top tools, Your standing and Recent activity were removed from the
+         department side. A team member is here to file something, not to be
+         shown a league table of their own work; the numbers those cards read
+         from are the admin's to interpret. -->
+
     </div>
 
     <div class="card insight-card" id="deptInsight" style="display:none;"></div>
 
-    <div class="grid cols-2 dept-extra" id="deptExtra" style="display:none;">
-      <div class="card">
-        <div class="section-title" style="margin-top:0;">Your Standing</div>
-        <p class="help" style="margin:-4px 0 12px;">How your department compares across Swangz Avenue.</p>
-        <div id="deptRank"></div>
-      </div>
-      <div class="card">
-        <div class="section-title" style="margin-top:0;">Recent Activity</div>
-        <p class="help" style="margin:-4px 0 12px;">The latest tool reports from your team.</p>
-        <div id="deptActivity"></div>
+    
       </div>
     </div>
 

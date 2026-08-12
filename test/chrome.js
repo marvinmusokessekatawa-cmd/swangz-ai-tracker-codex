@@ -68,7 +68,10 @@ const head = t => console.log('\n\x1b[1m' + t + '\x1b[0m');
   }));
   ok('the status breakdown is gone', !dept.rings);
   ok('"Status mix" is gone from My History', !/status mix/i.test(dept.text), dept.text.slice(0, 100));
-  ok('the top-tools card is still there', /top tools here/i.test(dept.text));
+  /* Top tools, Your standing and Recent activity were removed on purpose */
+  ok('top tools is gone', !/top tools here/i.test(dept.text), dept.text.slice(0, 90));
+  ok('your standing is gone', !/your standing/i.test(dept.text));
+  ok('recent activity is gone', !/recent activity/i.test(dept.text));
   ok('no money figure is shown to a department user', !dept.money, (dept.text.match(/.{0,40}\$\s?\d.{0,20}/) || [''])[0]);
   ok('time reads in working units, never months', !/\b[\d.]+\s*mo\b/.test(dept.text), (dept.text.match(/.{0,30}[\d.]+ mo.{0,20}/) || [''])[0]);
   await shot('b-department');
