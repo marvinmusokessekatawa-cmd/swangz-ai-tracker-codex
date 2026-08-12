@@ -525,12 +525,91 @@ async function scenarioNoDialogs() {
   });
 }
 
+
+async function scenarioWorkbook() {
+  if (only && !'workbook'.includes(only)) return;
+  await withApp(async ({ run }) => {
+    suite('15 · The workbook\'s formulas point at the right rows');
+    run('__t.signIn(); seedDemoData(true); switchView("admin"); setExecPeriod("all");');
+    const model = JSON.parse(run('JSON.stringify(execWorkbookModel())'));
+    const sheets = model.sheets || model;
+    const summary = sheets[0];
+    ok('the summary sheet is first', !!summary && /summary/i.test(summary.name || ''), (summary || {}).name);
+
+    /* Which row is a label on, 1-indexed as Excel counts */
+    const rowOf = label => summary.rows.findIndex(r =>
+      r && r[0] && String(r[0].v || '').toLowerCase().startsWith(label.toLowerCase())) + 1;
+
+    const rateRow   = rowOf('US Dollar to Ugandan');
+    const hourlyRow = rowOf('Blended hourly rate');
+    const oldWayRow = rowOf('Cost of the old way');
+    const aiRow     = rowOf('Spent on AI');
+    const netRow    = rowOf('Net saved, per month');
+    const hoursRow  = rowOf('Hours saved, per month');
+    const labourRow = rowOf('Those hours in money');
+    const totalRow  = rowOf('Total benefit');
+    ok('every named row was found', [rateRow, hourlyRow, oldWayRow, aiRow, netRow, hoursRow, labourRow, totalRow].every(n => n > 0),
+       JSON.stringify({ rateRow, hourlyRow, oldWayRow, aiRow, netRow, hoursRow, labourRow, totalRow }));
+
+    /* Every shilling column multiplies by the FX rate cell — it must be the
+       cell the rate is actually in, whatever else moved above it. */
+    const formulas = [];
+    sheets.forEach(sh => (sh.rows || []).forEach((r, ri) => (r || []).forEach(c => {
+      if (c && c.f) formulas.push({ sheet: sh.name, row: ri + 1, f: c.f });
+    })));
+    ok('the workbook carries live formulas', formulas.length > 0, 'found ' + formulas.length);
+
+    const fxWrong = formulas.filter(x => /R(\d+)C2/.test(x.f) && /\*\s*(Summary!)?R(\d+)C2/.test(x.f))
+      .filter(x => { const m = x.f.match(/\*\s*(?:Summary!)?R(\d+)C2/); return m && +m[1] !== rateRow; });
+    eq('every FX multiplication points at the rate row', fxWrong.length, 0,
+       fxWrong.slice(0, 3).map(x => x.sheet + ' r' + x.row + ': ' + x.f).join(' | '));
+
+    /* Net saved = old way - AI, by row, not by hope */
+    const netCell = summary.rows[netRow - 1][1];
+    eq('net saved subtracts the right two rows', netCell.f, '=R' + oldWayRow + 'C2-R' + aiRow + 'C2');
+    const labourCell = summary.rows[labourRow - 1][1];
+    if (labourCell && labourCell.f) {
+      eq('the value of the hours multiplies hours by the rate', labourCell.f,
+         '=R' + hoursRow + 'C2*R' + hourlyRow + 'C2');
+    } else {
+      ok('with no hourly rate the value of the hours is left blank, not zero',
+         String(labourCell.v) === '—' || String(labourCell.v) === '', JSON.stringify(labourCell));
+    }
+    const totalCell = summary.rows[totalRow - 1][1];
+    eq('total benefit adds net and the value of the time', totalCell.f,
+       '=R' + netRow + 'C2+R' + labourRow + 'C2');
+
+    /* An unset rate must not be written as a confident zero */
+    const hourlyCell = summary.rows[hourlyRow - 1][1];
+    ok('an unset hourly rate is blank rather than 0', !(hourlyCell.t === 'Number' && hourlyCell.v === 0),
+       JSON.stringify(hourlyCell));
+
+    /* Money columns must carry a money format */
+    const styles = new Set();
+    (summary.rows || []).forEach(r => (r || []).forEach(c => { if (c && c.s) styles.add(c.s); }));
+    ok('money, shillings and hours each have their own format',
+       ['usd', 'ugx', 'hrs'].every(x => styles.has(x)), [...styles].join(','));
+
+    /* The note naming the input cells must name the cells they are in */
+    const note = String(summary.note || (model.sheets ? model.sheets[0].note : '') || '');
+    ok('the sheet note points at the real rate cell', note.includes('B' + rateRow), note);
+    ok('the sheet note points at the real hourly-rate cell', note.includes('B' + hourlyRow), note);
+
+    /* And the XML it writes must still declare every style it uses */
+    const xml = run('execWorkbookXML ? execWorkbookXML() : ""');
+    if (xml) {
+      const missing = [...styles].filter(id => !new RegExp('ss:ID="' + id + '"').test(xml));
+      eq('every style used is declared in the workbook', missing.length, 0, missing.join(','));
+    }
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
   for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioExecWording,
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
-                   scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs]) {
+                   scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

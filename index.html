@@ -3382,10 +3382,18 @@
     font-size: 13px; text-transform: uppercase; letter-spacing: 1.4px; color: #4b3f8f;
     margin: 26px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 5px; font-weight: 700;
   }
+  .doc-paper .dm-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .doc-paper .dm-mark { width: 34px; height: 34px; object-fit: contain; flex: 0 0 auto; }
   .doc-paper .dm-org {
     font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
-    color: #8a7cc4; margin-bottom: 7px;
+    color: #8a7cc4; margin: 0;
   }
+  /* The one sentence a reader should take away before reading anything else */
+  .doc-paper .lede {
+    font-size: 14.5px; line-height: 1.5; color: #23233a; font-weight: 600;
+    margin: 14px 0 4px; padding-left: 11px; border-left: 3px solid #f5c542;
+  }
+  .doc-paper .note { font-size: 11.5px; color: #777; margin: 4px 0 10px; }
   .doc-paper .sub { color: #666; font-size: 13px; margin: 0 0 6px; }
   .doc-paper .lead { color: #444; font-size: 13.5px; }
   .doc-paper .rule { border-bottom: 3px solid #f5c542; margin: 13px 0 6px; }
@@ -12636,7 +12644,10 @@ function execDocBody() {
   return (
     /* ---- masthead and control block ---- */
     '<div class="docmast">' +
-      '<div class="dm-org">Swangz Avenue</div>' +
+      '<div class="dm-brand">' +
+        '<img class="dm-mark" src="' + BRAND_MARK + '" alt="" width="34" height="34">' +
+        '<div class="dm-org">Swangz Avenue</div>' +
+      '</div>' +
       '<h1>AI Adoption — ' + escapeHTML(M.w.cadence) + ' Executive Briefing</h1>' +
       '<p class="sub">' + escapeHTML(M.w.label) + '</p>' +
     '</div>' +
@@ -12943,6 +12954,15 @@ function execWorkbookModel() {
   const T = v => ({ v: v, t: 'String', s: 'ttl' });
   const S = v => ({ v: v == null ? '' : String(v), t: 'String' });
   const N = (v, s) => ({ v: Math.round((Number(v) || 0) * 100) / 100, t: 'Number', s: s || 'num' });
+  /* Money, shillings, hours and counts each carry their own format, so the
+     workbook opens looking like a finance sheet rather than a grid of
+     bare decimals. A figure nobody has set is left EMPTY — printing
+     0.00 for an hourly rate that was never entered states a fact. */
+  const U   = (v, s) => ({ v: Math.round(Number(v) || 0), t: 'Number', s: s || 'usd' });
+  const UGX = v => ({ v: Math.round(Number(v) || 0), t: 'Number', s: 'ugx' });
+  const HRS = v => ({ v: Math.round((Number(v) || 0) * 10) / 10, t: 'Number', s: 'hrs' });
+  const CNT = v => ({ v: Math.round(Number(v) || 0), t: 'Number', s: 'cnt' });
+  const MAYBE = (v, cell) => (Number(v) > 0 ? cell(v) : S(''));
   const F = (val, f, s) => ({ v: Math.round((Number(val) || 0) * 100) / 100, t: 'Number', s: s || 'num', f: f });
   const gap = [];
 
@@ -12952,22 +12972,32 @@ function execWorkbookModel() {
     [T('Swangz Avenue — AI Adoption'), T(M.w.cadence + ' briefing')],
     [S('Period'), S(M.w.label)],
     [S('Prepared'), S(stamp())],
+    [S('Prepared by'), S(currentEmail() || 'Administrator')],
     [S('Basis'), S(M.carried || !M.w.from ? 'Everything recorded to date' : 'This period only')],
+    [S('Classification'), S('Internal — management use')],
     gap,
-    [H('Inputs'), H('Value')],
-    [S('US Dollar to Ugandan Shilling'), N(rate)],
-    [S('Blended hourly rate (USD)'), N(hr)],
+    [H('Inputs'), H('Value'), H(''), H('')],
+    [S('US Dollar to Ugandan Shilling'), CNT(rate), S(''), S('Change this and every shilling figure moves')],
+    /* An hourly rate nobody has set is blank, not zero — a zero here would
+       value the whole team's time at nothing and mean it. */
+    [S('Blended hourly rate (USD)'), MAYBE(hr, U), S(''),
+      S(hr > 0 ? 'Used to value the hours saved' : 'Not set — the hours are reported as hours only')],
     gap,
     [H('Measure'), H('USD'), H('UGX'), H('Note')],
-    [S('Cost of the old way, per month'), N(t.trad), F(t.trad * rate, '=RC[-1]*R7C2'), S('What the work used to cost')],
-    [S('Spent on AI, per month'), N(t.ai), F(t.ai * rate, '=RC[-1]*R7C2'), S('Subscriptions and credits')],
-    [S('Net saved, per month'), F(t.net, '=R11C2-R12C2', 'pos'), F(t.net * rate, '=RC[-1]*R7C2', 'pos'), S('Old way minus AI')],
-    [S('Hours saved, per month'), N(t.time), S(''), S('Reported by the departments')],
-    [S('Those hours in money, per month'), F(labour, '=R14C2*R8C2'), F(labour * rate, '=RC[-1]*R7C2'), S('Hours × hourly rate')],
-    [S('Total benefit, per month'), F(benefit, '=R13C2+R15C2', 'pos'), F(benefit * rate, '=RC[-1]*R7C2', 'pos'), S('Cash saved plus the value of the time')],
-    [S('Annualised benefit'), F(benefit * 12, '=R16C2*12', 'pos'), F(benefit * 12 * rate, '=RC[-1]*R7C2', 'pos'), S('Twelve months at this rate')],
-    [S('Revenue enabled or protected'), N(t.rev), F(t.rev * rate, '=RC[-1]*R7C2'), S('Attributed by the admin team')],
-    [S('Return per $1 of licence spend'), F(t.ai > 0 ? 1 + t.net / t.ai : 0, '=IF(R12C2=0,0,1+R13C2/R12C2)'), S(''), S('One dollar in, this much back')],
+    [S('Cost of the old way, per month'), U(t.trad), F(t.trad * rate, '=RC[-1]*R9C2', 'ugx'), S('What the work used to cost')],
+    [S('Spent on AI, per month'), U(t.ai), F(t.ai * rate, '=RC[-1]*R9C2', 'ugx'), S('Subscriptions and credits')],
+    [S('Net saved, per month'), F(t.net, '=R13C2-R14C2', 'usdb'), F(t.net * rate, '=RC[-1]*R9C2', 'ugx'), S('Old way minus AI')],
+    [S('Hours saved, per month'), HRS(t.time), S(''), S('Person-hours. A working day is ' + WORKDAY_HOURS + ' h, a week ' + WORKWEEK_HOURS + ' h')],
+    [S('Those hours in money, per month'),
+      (hr > 0 ? F(labour, '=R16C2*R10C2', 'usd') : S('—')),
+      (hr > 0 ? F(labour * rate, '=RC[-1]*R9C2', 'ugx') : S('')),
+      S(hr > 0 ? 'Hours × hourly rate' : 'Needs a blended hourly rate above')],
+    [S('Total benefit, per month'), F(benefit, '=R15C2+R17C2', 'usdb'), F(benefit * rate, '=RC[-1]*R9C2', 'ugx'), S('Cash saved plus the value of the time')],
+    [S('Annualised benefit'), F(benefit * 12, '=R18C2*12', 'usdb'), F(benefit * 12 * rate, '=RC[-1]*R9C2', 'ugx'), S('Twelve months at this rate')],
+    [S('Revenue enabled or protected'), U(t.rev), F(t.rev * rate, '=RC[-1]*R9C2', 'ugx'), S('Attributed by the admin team. Not counted as a saving')],
+    [S('Return per $1 of licence spend'),
+      (t.ai > 0 ? F(1 + t.net / t.ai, '=IF(R14C2=0,&quot;&quot;,1+R15C2/R14C2)', 'usd') : S('—')),
+      S(''), S('One dollar in, this much back')],
   ];
 
   const tools = [[H('Tool'), H('Category'), H('Stage'), H('Submissions'), H('Departments'),
@@ -12977,7 +13007,7 @@ function execWorkbookModel() {
       const r = i + 2;
       return [S(g.name), S(g.cats[0] || ''), S(g.stage ? g.stage[0] : ''),
         N(g.entries.length), N(g.depts.size), N(g.time), N(g.trad), N(g.ai),
-        F(g.net, '=RC[-2]-RC[-1]', 'pos'), F(g.net * rate, '=RC[-1]*Summary!R7C2'),
+        F(g.net, '=RC[-2]-RC[-1]', 'pos'), F(g.net * rate, '=RC[-1]*Summary!R9C2'),
         F(g.net * 12, '=R' + r + 'C9*12'), N(g.rev)];
     }));
 
@@ -12985,7 +13015,7 @@ function execWorkbookModel() {
                   H('AI spend / mo (USD)'), H('Net / mo (USD)'), H('Net / mo (UGX)'), H('Revenue / mo (USD)')]]
     .concat(deptRows.map(([d, v]) =>
       [S(d), N(v.count), N(v.time), N(v.trad), N(v.ai),
-       F(v.net, '=RC[-2]-RC[-1]', 'pos'), F(v.net * rate, '=RC[-1]*Summary!R7C2'), N(v.rev)]));
+       F(v.net, '=RC[-2]-RC[-1]', 'pos'), F(v.net * rate, '=RC[-1]*Summary!R9C2'), N(v.rev)]));
 
   const filed = [[H('Filed'), H('Type'), H('Tool'), H('Department'), H('Submitted by'), H('Stage'),
                   H('Old time (h)'), H('AI time (h)'), H('Per month'), H('Hours saved / mo'),
@@ -13005,13 +13035,18 @@ function execWorkbookModel() {
       const cost = (Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0);
       return [S(e.toolName), S(e.department), S(e.submittedBy),
         S(new Date(e.submittedAt || Date.now()).toLocaleDateString()), S(reqStatusLabel(e.requestStatus || 'new')),
-        N(cost), F(cost * rate, '=RC[-1]*Summary!R7C2'), S((e.reason || '').slice(0, 300))];
+        N(cost), F(cost * rate, '=RC[-1]*Summary!R9C2'), S((e.reason || '').slice(0, 300))];
     }));
 
   return {
     label: M.w.label,
     sheets: [
-      { name: 'Summary',           rows: summary, widths: [230, 130, 130, 260], note: 'Change the rate in B7 or the hourly rate in B8 and every figure below moves.' },
+      /* The cell names are read off the sheet. Typed in by hand they said B7
+         and B8, and stayed saying it after two rows were added above them. */
+      { name: 'Summary', rows: summary, widths: [230, 130, 130, 260],
+        note: 'Change the rate in B' + (summary.findIndex(r => r[0] && /^US Dollar/.test(String(r[0].v))) + 1) +
+              ' or the hourly rate in B' + (summary.findIndex(r => r[0] && /^Blended hourly/.test(String(r[0].v))) + 1) +
+              ' and every figure below moves.' },
       { name: 'Tools',             rows: tools,   widths: [160, 120, 110, 90, 95, 105, 120, 115, 110, 115, 115, 120] },
       { name: 'Departments',       rows: depts,   widths: [150, 70, 110, 125, 125, 110, 115, 120] },
       { name: 'Filed this period', rows: filed,   widths: [90, 80, 150, 120, 130, 120, 90, 90, 80, 110, 130, 120, 120, 100, 110] },
@@ -13033,6 +13068,15 @@ function execWorkbookXML() {
         '<Alignment ss:Vertical="Center" ss:WrapText="1"/></Style>' +
       '<Style ss:ID="ttl"><Font ss:Bold="1" ss:Size="14"/></Style>' +
       '<Style ss:ID="num"><NumberFormat ss:Format="#,##0.00"/></Style>' +
+      /* A column of money should look like money when it opens, and a
+         negative should read -$2,500 rather than ($2,500.00) or worse. */
+      '<Style ss:ID="usd"><NumberFormat ss:Format="&quot;$&quot;#,##0;&quot;-$&quot;#,##0"/></Style>' +
+      '<Style ss:ID="usdb"><Font ss:Bold="1"/><NumberFormat ss:Format="&quot;$&quot;#,##0;&quot;-$&quot;#,##0"/></Style>' +
+      '<Style ss:ID="ugx"><NumberFormat ss:Format="#,##0&quot; UGX&quot;"/></Style>' +
+      '<Style ss:ID="hrs"><NumberFormat ss:Format="#,##0.0&quot; h&quot;"/></Style>' +
+      '<Style ss:ID="cnt"><NumberFormat ss:Format="#,##0"/></Style>' +
+      '<Style ss:ID="note"><Font ss:Italic="1" ss:Color="#777777" ss:Size="9"/></Style>' +
+
       '<Style ss:ID="pos"><Font ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/></Style>' +
     '</Styles>' +
     wb.sheets.map(s => sheet(s.name, s.rows.map(r => r.map(write).join('')), s.widths)).join('') +
@@ -14818,7 +14862,11 @@ const DOC_STYLE =
   'h3{font-size:10.5pt;margin:12pt 0 4pt;color:#333;}' +
   '.sub{color:#666;font-size:10pt;margin:0 0 4pt;}' +
   '.lead{color:#444;font-size:10.5pt;}' +
-  '.docmast .dm-org{font-size:9pt;font-weight:bold;letter-spacing:2.4pt;text-transform:uppercase;color:#8a7cc4;margin-bottom:5pt;}' +
+  '.docmast .dm-org{font-size:9pt;font-weight:bold;letter-spacing:2.4pt;text-transform:uppercase;color:#8a7cc4;margin:0 0 5pt;}' +
+  '.docmast .dm-brand{margin-bottom:6pt;}' +
+  '.docmast .dm-mark{width:30pt;height:30pt;vertical-align:middle;margin-right:7pt;}' +
+  '.lede{font-size:11.5pt;line-height:1.5;color:#23233a;font-weight:bold;margin:10pt 0 3pt;padding-left:8pt;border-left:2.5pt solid #f5c542;}' +
+  '.note{font-size:8.5pt;color:#777;margin:3pt 0 8pt;}' +
   '.rule{border-bottom:2.5pt solid #f5c542;margin:10pt 0 4pt;}' +
   'table{border-collapse:collapse;width:100%;margin:6pt 0;font-size:10pt;}' +
   'th{text-align:left;background:#f4f4f7;padding:5pt 7pt;border:1px solid #dcdce4;font-size:8.5pt;text-transform:uppercase;letter-spacing:.6pt;color:#555;}' +
@@ -14854,13 +14902,18 @@ function slug(s) { return String(s || 'document').replace(/[^a-z0-9]+/gi, '-').r
 function stamp(d) { return new Date(d || Date.now()).toLocaleString(); }
 
 /* ---- one submission, as a document ---- */
+/* The mark travels with the document. A path would resolve to nothing the
+   moment the Word file is opened from a Downloads folder, and a printed
+   page would show a broken image where the letterhead should be. */
+const BRAND_MARK = 'data:image/webp;base64,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';
+
 function submissionDocBody(e) {
   const isReq = e.tag === 'request';
   const m = monthlySavings(e);
   const money = moneyIsMine() || isReq;
   const row = (k, v) => '<tr><td class="k">' + k + '</td><td>' + v + '</td></tr>';
   const projects = (e.projects || []).length
-    ? '<h2>Projects this tool has worked on</h2>' + e.projects.map((p, i) =>
+    ? e.projects.map((p, i) =>
         '<table><tr><th colspan="2">' + (i + 1) + '. ' + escapeHTML(p.name || 'Untitled project') + '</th></tr>' +
         row('Description', escapeHTML(p.description || '—')) +
         row('Media', p.link ? '<a href="' + escapeAttr(safeUrl(p.link)) + '">' + escapeHTML(p.link) + '</a>' : '—') +
@@ -14870,41 +14923,77 @@ function submissionDocBody(e) {
         '</table>').join('')
     : '';
 
-  return (
-    '<div class="docmast"><div class="dm-org">Swangz Avenue</div>' +
-    '<h1>' + (isReq ? 'Tool Request' : 'Tool Report') + '</h1>' +
-    '<p class="sub">AI Adoption Tracker · ' + escapeHTML(e.toolName || 'Untitled') + '</p></div>' +
-    '<div class="rule"></div>' +
-    '<p style="margin-top:10pt;"><span class="stamp">' + escapeHTML(isReq ? reqStatusLabel(e.requestStatus || 'new') : 'recorded') + '</span></p>' +
+  /* Numbered as the document is read, so a section can be cited — the same
+     shape the executive briefing takes. */
+  let n = 0;
+  const H = title => '<h2>' + (++n) + '. ' + escapeHTML(title) + '</h2>';
 
-    '<h2>Submission</h2>' +
-    '<table>' +
-      row('Tool', '<strong>' + escapeHTML(e.toolName || '—') + '</strong>' +
-        (e.officialUrl ? '<br><a href="' + escapeAttr(safeUrl(e.officialUrl)) + '">' + escapeHTML(e.officialUrl) + '</a>' : '')) +
-      row('Category', escapeHTML(e.category || '—')) +
-      row('Adoption stage', escapeHTML(e.status || '—')) +
-      row('Department', escapeHTML(e.department || '—')) +
-      row('Submitted by', escapeHTML(e.submittedBy || '—') + (e.role ? ' · ' + escapeHTML(e.role) : '') +
-        (e.submittedByEmail ? '<br>' + escapeHTML(e.submittedByEmail) : '')) +
-      row('Date filed', escapeHTML(stamp(e.submittedAt))) +
-      row('Reference', escapeHTML(e.id)) +
+  /* A reference somebody can read out over a phone, not an internal id.
+     Derived from the id so it is stable for the life of the entry. */
+  const ref = (isReq ? 'REQ-' : 'REP-') +
+    String(e.id || '').replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase().padStart(6, '0');
+
+  /* One sentence a reader can act on before reading anything else */
+  const headline = isReq
+    ? escapeHTML(e.department || 'A department') + ' is asking for ' + escapeHTML(e.toolName || 'a tool') +
+      (money && Number(e.toolMonthlyCost) > 0 ? ' at ' + fmtUSD((Number(e.toolMonthlyCost) || 0) + (Number(e.extraCredits) || 0)) + ' a month' : '') + '.'
+    : escapeHTML(e.toolName || 'This tool') + ' is saving ' + escapeHTML(e.department || 'the team') + ' ' +
+      escapeHTML(fmtDuration(m.timeSavedMonthly)) + ' a month' +
+      (money && m.netMonthlyCostSavedUSD ? ', worth ' + fmtUSD(m.netMonthlyCostSavedUSD) + ' against the old way' : '') + '.';
+
+  return (
+    '<div class="docmast">' +
+      '<div class="dm-brand">' +
+        '<img class="dm-mark" src="' + BRAND_MARK + '" alt="" width="34" height="34">' +
+        '<div class="dm-org">Swangz Avenue</div>' +
+      '</div>' +
+      '<h1>' + (isReq ? 'Tool Request' : 'Tool Report') + '</h1>' +
+      '<p class="sub">AI Adoption Tracker · ' + escapeHTML(e.toolName || 'Untitled') + '</p>' +
+    '</div>' +
+    '<div class="rule"></div>' +
+
+    /* ---- control block: who, when, which, and how far it has got ---- */
+    '<table class="ctrl"><tr>' +
+      '<td class="k">Reference</td><td><strong>' + escapeHTML(ref) + '</strong></td>' +
+      '<td class="k">Status</td><td><span class="stamp">' +
+        escapeHTML(isReq ? reqStatusLabel(e.requestStatus || 'new') : 'Recorded') + '</span></td></tr>' +
+      '<tr><td class="k">Department</td><td>' + escapeHTML(e.department || '—') + '</td>' +
+      '<td class="k">Filed</td><td>' + escapeHTML(stamp(e.submittedAt)) + '</td></tr>' +
+      '<tr><td class="k">Filed by</td><td>' + escapeHTML(e.submittedBy || '—') +
+        (e.role ? ' · ' + escapeHTML(e.role) : '') + '</td>' +
+      '<td class="k">Prepared</td><td>' + escapeHTML(stamp()) + '</td></tr>' +
+      '<tr><td class="k">Classification</td><td colspan="3">Internal — management use</td></tr>' +
     '</table>' +
 
-    '<h2>The case</h2>' +
-    '<p><strong>Why it is needed.</strong> ' + escapeHTML(e.reason || '—') + '</p>' +
-    '<p><strong>How it changes the work.</strong> ' + escapeHTML(e.impact || '—') + '</p>' +
+    '<p class="lede">' + headline + '</p>' +
 
-    '<h2>Effort, per deliverable</h2>' +
+    H('The tool') +
     '<table>' +
-      '<tr><th>Traditional</th><th>With the tool</th><th>Times per month</th><th>Hours saved per month</th></tr>' +
+      row('Name', '<strong>' + escapeHTML(e.toolName || '—') + '</strong>' +
+        (safeUrl(e.officialUrl) ? '<br><a href="' + escapeAttr(safeUrl(e.officialUrl)) + '">' + escapeHTML(e.officialUrl) + '</a>' : '')) +
+      row('Category', escapeHTML(e.category || '—')) +
+      row('Adoption stage', escapeHTML(e.status || '—')) +
+      (e.submittedByEmail ? row('Contact', escapeHTML(e.submittedByEmail)) : '') +
+    '</table>' +
+
+    H('The case') +
+    '<table>' +
+      row('Why it is needed', escapeHTML(e.reason || '— nothing written —')) +
+      row('How it changes the work', escapeHTML(e.impact || '— nothing written —')) +
+    '</table>' +
+
+    H('Effort, per deliverable') +
+    '<table>' +
+      '<tr><th>The old way</th><th>With the tool</th><th class="num">Times per month</th><th class="num">Time saved per month</th></tr>' +
       '<tr><td>' + escapeHTML(fmtEntryTime(e.tradTime, e.tradTimeUnit)) + '</td>' +
       '<td>' + escapeHTML(fmtEntryTime(e.aiTime, e.aiTimeUnit)) + '</td>' +
       '<td class="num">' + (Number(e.frequency) || 0) + '</td>' +
       '<td class="num"><strong>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</strong></td></tr>' +
     '</table>' +
+    '<p class="note">Working time: a day is ' + WORKDAY_HOURS + ' hours and a week ' + WORKWEEK_HOURS + '.</p>' +
 
     (money
-      ? '<h2>Money</h2><table>' +
+      ? H('Money') + '<table>' +
           row('Cost of the traditional way, per deliverable', fmtUSD(e.tradCost) + ' &nbsp; <span style="color:#777">' + fmtUGX(e.tradCost) + '</span>') +
           row('Monthly subscription', fmtUSD(e.toolMonthlyCost) + ' &nbsp; <span style="color:#777">' + fmtUGX(e.toolMonthlyCost) + '</span>') +
           row('Extra credits per month', fmtUSD(e.extraCredits)) +
@@ -14918,14 +15007,16 @@ function submissionDocBody(e) {
         '</table>'
       : '') +
 
-    projects +
+    (projects ? H('Projects this tool has worked on') + projects : '') +
 
     (isReq
-      ? '<h2>Decision</h2><table>' +
+      ? H('Decision') + '<table>' +
           row('Status', '<strong>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</strong>') +
-          row('Internal note', escapeHTML(e.adminNote || '—')) +
+          row('Internal note', escapeHTML(e.adminNote || '— none —')) +
           row('Decided', escapeHTML(e.decidedAt ? stamp(e.decidedAt) : 'not yet')) +
-        '</table>'
+        '</table>' +
+        (['approved', 'declined'].includes(e.requestStatus || '') ? '' :
+          '<p class="note">This request is still open. It stays open until somebody decides it.</p>')
       : '') +
 
     /* The exchange rate is only a fact about this document if the document
