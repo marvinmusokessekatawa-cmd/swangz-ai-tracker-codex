@@ -3984,6 +3984,13 @@
     .dpz-choice:hover { transform: none; }
   }
 
+
+  /* Where a request stands, in the person's own list */
+  .pill.req-new      { background: rgba(245,197,66,0.16); color: var(--accent); border: 1px solid rgba(245,197,66,0.4); }
+  .pill.req-reviewed { background: rgba(96,165,250,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.42); }
+  .pill.req-approved { background: rgba(61,220,151,0.16); color: var(--c-emerald, #3ddc97); border: 1px solid rgba(61,220,151,0.42); }
+  .pill.req-declined { background: rgba(244,114,182,0.15); color: #f9a8d4; border: 1px solid rgba(244,114,182,0.4); }
+
 </style>
 </head>
 <body>
@@ -4204,13 +4211,7 @@
          shown a league table of their own work; the numbers those cards read
          from are the admin's to interpret. -->
 
-    </div>
-
     <div class="card insight-card" id="deptInsight" style="display:none;"></div>
-
-    
-      </div>
-    </div>
 
     <div class="tools-head">
       <h2>Your AI Tools</h2>
@@ -13904,15 +13905,15 @@ function renderQuickStats() {
   const host = document.getElementById('quickStats');
   if (!host) return;
   const list = deptEntries();
-  let time = 0;
-  list.forEach(e => { time += monthlySavings(e).timeSavedMonthly; });
   const pending = list.filter(e => e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new')).length;
+  /* Counts of what the team has filed, and what is still waiting on an
+     answer. Hours saved and projects logged were figures — they belong to
+     the admin's read of the portfolio, not to the person filing. */
   const stats = [
-    { ico: 'wand',  val: String(list.length), lbl: 'Tools tracked' },
-    { ico: 'clock', val: fmtDuration(time),   lbl: 'Saved each month' },
-    { ico: 'flag',  val: String(deptProjects()), lbl: 'Projects logged' },
+    { ico: 'wand',  val: String(list.filter(e => e.tag !== 'request').length), lbl: 'Tools reported' },
+    { ico: 'inbox', val: String(list.filter(e => e.tag === 'request').length), lbl: 'Tools requested' },
   ];
-  if (pending) stats.push({ ico: 'inbox', val: String(pending), lbl: pending === 1 ? 'Request pending' : 'Requests pending' });
+  if (pending) stats.push({ ico: 'flag', val: String(pending), lbl: pending === 1 ? 'Awaiting a decision' : 'Awaiting a decision' });
   host.innerHTML = stats.map(s =>
     '<div class="qs"><span class="qs-ico">' + svgIcon(s.ico) + '</span>' +
     '<span class="qs-text"><b>' + escapeHTML(s.val) + '</b><i>' + s.lbl + '</i></span></div>').join('');
@@ -13923,19 +13924,18 @@ function renderMyHistoryCard() {
   if (!card) return;
   const list = myEntries();
   if (!list.length) { card.style.display = 'none'; return; }
-  let time = 0, projects = 0;
-  list.forEach(e => {
-    time += monthlySavings(e).timeSavedMonthly;
-    projects += (e.projects || []).length;
-  });
+  const reported  = list.filter(e => e.tag !== 'request').length;
+  const requested = list.filter(e => e.tag === 'request').length;
+  const open      = list.filter(e => e.tag === 'request' &&
+                     !['approved', 'declined'].includes(e.requestStatus || 'new')).length;
   card.style.display = 'block';
-  /* No status mix here either — the same reason the breakdown left the
-     department overview. A person's own history is what they did, not a
-     tally of the labels they picked. */
+  /* How many, and how many are still waiting on somebody. Not hours, not
+     money, not a tally of the labels they picked — those are the admin's
+     read of the portfolio, and this is a person's own list. */
   document.getElementById('myHistoryStats').innerHTML =
-    '<div><div class="lbl">Tools submitted</div><div class="val">' + list.length + '</div></div>' +
-    '<div><div class="lbl">Time saved / mo</div><div class="val">' + fmtDuration(time) + '</div></div>' +
-    '<div><div class="lbl">Projects logged</div><div class="val">' + projects + '</div></div>';
+    '<div><div class="lbl">Tools reported</div><div class="val">' + reported + '</div></div>' +
+    '<div><div class="lbl">Tools requested</div><div class="val">' + requested + '</div></div>' +
+    (open ? '<div><div class="lbl">Awaiting a decision</div><div class="val">' + open + '</div></div>' : '');
 }
 
 function renderDeptOverview() {
@@ -14081,18 +14081,23 @@ function renderToolsList() {
   }
   wrap.innerHTML =
     '<div class="tools-table-wrap"><table class="tools-table">' +
-      '<thead><tr><th>Tool</th><th>Type</th><th>Category</th><th>Status</th>' +
-      '<th>Time saved / mo</th><th>Projects</th><th></th></tr></thead><tbody>' +
+      /* What was filed and where it stands. The saved-time and project
+         columns were figures, and figures are not this person's business
+         here — they read them in the admin's report, not in their own list. */
+      '<thead><tr><th>Tool</th><th>Type</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody>' +
       list.map(e => {
-        const m = monthlySavings(e);
         const tag = (e.tag === 'request') ? 'request' : 'report';
         return '<tr onclick="openTool(\'' + e.id + '\')">' +
           '<td><span class="tt-name">' + toolLinkHTML(e.toolName || 'Untitled tool', e.officialUrl) + '</span></td>' +
           '<td><span class="pill tag-' + tag + '">' + (tag === 'request' ? 'Request' : 'Report') + '</span></td>' +
           '<td>' + (e.category ? escapeHTML(e.category) : '—') + '</td>' +
-          '<td>' + (e.status ? '<span class="pill ' + statusPillClass(e.status) + '">' + escapeHTML(e.status) + '</span>' : '—') + '</td>' +
-          '<td>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</td>' +
-          '<td>' + ((e.projects || []).length || '—') + '</td>' +
+          /* For something you asked for, the status you care about is the
+             answer — new, reviewed, approved, declined — not the adoption
+             stage, which just repeats that you are requesting it. */
+          '<td>' + (tag === 'request'
+            ? '<span class="pill req-' + escapeAttr(e.requestStatus || 'new') + '">' +
+              escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</span>'
+            : (e.status ? '<span class="pill ' + statusPillClass(e.status) + '">' + escapeHTML(e.status) + '</span>' : '—')) + '</td>' +
           '<td><button class="tt-remove" title="Remove tool" onclick="event.stopPropagation(); removeTool(\'' + e.id + '\')">−</button></td>' +
         '</tr>';
       }).join('') +
