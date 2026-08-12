@@ -409,6 +409,13 @@
   .reg-row .rr-url  { color: var(--accent); font-size: 12px; word-break: break-all; flex: 1; min-width: 220px; }
   .reg-row .rr-meta { color: var(--muted); font-size: 11px; }
   /* An address the app refused to link — shown so it can be found and fixed */
+  /* Money & Pricing list */
+  .fin-allset { padding: 11px 14px; margin-bottom: 10px; border-radius: 12px; font-size: 12.5px;
+    color: var(--muted); background: rgba(61,220,151,0.07); border: 1px solid rgba(61,220,151,0.22); }
+  .fin-allset b { color: var(--good); }
+  .tp-asked { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .4px;
+    text-transform: uppercase; padding: 2px 6px; margin-left: 7px; border-radius: 999px;
+    color: var(--accent); background: rgba(167,139,250,0.14); border: 1px solid rgba(167,139,250,0.32); }
   .reg-row .rr-bad { color: var(--bad); text-decoration: line-through dotted; cursor: help; }
   .reg-row.read-only { opacity: 0.7; }
   .reg-row .rr-actions { display:flex; gap: 6px; }
@@ -8962,9 +8969,15 @@ function buildAdminNav() {
        onclick="showAdminSection(${jsArg(i.id)})">${escapeHTML(i.label.trim())}</button>`).join('');
 }
 function showAdminSection(id) {
-  adminSection = id;
   const content = document.getElementById('adminContent');
   if (!content) return;
+  /* A name nobody knows would hide every section and leave an empty page
+     headed with the raw id — which is what a stale link or a mistyped
+     command did. Land on the overview instead. */
+  if (id !== 'overview' && !content.querySelector('details.accordion#' + (window.CSS && CSS.escape ? CSS.escape(id) : id))) {
+    id = 'overview';
+  }
+  adminSection = id;
   const overview = document.getElementById('adminOverview');
   if (overview) overview.style.display = (id === 'overview') ? '' : 'none';
   content.querySelectorAll('details.accordion').forEach(a => {
@@ -11225,8 +11238,18 @@ function entryLabel(e) {
 function needsPricing(e) {
   return !(Number(e.tradCost) > 0) || !(Number(e.toolMonthlyCost) > 0);
 }
+/* What the money figures are computed from: reports only. A request is a
+   proposal, not a result, so it must never move the business case. */
 function pricedEntries() {
   return dashboardEntries().filter(e => e.tag !== 'request');
+}
+
+/* What an admin may PRICE, which is a wider set than what is counted. A tool
+   somebody has asked for needs a licence figure before anyone can decide on
+   it — that was impossible while the pricing list was reports only. Requests
+   are listed and priceable here; they still contribute nothing to any total. */
+function priceableEntries() {
+  return dashboardEntries();
 }
 
 /* One entry's money, edited in a floating tile. */
@@ -11611,7 +11634,7 @@ function saveFinanceSettings() {
    entry, on its own row underneath.
    ============================================================ */
 function toolPricingRows() {
-  const groups = _toolGroups(pricedEntries());
+  const groups = _toolGroups(priceableEntries());
   groups.forEach(g => {
     let ai = 0, trad = 0, net = 0, rev = 0, time = 0;
     /* One licence per tool: if the entries disagree, say so rather than
@@ -11629,6 +11652,10 @@ function toolPricingRows() {
     g.credits = creds.size === 1 ? [...creds][0] : null;
     g.split = subs.size > 1 || creds.size > 1;
     g.unpriced = g.entries.filter(needsPricing).length;
+    /* A tool can be asked for, reported, or both — the row has to say which,
+       because an asking price and a running cost are not the same claim. */
+    g.asked = g.entries.filter(e => e.tag === 'request').length;
+    g.reported = g.entries.filter(e => e.tag !== 'request').length;
   });
   return groups;
 }
@@ -11783,27 +11810,42 @@ function renderFinance() {
 
   /* One row per tool. A tool is "waiting on you" while any of its entries
      is uncosted, because the tool's figure is not settled until they all are. */
-  let rows = toolPricingRows();
-  if (financeTab === 'todo')      rows = rows.filter(g => g.unpriced > 0);
-  else if (financeTab === 'done') rows = rows.filter(g => g.unpriced === 0);
+  const allRows = toolPricingRows();
+  let rows = allRows;
+  if (financeTab === 'todo')      rows = allRows.filter(g => g.unpriced > 0);
+  else if (financeTab === 'done') rows = allRows.filter(g => g.unpriced === 0);
+  /* "Waiting on you" lands empty once everything is costed, which left an
+     admin looking at a page with no tool on it and no way to price one.
+     Nothing waiting is good news, not a dead end — say so and show the list. */
+  let fellBack = false;
+  if (!rows.length && financeTab === 'todo' && allRows.length) { rows = allRows; fellBack = true; }
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state" style="padding:26px;"><h3>' +
       (financeTab === 'todo' ? 'Nothing is waiting on you' : 'Nothing here yet') + '</h3>' +
       '<p>' + (financeTab === 'todo' ? 'Every tool in the tracker has its pricing set.' : 'Tools appear here once the team reports them.') + '</p></div>';
     return;
   }
-  rows.sort((a, b) => (b.unpriced - a.unpriced) || (b.net - a.net));
-  host.innerHTML = rows.map(g =>
+  /* Uncosted first, then what a tool is being asked for, then by size */
+  rows.sort((a, b) => (b.unpriced - a.unpriced) || (b.asked - a.asked) || (b.net - a.net));
+  host.innerHTML =
+    (fellBack
+      ? '<div class="fin-allset"><b>Nothing is waiting on you.</b> Every tool is costed. ' +
+        'Pick any tool below to change what it costs.</div>'
+      : '') +
+    rows.map(g =>
     '<button type="button" class="deck-row" onclick="DECK.open(\'toolPricing\', ' + escapeAttr(JSON.stringify(g.key)) + ')">' +
-      '<span class="dr-ico">' + svgIcon(g.unpriced ? 'flag' : 'money') + '</span>' +
+      '<span class="dr-ico">' + svgIcon(g.unpriced ? 'flag' : (g.asked && !g.reported ? 'inbox' : 'money')) + '</span>' +
       '<span class="dr-text"><b>' + escapeHTML(g.name) + '</b>' +
+        (g.asked ? ' <em class="tp-asked">' + (g.reported ? 'also requested' : 'requested') + '</em>' : '') +
         '<i>' + g.entries.length + ' entr' + (g.entries.length === 1 ? 'y' : 'ies') + ' · ' +
         g.depts.size + ' department' + (g.depts.size === 1 ? '' : 's') +
         (g.sub !== null ? ' · ' + fmtUSD(g.sub + (g.credits || 0)) + '/mo licence' : ' · <em class="tp-split">figures disagree</em>') +
         '</i></span>' +
       '<span class="dr-stat">' + (g.unpriced
         ? '<b class="needs">' + g.unpriced + ' to cost</b><span>of ' + g.entries.length + '</span>'
-        : '<b class="' + (g.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(g.net) + '</b><span>net / mo</span>') +
+        : g.reported
+          ? '<b class="' + (g.net >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(g.net) + '</b><span>net / mo</span>'
+          : '<b>' + fmtUSD((g.sub || 0) + (g.credits || 0)) + '</b><span>asking price</span>') +
       '</span>' +
       '<span class="dr-go">' + svgIcon('expand') + '</span>' +
     '</button>').join('');
