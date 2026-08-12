@@ -2804,16 +2804,40 @@
   }
   .deck-panel.wide  { width: min(1220px, calc(100vw - 24px)); }
   .deck-panel.slim  { width: min(620px, calc(100vw - 24px)); }
-  /* The specular sheen that marks every glass surface in this app */
+  /* The specular sheen that marks every glass surface in this app. Two
+     things read as "glass" rather than "grey box": a bright hairline where
+     the light catches the top edge, and a broad soft fall-off beneath it.
+     Both are painted, not animated — a moving highlight would repaint the
+     whole panel every frame, which this app cannot afford on a laptop with
+     no GPU. */
   .deck-panel::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    background: linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 42%);
+    background:
+      linear-gradient(160deg, rgba(255,255,255,0.13), rgba(255,255,255,0.02) 34%, rgba(255,255,255,0) 60%),
+      radial-gradient(120% 80% at 12% -10%, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%);
   }
+  /* the lit rim: one crisp pixel along the top, dissolving down the sides */
+  .deck-panel::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
+    padding: 1px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.55), rgba(255,255,255,0.06) 30%, rgba(255,255,255,0) 62%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude; opacity: .5;
+  }
+  .deck-panel.focused::before { opacity: .9; }
 
   /* Several tiles can be open together. The one you are working in is lit;
      the rest hold their place, dimmed but readable, until you pick them up. */
   .deck-panel { transition: box-shadow .3s ease, opacity .3s ease, filter .3s ease; }
-  .deck-panel.resting { filter: saturate(.86) brightness(.88); }
+  /* A resting tile does not need a 26px backdrop blur — that is the most
+     expensive thing on the screen, and several tiles now stay open at once.
+     Cheaper glass reads as "further away", which is what resting means. */
+  .deck-panel.resting {
+    filter: saturate(.86) brightness(.88);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+  }
   .deck-panel.resting .dp-head { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)); }
   .deck-panel.focused {
     border-color: rgba(167,139,250,0.34);
@@ -10653,7 +10677,8 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
 
     const parent = spec.from ? panels.find(x => x.id === spec.from && !x.min) : null;
     const anchor = parent && parent.live
-      ? { x: parseFloat(parent.live.style.left) || 0, y: parseFloat(parent.live.style.top) || 0 }
+      ? { x: parseFloat(parent.live.style.left) || 0, y: parseFloat(parent.live.style.top) || 0,
+          w: parent.live.offsetWidth, h: parent.live.offsetHeight }
       : null;
 
     const p = { id, kind, args, scope: scope(), min: false, spec, live: null, parent: parent ? parent.id : null };
@@ -10756,7 +10781,17 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(updatePreviewDept
     const vw = window.innerWidth, vh = window.innerHeight, edge = 12;
     let x, y;
     if (saved) { x = saved.x; y = saved.y; }
-    else if (anchor) { x = anchor.x + 46; y = anchor.y + 34; }   // beside the tile it came from
+    else if (anchor) {
+      /* Genuinely beside it. A 46px diagonal nudge was enough when the
+         parent folded away as this opened; now that it stays, the child has
+         to clear it — to the right if the screen allows, underneath if not,
+         and only then falling back to the nudge. */
+      const gap = 14;
+      if (anchor.x + anchor.w + gap + w <= vw - edge)      { x = anchor.x + anchor.w + gap; y = anchor.y; }
+      else if (anchor.y + anchor.h + gap + h <= vh - edge) { x = anchor.x; y = anchor.y + anchor.h + gap; }
+      else if (anchor.x - gap - w >= edge)                 { x = anchor.x - gap - w; y = anchor.y; }
+      else { x = anchor.x + 46; y = anchor.y + 34; }
+    }
     else {
       /* Centre the first, then cascade so a second tile never hides the first */
       const step = (cascade++ % 5) * 34;
