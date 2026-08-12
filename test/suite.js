@@ -604,12 +604,64 @@ async function scenarioWorkbook() {
   });
 }
 
+
+async function scenarioDeptPrompt() {
+  if (only && !'prompt'.includes(only)) return;
+  await withApp(async ({ run }) => {
+    suite('16 · The department question is asked on every sign-in');
+    const shown = () => run(`(function(){const e=document.getElementById('deptPrompt');return !!e && !e.hidden;})()`);
+    /* closing is animated, so give the card the beat it takes to leave */
+    const settle = () => new Promise(r => setTimeout(r, 340));
+    const signIn = () => run(`devBypassSignIn();
+      profile.department='Production'; profile.name='Arnold'; profile.role='Lead'; saveProfile && saveProfile();
+      sessionStorage.setItem('swangz_preview_as_dept','1'); switchView('tools'); maybeShowDeptPrompt();`);
+
+    signIn();
+    ok('it is asked on the first sign-in', shown());
+    run('dismissDeptPrompt();'); await settle();
+    ok('dismissing it puts it away', !shown());
+
+    /* moving around inside one sign-in must not nag */
+    run(`switchView('admin');`); await settle();
+    run(`switchView('tools'); maybeShowDeptPrompt();`);
+    ok('moving away and back does not ask again', !shown());
+
+    /* but a new session must */
+    run('resetDeptPrompt(); authUser = null; switchView("auth");');
+    signIn();
+    ok('signing in again asks again', shown(), 'this is the one that only fired once');
+    run('dismissDeptPrompt();'); await settle();
+
+    /* and a different person is asked on their own terms */
+    run(`authUser = { id:'x', email:'someone@swangzavenue.com', user_metadata:{ full_name:'Someone' } };
+         syncProfileFromAuth(authUser); profile.department='Content'; profile.name='Someone'; saveProfile && saveProfile();
+         switchView('admin'); switchView('tools'); maybeShowDeptPrompt();`);
+    ok('a different account is asked too', shown());
+    run('dismissDeptPrompt();'); await settle();
+
+    /* an admin is never asked */
+    run(`sessionStorage.setItem('swangz_preview_as_dept','0'); resetDeptPrompt();
+         authUser = { id:'a', email:'arnoldkigozi0@gmail.com', user_metadata:{} }; syncProfileFromAuth(authUser);
+         switchView('tools');`); await settle();
+    run('maybeShowDeptPrompt();');
+    ok('an admin is never asked', !shown(), 'role=' + run('currentRole()'));
+
+    /* it must not lock the page */
+    run(`sessionStorage.setItem('swangz_preview_as_dept','1'); resetDeptPrompt(); switchView('tools'); maybeShowDeptPrompt();`);
+    ok('the question is on screen for this check', shown());
+    const wrapper = run(`getComputedStyle(document.getElementById('deptPrompt')).pointerEvents`);
+    eq('the wrapper takes no pointer events, so the page behind stays live', wrapper, 'none');
+    const card = run(`getComputedStyle(document.querySelector('#deptPrompt .dp-card')).pointerEvents`);
+    eq('only the card itself catches a click', card, 'auto');
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
   for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioExecWording,
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
-                   scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook]) {
+                   scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

@@ -5037,6 +5037,7 @@ async function signInWithGoogle() {
   if (error) toast('Sign-in failed: ' + (error.message || 'unknown'), true);
 }
 async function signOut() {
+  if (typeof resetDeptPrompt === 'function') resetDeptPrompt();   // ask again next time
   if (!supabaseClient) return;
   await supabaseClient.auth.signOut();
   authUser = null;
@@ -5098,6 +5099,7 @@ function devBypassSignIn() {
     user_metadata: { full_name: 'Arnold Kigozi', role: 'Redesign Lead', department: '' }
   };
   syncProfileFromAuth(authUser);
+  if (typeof resetDeptPrompt === 'function') resetDeptPrompt();
   toast('Signed in as Local Dev (bypass)');
   if (!profile.department || !profile.role) switchView('landing');
   else switchView('tools');
@@ -7895,6 +7897,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncProfileFromAuth(authUser);
         // Only route + sync if this is a real new sign-in, not a silent refresh.
         if (wasUnauthenticated || currentView === 'auth') {
+          if (typeof resetDeptPrompt === 'function') resetDeptPrompt();
           autoSyncOnLoad().catch(()=>{});
           if (!profile.department || !profile.role) switchView('landing');
           else switchView('tools');
@@ -14114,11 +14117,28 @@ function renderToolsList() {
    ============================================================ */
 const DEPT_PROMPT_KEY = 'swangz_dept_prompt_v1';   // sessionStorage: asked already
 
+/* Keyed to the account, so signing in as somebody else asks them too. The
+   flag lives for one sign-in and no longer: it is cleared when a session
+   starts and when one ends. Without that it was set once and never removed,
+   so the second sign-in in the same tab was treated as already answered —
+   which is why it only ever appeared once. */
+function deptPromptKey() {
+  const who = (typeof currentEmail === 'function' && currentEmail()) || '';
+  return DEPT_PROMPT_KEY + (who ? ':' + who : '');
+}
 function deptPromptAnswered() {
-  try { return sessionStorage.getItem(DEPT_PROMPT_KEY) === '1'; } catch (_) { return false; }
+  try { return sessionStorage.getItem(deptPromptKey()) === '1'; } catch (_) { return false; }
 }
 function markDeptPromptAnswered() {
-  try { sessionStorage.setItem(DEPT_PROMPT_KEY, '1'); } catch (_) {}
+  try { sessionStorage.setItem(deptPromptKey(), '1'); } catch (_) {}
+}
+/* Forget every answer — a new sign-in starts the question fresh */
+function resetDeptPrompt() {
+  try {
+    Object.keys(sessionStorage)
+      .filter(k => k.indexOf(DEPT_PROMPT_KEY) === 0)
+      .forEach(k => sessionStorage.removeItem(k));
+  } catch (_) {}
 }
 
 function maybeShowDeptPrompt() {
