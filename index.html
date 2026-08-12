@@ -3858,6 +3858,116 @@
     .fin-tabs button, .exec-periods button, #execPeriods button { min-height: 42px; }
   }
 
+
+  /* ==================================================================
+     THE DEPARTMENT PROMPT
+     A question, floating over the page rather than in front of it. The
+     wrapper takes no pointer events at all, so the dashboard behind stays
+     scrollable and clickable — this asks, it does not detain.
+     ================================================================== */
+  .dept-prompt {
+    position: fixed; inset: 0; z-index: 70;
+    display: grid; place-items: center; padding: 20px;
+    pointer-events: none;                 /* the page behind stays live */
+  }
+  .dept-prompt[hidden] { display: none; }
+  .dept-prompt .dp-card {
+    pointer-events: auto;                 /* only the card itself catches a click */
+    position: relative; width: min(520px, 100%); border-radius: 26px; padding: 26px 26px 20px;
+    /* translucent enough to read the page through, opaque enough to read */
+    background: linear-gradient(180deg, rgba(32,38,58,0.72), rgba(16,20,32,0.78));
+    backdrop-filter: blur(30px) saturate(170%);
+    -webkit-backdrop-filter: blur(30px) saturate(170%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 50px 120px -28px rgba(0,0,0,0.82), inset 0 1px 0 rgba(255,255,255,0.13);
+    animation: dpz-in .42s cubic-bezier(.16,.84,.32,1) both;
+  }
+  /* the lit rim, same language as the tiles */
+  .dept-prompt .dp-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.55), rgba(255,255,255,0.05) 32%, rgba(255,255,255,0) 64%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude; opacity: .75;
+  }
+  @keyframes dpz-in { from { opacity: 0; transform: translate3d(0,16px,0) scale(.97); } to { opacity: 1; transform: none; } }
+  .dept-prompt.closing .dp-card { animation: dpz-out .26s cubic-bezier(.4,0,.7,.2) both; }
+  @keyframes dpz-out { to { opacity: 0; transform: translate3d(0,10px,0) scale(.97); } }
+
+  .dpz-eyebrow { margin: 0 0 3px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.6px;
+                 text-transform: uppercase; color: var(--accent); }
+  .dept-prompt h2 { margin: 0 0 5px; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  .dpz-sub { margin: 0 0 18px; font-size: 12.75px; color: var(--muted); line-height: 1.5; }
+  .dpz-x {
+    position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; padding: 0;
+    border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); color: var(--muted);
+    transition: background .18s, color .18s;
+  }
+  .dpz-x:hover { background: rgba(255,255,255,0.13); color: var(--text); }
+  .dpz-x .ico { width: 15px; height: 15px; }
+
+  .dpz-choices { display: flex; flex-direction: column; gap: 10px; }
+  .dpz-choice {
+    display: flex; align-items: center; gap: 13px; text-align: left; cursor: pointer;
+    padding: 14px 15px; border-radius: 16px; font-family: inherit; color: var(--text);
+    background: linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+    border: 1px solid var(--glass-border);
+    transition: transform .2s cubic-bezier(.22,1,.36,1), border-color .2s, box-shadow .2s;
+  }
+  .dpz-choice:hover { transform: translateY(-2px); border-color: rgba(245,197,66,0.5);
+                      box-shadow: 0 14px 34px -14px var(--accent-glow); }
+  .dpz-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dpz-ico { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center;
+             color: var(--accent); background: rgba(245,197,66,0.13); border: 1px solid rgba(245,197,66,0.28); }
+  .dpz-ico .ico { width: 19px; height: 19px; }
+  .dpz-text { min-width: 0; }
+  .dpz-text b { display: block; font-size: 14px; font-weight: 700; }
+  .dpz-text i { display: block; font-style: normal; font-size: 11.75px; color: var(--muted); margin-top: 2px; }
+  .dpz-skip { display: block; width: 100%; margin-top: 14px; padding: 9px; cursor: pointer;
+              background: none; border: 0; color: var(--muted); font-family: inherit; font-size: 12.25px;
+              font-weight: 600; transition: color .18s; }
+  .dpz-skip:hover { color: var(--accent); }
+
+  /* Until the question is answered the numbers are pushed out of focus
+     rather than taken away. Hiding them left an empty page with a card in
+     the middle of it and nothing to see through TO; softened, the dashboard
+     is still there behind the glass — legible as shape, not as figures —
+     and it comes back the moment the question is answered. */
+  body.dept-asking #quickStats,
+  body.dept-asking #myHistoryCard,
+  body.dept-asking #deptOverview,
+  body.dept-asking #deptExtra,
+  body.dept-asking #deptInsight {
+    filter: blur(6px) saturate(.65);
+    opacity: .5;
+    transition: filter .42s cubic-bezier(.16,.84,.32,1), opacity .42s cubic-bezier(.16,.84,.32,1);
+  }
+  #quickStats, #myHistoryCard, #deptOverview, #deptExtra, #deptInsight {
+    transition: filter .42s cubic-bezier(.16,.84,.32,1), opacity .42s cubic-bezier(.16,.84,.32,1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.dept-asking #quickStats, body.dept-asking #myHistoryCard,
+    body.dept-asking #deptOverview, body.dept-asking #deptExtra,
+    body.dept-asking #deptInsight { transition: none; }
+  }
+
+  @media (max-width: 600px) {
+    /* Centred, and clear of the fixed chrome at the foot of the screen —
+       bottom-aligned it sat straight under the assistant button, which
+       covered one of the two answers. */
+    .dept-prompt { padding: 14px 14px calc(104px + env(safe-area-inset-bottom)); align-items: center; }
+    .dept-prompt .dp-card { padding: 22px 18px 16px; border-radius: 22px; }
+    .dept-prompt h2 { font-size: 19px; }
+    .dpz-choice { padding: 12px 13px; gap: 11px; }
+    .dpz-ico { width: 36px; height: 36px; border-radius: 11px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dept-prompt .dp-card, .dept-prompt.closing .dp-card { animation: none; }
+    .dpz-choice { transition: none; }
+    .dpz-choice:hover { transform: none; }
+  }
+
 </style>
 </head>
 <body>
@@ -4353,6 +4463,34 @@
   </div><!-- /overlay -->
 
   <!-- ADD-TYPE CHOOSER (Report vs Request) -->
+  <!-- The first thing a department person meets after signing in. It is NOT
+       a modal: there is no backdrop, the page behind stays visible through
+       the glass and stays fully usable, and it can be waved away. -->
+  <div id="deptPrompt" class="dept-prompt" hidden>
+    <div class="dp-card" role="dialog" aria-label="What would you like to do?">
+      <button type="button" class="dpz-x" onclick="dismissDeptPrompt()" aria-label="Not now">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <p class="dpz-eyebrow" id="deptPromptHi">Welcome back</p>
+      <h2>What would you like to do?</h2>
+      <p class="dpz-sub">Everything you record here builds the case leadership sees for AI at Swangz Avenue.</p>
+      <div class="dpz-choices">
+        <button type="button" class="dpz-choice" onclick="deptPromptPick('report')">
+          <span class="dpz-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="7" width="3" height="10" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg></span>
+          <span class="dpz-text"><b>Report a tool we use</b><i>Log the work it does and the hours it saves</i></span>
+        </button>
+        <button type="button" class="dpz-choice" onclick="deptPromptPick('request')">
+          <span class="dpz-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/></svg></span>
+          <span class="dpz-text"><b>Request a new tool</b><i>Ask leadership to invest in one we don't have</i></span>
+        </button>
+      </div>
+      <button type="button" class="dpz-skip" onclick="dismissDeptPrompt()">Just looking around →</button>
+    </div>
+  </div>
+
   <div id="addChooser" class="wizard-overlay" aria-hidden="true" onclick="if(event.target===this)closeAddChooser()">
     <div class="wizard" style="max-width:560px;" role="dialog" aria-modal="true" aria-label="Add to the tracker">
       <div class="wizard-head">
@@ -13960,11 +14098,92 @@ function renderToolsList() {
 }
 
 /* ---- Land on your own dashboard, the way the live site does ---- */
+/* ============================================================
+   THE DEPARTMENT PROMPT
+   A person from a department signs in to be asked something, not to be
+   shown a dashboard of numbers they did not request. The prompt floats
+   over the page — no backdrop, so everything behind it stays live — and
+   it is asked once per sign-in, not on every navigation.
+   ============================================================ */
+const DEPT_PROMPT_KEY = 'swangz_dept_prompt_v1';   // sessionStorage: asked already
+
+function deptPromptAnswered() {
+  try { return sessionStorage.getItem(DEPT_PROMPT_KEY) === '1'; } catch (_) { return false; }
+}
+function markDeptPromptAnswered() {
+  try { sessionStorage.setItem(DEPT_PROMPT_KEY, '1'); } catch (_) {}
+}
+
+function maybeShowDeptPrompt() {
+  const el = document.getElementById('deptPrompt');
+  if (!el) return;
+  /* Admins are not asked — they arrive to do a different job entirely */
+  const isDept = typeof currentRole === 'function' && currentRole() === 'user';
+  const ready  = !!(profile && profile.department && profile.name);
+  if (!isDept || !ready || currentView !== 'tools' || deptPromptAnswered()) return;
+
+  const hi = document.getElementById('deptPromptHi');
+  if (hi) {
+    const first = String(profile.name || '').trim().split(/\s+/)[0];
+    const h = new Date().getHours();
+    const when = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    hi.textContent = when + (first ? ', ' + first : '');
+  }
+  el.hidden = false;
+  el.classList.remove('closing');
+  document.body.classList.add('dept-asking');
+  /* focus the first choice so the keyboard can answer it too */
+  setTimeout(() => { const b = el.querySelector('.dpz-choice'); if (b) b.focus(); }, 60);
+}
+
+function hideDeptPrompt() {
+  const el = document.getElementById('deptPrompt');
+  document.body.classList.remove('dept-asking');
+  if (!el || el.hidden) return;
+  el.classList.add('closing');
+  setTimeout(() => { el.hidden = true; el.classList.remove('closing'); }, 260);
+}
+
+/* Answering it is the same road the Add tool button takes */
+function deptPromptPick(kind) {
+  markDeptPromptAnswered();
+  hideDeptPrompt();
+  setTimeout(() => {
+    if (typeof chooseAddType === 'function') chooseAddType(kind);
+    else if (typeof addNewTool === 'function') addNewTool(kind);
+  }, 180);
+}
+function dismissDeptPrompt() {
+  markDeptPromptAnswered();
+  hideDeptPrompt();
+}
+
+/* Every road into the department view asks it — routeAfterSignIn is only one
+   of them; the preview bypass and goToUser both call switchView directly. */
+(function () {
+  if (typeof switchView !== 'function') return;
+  const original = switchView;
+  window.switchView = function (v) {
+    const out = original.apply(this, arguments);
+    if (v === 'tools') setTimeout(maybeShowDeptPrompt, 240);
+    else hideDeptPrompt();
+    return out;
+  };
+})();
+
+/* Escape waves it away, like everything else that floats in this app */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const el = document.getElementById('deptPrompt');
+  if (el && !el.hidden) { e.stopPropagation(); dismissDeptPrompt(); }
+}, true);
+
 function routeAfterSignIn() {
   if (!authUser && !currentEmail()) { switchView('auth'); return; }
   if (canSeeAdmin()) { switchView('admin'); return; }
   if (!profile.department || !profile.name) { switchView('landing'); return; }
   switchView('tools');
+  setTimeout(maybeShowDeptPrompt, 260);
 }
 window.goToUser = function () {
   if (canSeeAdmin()) { switchView('admin'); return; }
