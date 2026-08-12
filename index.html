@@ -2004,22 +2004,59 @@
     background: linear-gradient(135deg, var(--accent-strong), var(--accent));
   }
 
-  .dept-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  /* Equal rows whatever the label does. "Creative Tech and Innovations"
+     wraps to two lines and used to make its whole row taller than the rest,
+     which is what made the grid look thrown together. */
+  .dept-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(216px, 1fr)); gap: 10px;
+    /* every row the height of the tallest, so one two-line name does not
+       leave the grid looking like it was assembled by accident */
+    grid-auto-rows: 1fr; }
   .dept-tile {
-    text-align: left; cursor: pointer; padding: 14px 15px; border-radius: 14px; font-family: inherit;
+    position: relative; text-align: left; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 11px; min-height: 68px; padding: 12px 14px;
+    border-radius: 14px; color: var(--text);
     background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015));
-    border: 1px solid var(--glass-border); color: var(--text);
-    transition: transform .18s cubic-bezier(.22,1,.36,1), border-color .18s, box-shadow .18s;
+    border: 1px solid var(--glass-border);
+    transition: transform .2s cubic-bezier(.22,1,.36,1), border-color .2s, box-shadow .2s, background .2s;
   }
-  .dept-tile:hover { transform: translateY(-3px); border-color: rgba(245,197,66,0.42); }
+  .dept-tile .dt-ico {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+    color: var(--dt-c, var(--accent)); background: color-mix(in srgb, var(--dt-c, var(--accent)) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--dt-c, var(--accent)) 30%, transparent);
+    transition: transform .2s cubic-bezier(.22,1,.36,1);
+  }
+  .dept-tile .dt-ico .ico { width: 17px; height: 17px; }
+  .dept-tile .dt-text { min-width: 0; flex: 1; }
+  .dept-tile .dt-name { display: block; font-size: 13.25px; font-weight: 700; line-height: 1.25; }
+  .dept-tile .dt-sub  { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px;
+                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dept-tile .dt-check {
+    flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    color: #0b0d12; background: var(--accent); opacity: 0; transform: scale(.5);
+    transition: opacity .2s, transform .24s cubic-bezier(.22,1.4,.36,1);
+  }
+  .dept-tile .dt-check .ico { width: 12px; height: 12px; }
+  .dept-tile:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--dt-c, var(--accent)) 45%, transparent); }
+  .dept-tile:hover .dt-ico { transform: scale(1.08) rotate(-4deg); }
+  .dept-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .dept-tile.on {
     border-color: var(--accent);
     background: linear-gradient(160deg, rgba(245,197,66,0.16), rgba(245,197,66,0.04));
     box-shadow: 0 12px 32px var(--accent-glow), inset 0 0 0 1px rgba(245,197,66,0.25);
   }
-  .dept-tile .dt-name { display: block; font-size: 13.5px; font-weight: 700; }
   .dept-tile.on .dt-name { color: var(--accent); }
-  .dept-tile .dt-sub { display: block; font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .dept-tile.on .dt-check { opacity: 1; transform: scale(1); }
+  /* One colour per team, set on the tile so the icon and its hover follow */
+  .dept-tile[data-hue="violet"]  { --dt-c: #a78bfa; }
+  .dept-tile[data-hue="gold"]    { --dt-c: #f5c542; }
+  .dept-tile[data-hue="cyan"]    { --dt-c: #22d3ee; }
+  .dept-tile[data-hue="emerald"] { --dt-c: #3ddc97; }
+  .dept-tile[data-hue="sky"]     { --dt-c: #60a5fa; }
+  .dept-tile[data-hue="rose"]    { --dt-c: #f472b6; }
+  @media (prefers-reduced-motion: reduce) {
+    .dept-tile, .dept-tile .dt-ico, .dept-tile .dt-check { transition: none; }
+    .dept-tile:hover { transform: none; }
+  }
 
   .onboard-hint { flex: 1; text-align: left; font-size: 12.5px; color: var(--muted); font-weight: 600; }
   .onboard-hint.ready { color: var(--c-emerald); }
@@ -2029,12 +2066,17 @@
     .onboard-hero h1 { font-size: 23px; }
     .onboard-steps { gap: 8px; }
     .onboard-steps > div { font-size: 11.5px; padding: 8px 12px; }
-    .dept-picker { grid-template-columns: 1fr 1fr; }
-    .dept-tile { padding: 12px; }
+    .dept-picker { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dept-tile { padding: 10px 11px; gap: 9px; min-height: 58px; }
+    .dept-tile .dt-ico { width: 30px; height: 30px; border-radius: 9px; }
     .dept-tile .dt-sub { display: none; }
+    .dept-tile .dt-check { width: 18px; height: 18px; }
     .onboard-hint { flex: 1 1 100%; margin-bottom: 8px; text-align: center; }
   }
-  @media (max-width: 420px) { .dept-picker { grid-template-columns: 1fr; } }
+  /* Two per row stays comfortable on a phone now the tiles are compact and
+     the subtitle is hidden — twelve full-width rows was a long scroll for a
+     question you answer once. One column only on the narrowest handsets. */
+  @media (max-width: 359px) { .dept-picker { grid-template-columns: 1fr; } }
 
   /* ============================================================
      SIDEBAR "ADD TOOL" CTA
@@ -9047,20 +9089,25 @@ function appScrollTop() {
    hidden) and driven from the cards, so saveProfileAndContinue()
    and every other reader keep working untouched.
    ============================================================ */
+/* Each team gets a mark and a colour so the grid reads as a choice rather
+   than a list of grey rectangles, and so the one anybody is looking for is
+   findable by shape before it is read. */
 const DEPT_META = {
-  'Production': 'Shoots, edits, post',
-  'Content': 'Writing, social, copy',
-  'Digital': 'Web, campaigns, performance',
-  'Finance': 'Budgets, reporting',
-  'Strategy': 'Planning, insights',
-  'HR': 'People, hiring, culture',
-  'Record Label': 'A&R, artists, releases',
-  'Creative Tech and Innovations': 'R&D, new formats',
-  'Events': 'Live shows, activations',
-  'Academy': 'Training, talent',
-  'Sales': 'Clients, pipeline',
-  'Marketing': 'Brand, campaigns',
+  'Production':                    { sub: 'Shoots, edits, post',        icon: 'wand',    hue: 'violet' },
+  'Content':                       { sub: 'Writing, social, copy',      icon: 'doc',     hue: 'gold'   },
+  'Digital':                       { sub: 'Web, campaigns, performance', icon: 'pulse',  hue: 'cyan'   },
+  'Finance':                       { sub: 'Budgets, reporting',         icon: 'money',   hue: 'emerald'},
+  'Strategy':                      { sub: 'Planning, insights',         icon: 'chart',   hue: 'sky'    },
+  'HR':                            { sub: 'People, hiring, culture',    icon: 'users',   hue: 'rose'   },
+  'Record Label':                  { sub: 'A&R, artists, releases',     icon: 'trophy',  hue: 'gold'   },
+  'Creative Tech and Innovations': { sub: 'R&D, new formats',           icon: 'bolt',    hue: 'violet' },
+  'Events':                        { sub: 'Live shows, activations',    icon: 'flag',    hue: 'rose'   },
+  'Academy':                       { sub: 'Training, talent',           icon: 'book',    hue: 'sky'    },
+  'Sales':                         { sub: 'Clients, pipeline',          icon: 'tag',     hue: 'emerald'},
+  'Marketing':                     { sub: 'Brand, campaigns',           icon: 'sparkle', hue: 'cyan'   },
 };
+/* The subtitle is read in several places that only ever wanted the words */
+function deptSub(d) { const m = DEPT_META[d]; return m ? (typeof m === 'string' ? m : m.sub) : ''; }
 function renderDeptPicker() {
   const host = document.getElementById('deptPicker');
   const sel = document.getElementById('p_department');
@@ -9068,10 +9115,16 @@ function renderDeptPicker() {
   const current = sel.value || (typeof profile !== 'undefined' ? profile.department : '') || '';
   host.innerHTML = Object.keys(DEPT_META).map(d => {
     const on = d === current;
+    const meta = DEPT_META[d];
     return `<button type="button" role="radio" aria-checked="${on}" class="dept-tile${on ? ' on' : ''}"
-      data-dept="${escapeHTML(d)}" onclick="pickDepartment(${jsArg(d)})">
-      <span class="dt-name">${escapeHTML(d)}</span>
-      <span class="dt-sub">${escapeHTML(DEPT_META[d])}</span>
+      data-dept="${escapeHTML(d)}" data-hue="${escapeAttr(meta.hue)}" onclick="pickDepartment(${jsArg(d)})">
+      <span class="dt-ico">${svgIcon(meta.icon)}</span>
+      <span class="dt-text">
+        <span class="dt-name">${escapeHTML(d)}</span>
+        <span class="dt-sub">${escapeHTML(meta.sub)}</span>
+      </span>
+      <span class="dt-check" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4 10-10"/></svg></span>
     </button>`;
   }).join('');
   updateOnboardHint();
