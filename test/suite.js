@@ -656,12 +656,178 @@ async function scenarioDeptPrompt() {
   });
 }
 
+async function scenarioCustomRange() {
+  if (only && !'custom'.includes(only)) return;
+  await withApp(async ({ run }) => {
+    suite('17 · A custom range reports exactly the days that were picked');
+    run('__t.signIn(); switchView("admin");');
+
+    /* Three reports on known days. One is filed at 1am — the hour that falls
+       outside its own window if a date input is parsed as UTC instead of local. */
+    run(`entries = [
+      { id:'c1', toolName:'Alpha', department:'Production', status:'In use', tag:'report',
+        submittedBy:'A', submittedAt: new Date(2026,6,20,12,0).toISOString() },
+      { id:'c2', toolName:'Beta',  department:'Content',    status:'In use', tag:'report',
+        submittedBy:'B', submittedAt: new Date(2026,7,1,1,0).toISOString() },
+      { id:'c3', toolName:'Gamma', department:'Digital',    status:'In use', tag:'report',
+        submittedBy:'C', submittedAt: new Date(2026,7,10,18,0).toISOString() }
+    ]; saveEntries();`);
+
+    ok('the period is chosen from one menu, not a row of buttons',
+       run(`(function(){ const s = document.getElementById('execPeriodSel');
+             return !!s && s.tagName === 'SELECT' && s.options.length === 6; })()`),
+       run(`(document.getElementById('execPeriodSel')||{}).outerHTML||'missing'`).slice(0, 160));
+    ok('every period the app knows is in the menu',
+       run(`(function(){ const want = ['this-week','last-week','this-month','last-month','all','custom'];
+             const got = [...document.getElementById('execPeriodSel').options].map(o => o.value);
+             return want.every(v => got.includes(v)); })()`));
+    eq('it opens on this month', run(`document.getElementById('execPeriodSel').value`), 'this-month');
+
+    /* Choosing from the menu is a change event, which is what a real person fires */
+    const pick = k => run(`(function(){ const s = document.getElementById('execPeriodSel');
+      s.value = ${JSON.stringify(k)}; s.dispatchEvent(new Event('change', {bubbles:true}));
+      return execPeriodKey; })()`);
+    eq('picking a period from the menu applies it', pick('last-week'), 'last-week');
+    eq('and picking the custom entry switches to it', pick('custom'), 'custom');
+
+    const range = (from, to) => JSON.parse(run(
+      `setExecPeriod('custom');
+       document.getElementById('execFrom').value = ${JSON.stringify(from)};
+       document.getElementById('execTo').value   = ${JSON.stringify(to)};
+       applyExecCustom();
+       (function(){ const w = execWindow('custom'), M = execBriefingModel();
+         return JSON.stringify({ n: M.period.length, label: w.label, cadence: w.cadence,
+                                 prev: (M.previous||{}).label || '' }); })()`));
+
+    const aug = range('2026-08-01', '2026-08-10');
+    eq('only the reports filed inside the range are counted', aug.n, 2);
+    /* The wording follows the reader's locale, so assert the facts it must carry
+       rather than one country's punctuation */
+    ok('the range names both ends and the year',
+       /August/.test(aug.label) && /2026/.test(aug.label) &&
+       /\b1\b/.test(aug.label) && /\b10\b/.test(aug.label), aug.label);
+    ok('a single day reads as one date, not a range',
+       !/–|-/.test(range('2026-08-01', '2026-08-01').label),
+       range('2026-08-01', '2026-08-01').label);
+    eq('the briefing knows it is a custom span', aug.cadence, 'Custom');
+    ok('the comparison names the span rather than a week or a month',
+       /days before/.test(aug.prev), aug.prev);
+
+    /* A single day proves both ends at once: the "to" day is included, and a
+       1am filing belongs to its own day rather than the one before. */
+    eq('a one-day range still catches what was filed at 1am', range('2026-08-01', '2026-08-01').n, 1);
+    eq('the last day of the range is inside it', range('2026-07-20', '2026-08-01').n, 2);
+
+    /* Dates the wrong way round are read the sensible way, not reported as empty */
+    eq('a reversed pair is read the other way round', range('2026-08-10', '2026-08-01').n, 2);
+
+    /* Half a range is not a range */
+    const half = JSON.parse(run(
+      `document.getElementById('execTo').value = ''; applyExecCustom();
+       (function(){ const w = execWindow('custom');
+         return JSON.stringify({ from: w.from, n: execBriefingModel().period.length }); })()`));
+    ok('one date on its own falls back to everything to date', half.from === null, String(half.from));
+    eq('and that fallback counts every report', half.n, 3);
+
+    const note = run(`(document.getElementById('execCustomNote')||{}).textContent||''`);
+    ok('and says so rather than reporting an empty window', /Pick both dates/i.test(note), note);
+
+    /* The row itself only exists while custom is the chosen period */
+    run(`setExecPeriod('this-month');`);
+    ok('the date fields go away when another period is chosen',
+       !run(`document.getElementById('execCustomRow').classList.contains('on')`));
+  });
+}
+
+async function scenarioAdminAccess() {
+  if (only && !'access'.includes(only)) return;
+  await withApp(async ({ run }) => {
+    suite('18 · Admin access is Swangz-only, and the owners are nowhere on show');
+
+    /* The owner accounts are untouched — same role, same sign-in, same mail.
+       Only what is drawn on screen changes. */
+    run(`authUser = { id:'o', email:'marvinmusokessekatawa@gmail.com', user_metadata:{} };
+         syncProfileFromAuth(authUser);`);
+    eq('an owner still holds the owner role', run('currentRole()'), 'super');
+    ok('and is still let through the sign-in gate',
+       run(`isEmailAllowed('marvinmusokessekatawa@gmail.com')`));
+    ok('and still receives the notification mail',
+       run(`adminRecipients().includes('marvinmusokessekatawa@gmail.com')`),
+       run(`JSON.stringify(adminRecipients())`));
+
+    /* ...but the outbox does not print those addresses back at the reader */
+    ok('the outbox shows the granted admins, not the owners',
+       !/gmail\.com/.test(run(`saveExtraAdmins(['ops@swangzavenue.com']);
+                               visibleRecipients(adminRecipients())`)),
+       run(`saveExtraAdmins(['ops@swangzavenue.com']); visibleRecipients(adminRecipients())`));
+    eq('a message addressed only to an owner shows a dash rather than naming them',
+       run(`visibleRecipients(['marvinmusokessekatawa@gmail.com'])`), '—');
+
+    /* Nor does the panel that used to list them */
+    run(`__t.signIn();
+         localStorage.setItem('swangz_ai_tracker_admins_v1', JSON.stringify(['ops@swangzavenue.com']));
+         switchView('admin'); renderAdminsPanel();`);
+    const panel = run(`(document.getElementById('adminsList')||{}).textContent||''`);
+    ok('the granted admin is listed', /ops@swangzavenue\.com/.test(panel), panel);
+    ok('no owner row is rendered', !/gmail\.com/.test(panel) && !/System owner/i.test(panel), panel);
+    const meta = run(`(document.getElementById('acc_adminsMeta')||{}).textContent||''`);
+    ok('and the count does not give away that owners exist', !/owner/i.test(meta), meta);
+
+    const add = email => JSON.parse(run(
+      `document.getElementById('newAdminEmail').value = ${JSON.stringify(email)};
+       addAdminEmail();
+       JSON.stringify({ list: extraAdmins(), said: (document.getElementById('toast')||{}).textContent||'' })`));
+
+    const outside = add('someone@gmail.com');
+    ok('an address outside the company is refused',
+       !outside.list.includes('someone@gmail.com'), outside.list.join(','));
+    ok('and is told why', /swangzavenue\.com/.test(outside.said), outside.said);
+
+    const granted = add('newlead@swangzavenue.com');
+    ok('a Swangz Avenue address is granted', granted.list.includes('newlead@swangzavenue.com'),
+       granted.list.join(','));
+
+    /* The form must not double as a way of asking who the owners are: an owner
+       address has to be refused in exactly the words any outsider gets. */
+    const probe = add('marvinmusokessekatawa@gmail.com');
+    ok('an owner address is refused too', !probe.list.includes('marvinmusokessekatawa@gmail.com'));
+    eq('and in words that single nobody out', probe.said, outside.said);
+
+    const removed = JSON.parse(run(
+      `removeAdminEmail('newlead@swangzavenue.com'); JSON.stringify(extraAdmins())`));
+    ok('an admin can be taken off again', !removed.includes('newlead@swangzavenue.com'), removed.join(','));
+
+    /* The empty state has to name the rule, and it reads ALLOWED_DOMAINS across
+       the two script blocks — so prove that resolves rather than throwing */
+    const empty = run(`saveExtraAdmins([]); renderAdminsPanel();
+                       (document.getElementById('adminsList')||{}).textContent||''`);
+    ok('with nobody granted, the panel says what kind of address is needed',
+       /swangzavenue\.com/.test(empty), empty);
+
+    /* Only an owner may hand the dashboard out */
+    run(`authUser = { id:'s', email:'staff@swangzavenue.com', user_metadata:{} };
+         syncProfileFromAuth(authUser);`);
+    eq('an ordinary staff account is just a user', run('currentRole()'), 'user');
+    const bounced = add('another@swangzavenue.com');
+    ok('and cannot grant admin to anyone',
+       !bounced.list.includes('another@swangzavenue.com'), bounced.list.join(','));
+
+    /* A granted admin reaches the dashboard, and is not an owner */
+    run(`saveExtraAdmins(['ops@swangzavenue.com']);   /* the empty-state check above cleared it */
+         authUser = { id:'g', email:'ops@swangzavenue.com', user_metadata:{} };
+         syncProfileFromAuth(authUser);`);
+    eq('a granted admin is an admin', run('currentRole()'), 'admin');
+    ok('but cannot change the list', !run(`isSuperAdmin('ops@swangzavenue.com')`));
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
   for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioExecWording,
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
-                   scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt]) {
+                   scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt,
+                   scenarioCustomRange, scenarioAdminAccess]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

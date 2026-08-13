@@ -3113,14 +3113,14 @@
 
   .fin-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 16px; }
   .fin-tabs { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
-  .fin-tabs button, .exec-periods button {
+  .fin-tabs button {
     padding: 8px 14px; border-radius: 999px; cursor: pointer; font-family: inherit;
     font-size: 12.5px; font-weight: 700; color: var(--muted);
     background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
     transition: color .16s, background .18s, border-color .18s;
   }
-  .fin-tabs button:hover, .exec-periods button:hover { color: var(--text); background: rgba(255,255,255,0.08); }
-  .fin-tabs button.active, .exec-periods button.active {
+  .fin-tabs button:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+  .fin-tabs button.active {
     color: #0b0e16; background: var(--brand-gold, #f5c542); border-color: transparent;
   }
   .dr-stat b.needs { color: #fbbf24; }
@@ -3165,7 +3165,18 @@
 
   /* ---- executive briefing ---- */
   .exec-bar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; }
-  .exec-periods { display: flex; gap: 7px; flex-wrap: wrap; }
+  /* One choice, so one control. The global select rule already paints the
+     caret and the popup, so this only has to size it. */
+  .exec-pick select { width: 100%; max-width: 280px; }
+  /* The two date fields only exist once "Custom range" is the chosen period */
+  .exec-custom { display: none; gap: 10px 12px; margin-top: 11px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; }
+  .exec-custom.on { display: grid; }
+  .exec-custom label { display: block; font-size: 10px; font-weight: 800; letter-spacing: .9px;
+    text-transform: uppercase; color: var(--muted-2); margin-bottom: 5px; }
+  .exec-custom input[type="date"] { width: 100%; }
+  .ec-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
+  .ec-note.bad { color: var(--warn); font-weight: 700; }
   .exec-doc { font-size: 14px; line-height: 1.65; }
   .exec-doc-head {
     display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
@@ -3855,7 +3866,7 @@
     .gt-btn, .wiz-close, .bot-close, .profile-menu-btn { width: 42px; height: 42px; }
     .dp-btn { width: 40px; height: 40px; }
     /* the filter/period pill rows sit right on the 44px guidance */
-    .fin-tabs button, .exec-periods button, #execPeriods button { min-height: 42px; }
+    .fin-tabs button { min-height: 42px; }
   }
 
 
@@ -4659,16 +4670,30 @@
         <span class="acc-meta">narrative summary</span>
       </summary>
       <div class="acc-body">
-        <p class="help">A briefing written from the tracked data, ready to table. Choose the period and prepare it — each week and each month stands on its own, so nothing bleeds across the boundary.</p>
+        <p class="help">A briefing written from the tracked data, ready to table. Choose the period — a week, a month, or your own two dates — and prepare it. Each period stands on its own, so nothing bleeds across the boundary.</p>
 
         <div class="exec-launch">
           <div class="el-step"><span class="el-num">1</span><span>Which period?</span></div>
-          <div class="exec-periods" id="execPeriods" role="tablist">
-            <button type="button" data-p="this-week"  onclick="setExecPeriod('this-week')">This week</button>
-            <button type="button" data-p="last-week"  onclick="setExecPeriod('last-week')">Last week</button>
-            <button type="button" class="active" data-p="this-month" onclick="setExecPeriod('this-month')">This month</button>
-            <button type="button" data-p="last-month" onclick="setExecPeriod('last-month')">Last month</button>
-            <button type="button" data-p="all"        onclick="setExecPeriod('all')">Everything to date</button>
+          <div class="exec-pick">
+            <select id="execPeriodSel" aria-label="Reporting period" onchange="setExecPeriod(this.value)">
+              <option value="this-week">This week</option>
+              <option value="last-week">Last week</option>
+              <option value="this-month" selected>This month</option>
+              <option value="last-month">Last month</option>
+              <option value="all">Everything to date</option>
+              <option value="custom">Custom range…</option>
+            </select>
+          </div>
+          <div class="exec-custom" id="execCustomRow">
+            <div>
+              <label for="execFrom">From</label>
+              <input id="execFrom" type="date" onchange="applyExecCustom()" />
+            </div>
+            <div>
+              <label for="execTo">To</label>
+              <input id="execTo" type="date" onchange="applyExecCustom()" />
+            </div>
+            <p class="ec-note" id="execCustomNote">Both dates are included.</p>
           </div>
 
           <div class="el-step"><span class="el-num">2</span><span>How should it read?</span></div>
@@ -4827,16 +4852,16 @@
       <summary>
         <span class="chevron">▸</span>
         <span class="acc-title">Admin Access</span>
-        <span class="acc-meta" id="acc_adminsMeta">owners &amp; admins</span>
+        <span class="acc-meta" id="acc_adminsMeta">admin access</span>
       </summary>
       <div class="acc-body">
-        <p class="help">System owners always have access. Owners can grant the Admin Dashboard to other staff here — they get admin views, but cannot manage this list.</p>
-        <div id="adminsGuard" class="gate-error" style="display:none;">Only system owners can change admin access.</div>
+        <p class="help">An admin gets the full Admin Dashboard — every department, the figures and the reports. Access is granted to a Swangz Avenue account only, and an admin cannot change this list themselves.</p>
+        <div id="adminsGuard" class="gate-error" style="display:none;">Admin access is granted and withdrawn by the system owner.</div>
         <div id="adminsList"></div>
         <div id="adminsAddRow" class="grid cols-2" style="margin-top:14px; align-items:end;">
           <div>
             <label>Add admin by email</label>
-            <input id="newAdminEmail" type="email" placeholder="name@example.com"
+            <input id="newAdminEmail" type="email" placeholder="name@swangzavenue.com"
               onkeydown="if(event.key==='Enter'){event.preventDefault(); addAdminEmail();}" />
           </div>
           <div class="row-actions" style="justify-content:flex-start;">
@@ -8701,27 +8726,35 @@ function renderAdminsPanel() {
   if (addRow) addRow.style.display = isOwner ? '' : 'none';
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const rows = SUPER_ADMINS.map(e =>
-    '<div class="reg-row read-only"><span class="rr-name">' + esc(e) + '</span>' +
-    '<span class="pill cat">System owner</span>' +
-    '<span class="rr-meta">permanent</span></div>'
-  ).concat(extraAdmins().map(e =>
+  /* The owner accounts are deliberately absent from this list, and from the
+     count below it. They administer the tracker without appearing in it. */
+  const admins = extraAdmins();
+  const rows = admins.map(e =>
     '<div class="reg-row"><span class="rr-name">' + esc(e) + '</span>' +
     '<span class="pill dept">Admin</span>' +
     (isOwner ? '<span class="rr-actions"><button type="button" class="danger" onclick="removeAdminEmail(' + jsArg(e) + ')">Remove</button></span>' : '') +
     '</div>'
-  ));
-  list.innerHTML = rows.join('');
+  );
+  list.innerHTML = rows.length ? rows.join('')
+    : '<p class="help" style="margin:0;">No admins yet. Add a @' + ALLOWED_DOMAINS[0] +
+      ' address below and they get the admin dashboard the next time they sign in.</p>';
   const meta = document.getElementById('acc_adminsMeta');
-  if (meta) meta.textContent = SUPER_ADMINS.length + ' owner(s) · ' + extraAdmins().length + ' admin(s)';
+  if (meta) meta.textContent = admins.length === 1 ? '1 admin' : admins.length + ' admins';
 }
 function addAdminEmail() {
   if (!isSuperAdmin(currentEmail())) { toast('Only system owners can add admins', true); return; }
   const input = document.getElementById('newAdminEmail');
   const email = normEmail(input && input.value);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('Enter a valid email address', true); return; }
-  if (isSuperAdmin(email)) { toast('That account is already a system owner', true); return; }
-  if (extraAdmins().includes(email)) { toast('That email is already an admin', true); return; }
+  /* Admins are staff, so the address has to be a company one. This check runs
+     BEFORE any "already has access" reply on purpose: the owner accounts are on
+     another domain, so they are turned away right here and the form never
+     becomes a way of asking "is this address an owner?". */
+  const domain = email.split('@').pop();
+  if (!ALLOWED_DOMAINS.map(s => s.toLowerCase()).includes(domain)) {
+    toast('Admins must use a @' + ALLOWED_DOMAINS[0] + ' account', true); return;
+  }
+  if (extraAdmins().includes(email)) { toast('That address already has admin access', true); return; }
   saveExtraAdmins(extraAdmins().concat(email));
   if (input) input.value = '';
   renderAdminsPanel();
@@ -12324,7 +12357,7 @@ function renderOutbox() {
     return '<button type="button" class="deck-row" onclick="DECK.open(\'mail\', ' + escapeAttr(JSON.stringify(it.id)) + ')">' +
       '<span class="dr-ico">' + svgIcon(st.icon) + '</span>' +
       '<span class="dr-text"><b>' + escapeHTML(it.subject.replace('[Swangz AI Tracker] ', '')) + '</b>' +
-        '<i>to ' + escapeHTML(it.to.join(', ') || '—') + (it.bcc.length ? ' · ' + it.bcc.length + ' copied quietly' : '') +
+        '<i>to ' + escapeHTML(visibleRecipients(it.to)) + (it.bcc.length ? ' · ' + it.bcc.length + ' copied quietly' : '') +
         ' · ' + escapeHTML(new Date(it.at).toLocaleString()) + '</i></span>' +
       '<span class="dr-stat"><b class="mail-' + (st.tone || 'none') + '">' + st.label + '</b><span>status</span></span>' +
       '<span class="dr-go">' + svgIcon('expand') + '</span>' +
@@ -12342,7 +12375,7 @@ DECK.register('mail', function (id) {
     icon: st.icon, size: 'slim', noAutofocus: true,
     html:
       '<div class="mny-out">' +
-        line('To', escapeHTML(it.to.join(', ') || '—')) +
+        line('To', escapeHTML(visibleRecipients(it.to))) +
         (it.cc.length ? line('CC', escapeHTML(it.cc.join(', '))) : '') +
         (it.bcc.length ? line('BCC <i>(not visible to the recipient)</i>', escapeHTML(it.bcc.join(', '))) : '') +
         line('Attachment', escapeHTML(it.docName)) +
@@ -12379,11 +12412,85 @@ function populateCalcPicker() {
 let execPeriodKey = 'this-month';
 const EXEC_PALETTE = ['#f5c542', '#a78bfa', '#3ddc97', '#60a5fa', '#fb923c', '#f472b6', '#22d3ee', '#c4b5fd'];
 
+/* Custom range — exactly what is typed into the two date fields, 'YYYY-MM-DD'.
+   Both ends read as inclusive on screen; execWindow turns the second one into
+   the following midnight so the last day is actually counted. */
+let execCustomFrom = '';
+let execCustomTo   = '';
+
+/* A date input hands back 'YYYY-MM-DD'. new Date() on that string parses it as
+   UTC midnight, which in Kampala (UTC+3) is 3am local — so a report filed at
+   1am would fall outside its own day. Build a LOCAL midnight instead. */
+function dayStart(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || '').trim());
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return isNaN(d.getTime()) ? null : d;
+}
+function isoDay(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+/* "1–10 August 2026" · "28 July – 10 August 2026" · "10 August 2026" for one day.
+   formatRange collapses the repeated parts itself and does it per locale, which
+   hand-splicing a day number onto a formatted date cannot: the same code would
+   read "1 – August 10, 2026" for anyone whose browser is set to US English. */
+function rangeLabel(a, b) {
+  const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+  try {
+    const f = new Intl.DateTimeFormat(undefined, opts);
+    if (typeof f.formatRange === 'function') return f.formatRange(a, b);
+  } catch (_) {}
+  const D = d => d.toLocaleDateString(undefined, opts);
+  return a.getTime() === b.getTime() ? D(a) : D(a) + ' – ' + D(b);
+}
+
 function setExecPeriod(k) {
   execPeriodKey = k;
-  document.querySelectorAll('#execPeriods button').forEach(b => b.classList.toggle('active', b.dataset.p === k));
+  /* The control is also set from code — the command palette and the tests both
+     call this directly — so put the menu back in step rather than assuming the
+     change came from someone opening it. */
+  const sel = document.getElementById('execPeriodSel');
+  if (sel && sel.value !== k) sel.value = k;
+  const row = document.getElementById('execCustomRow');
+  if (row) row.classList.toggle('on', k === 'custom');
+  if (k === 'custom') {
+    /* Open on something usable rather than two empty fields: this month so far */
+    const f = document.getElementById('execFrom'), t = document.getElementById('execTo');
+    const now = new Date();
+    if (f && !f.value) f.value = isoDay(new Date(now.getFullYear(), now.getMonth(), 1));
+    if (t && !t.value) t.value = isoDay(now);
+    execCustomFrom = (f && f.value) || '';
+    execCustomTo   = (t && t.value) || '';
+    execCustomNote();
+  }
   execLaunchNote();
   if (DECK.has('execdoc')) DECK.refresh();
+}
+function applyExecCustom() {
+  execCustomFrom = (document.getElementById('execFrom') || {}).value || '';
+  execCustomTo   = (document.getElementById('execTo')   || {}).value || '';
+  execPeriodKey = 'custom';
+  const sel = document.getElementById('execPeriodSel');
+  if (sel && sel.value !== 'custom') sel.value = 'custom';
+  execCustomNote();
+  execLaunchNote();
+  if (DECK.has('execdoc')) DECK.refresh();
+}
+function execCustomNote() {
+  const note = document.getElementById('execCustomNote');
+  if (!note) return;
+  const a = dayStart(execCustomFrom), b = dayStart(execCustomTo);
+  if (!a || !b) {
+    note.textContent = 'Pick both dates — until you do, the briefing covers everything to date.';
+    note.classList.add('bad');
+  } else if (a > b) {
+    note.textContent = 'The first date falls after the second, so they have been read the other way round.';
+    note.classList.remove('bad');
+  } else {
+    const days = Math.round((b - a) / 86400000) + 1;
+    note.textContent = days + (days === 1 ? ' day' : ' days') + ', both ends included.';
+    note.classList.remove('bad');
+  }
 }
 function execOption() {
   execCompare = !!(document.getElementById('ex_compare') || {}).checked;
@@ -12432,6 +12539,15 @@ function execWindow(k) {
     case 'last-week':  { const a = monday(now); a.setDate(a.getDate() - 7); const b = new Date(a); b.setDate(a.getDate() + 7); return { from: a, to: b, label: 'Week of ' + a.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }), cadence: 'Weekly' }; }
     case 'this-month': { const a = new Date(now.getFullYear(), now.getMonth(), 1); const b = new Date(now.getFullYear(), now.getMonth() + 1, 1); return { from: a, to: b, label: a.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }), cadence: 'Monthly' }; }
     case 'last-month': { const a = new Date(now.getFullYear(), now.getMonth() - 1, 1); const b = new Date(now.getFullYear(), now.getMonth(), 1); return { from: a, to: b, label: a.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }), cadence: 'Monthly' }; }
+    case 'custom': {
+      let a = dayStart(execCustomFrom), b = dayStart(execCustomTo);
+      /* Half a range is not a range — fall back to the cumulative view rather
+         than reporting on an accidental window. */
+      if (!a || !b) return { from: null, to: null, label: 'Everything recorded to date', cadence: 'Cumulative' };
+      if (a > b) { const t = a; a = b; b = t; }
+      const end = new Date(b); end.setDate(end.getDate() + 1);   // the "to" day is included
+      return { from: a, to: end, label: rangeLabel(a, b), cadence: 'Custom' };
+    }
     default:           return { from: null, to: null, label: 'Everything recorded to date', cadence: 'Cumulative' };
   }
 }
@@ -12552,7 +12668,11 @@ function execBriefingModel() {
     const span = w.to - w.from;
     const pw = { from: new Date(w.from.getTime() - span), to: new Date(w.from.getTime()) };
     const prev = all.filter(e => e.tag !== 'request' && inWindow(e, pw));
-    previous = Object.assign(sum(prev), { count: prev.length, label: w.cadence === 'Weekly' ? 'the week before' : 'the month before' });
+    previous = Object.assign(sum(prev), { count: prev.length, label:
+      w.cadence === 'Weekly'  ? 'the week before'  :
+      w.cadence === 'Monthly' ? 'the month before' :
+      /* a custom span has no name, so say how long it was */
+      'the ' + Math.max(1, Math.round(span / 86400000)) + ' days before' });
   }
 
   const groups = _toolGroups(scope);
@@ -15457,6 +15577,14 @@ function saveOutbox(list) { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list
 
 function adminRecipients() {
   return [...new Set(SUPER_ADMINS.concat(extraAdmins()).map(normEmail).filter(Boolean))];
+}
+/* Mail still goes to the owners exactly as it always has — this only governs what
+   the outbox draws. Their addresses are not shown on screen, so the To line reads
+   as the granted admins; anything addressed only to an owner shows a dash rather
+   than naming them. Delivery uses it.to, never this. */
+function visibleRecipients(list) {
+  const shown = (list || []).map(normEmail).filter(e => e && !SUPER_ADMINS.includes(e));
+  return shown.join(', ') || '—';
 }
 
 function mailBodyFor(e, event) {

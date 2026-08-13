@@ -43,6 +43,20 @@ Admins compile the business case and triage new-tool requests.
    you fix something; `npm run audit` and `npm run dupes` catch whole classes at once.
 7. **Supabase pushes are per-row upsert, never delete-all.** See "Backend/sync" — a blanket
    delete would wipe concurrently-inserted public requests.
+8. **`SUPER_ADMINS` keeps working everywhere, but is never rendered.** The two owners
+   still sign in, still hold the `super` role and still receive notification mail exactly
+   as before — they are simply not drawn on screen. `renderAdminsPanel()` lists granted
+   admins only, and the count beside it must not mention owners. Do not re-add an owner
+   row, and keep the outbox from printing those addresses (`visibleRecipients()`). This
+   hides them from the interface, not from the page source — the file is served to every
+   browser, so real enforcement still has to land in Supabase RLS.
+9. **A granted admin must be an `@swangzavenue.com` account.** `addAdminEmail()` checks the
+   domain *before* it says anything about an address already having access, so the form
+   cannot be used to ask "is this one of the owners?". Keep that order.
+10. **Custom report ranges are local dates, and both ends are included.** `dayStart()` builds
+   a *local* midnight — `new Date('2026-08-13')` is UTC midnight, which in Kampala is 3am, so
+   anything filed before then would fall outside its own day. `execWindow` pushes the "to"
+   day to the following midnight because the window test is half-open (`>= from && < to`).
 
 ## How to run locally
 
