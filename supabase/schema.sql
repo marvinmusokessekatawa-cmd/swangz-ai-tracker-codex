@@ -10,10 +10,10 @@
 -- Project Settings → API, paste them into the tracker app's
 -- Admin → Backend & Sync, choose "Supabase", Save, then "Push".
 --
--- For an internal team tool we keep RLS open to the anon role so the
--- static HTML can read/write without a sign-in. If you want real auth
--- later, swap the policies for "authenticated" and add Supabase Auth
--- to the client.
+-- Row level security is ON and closed: reading or writing requires a
+-- signed-in Google account whose address passes public.is_swangz_staff()
+-- below. The one exception is an anonymous tool *request*, which the
+-- public may INSERT and nothing else. Re-running this file is safe.
 -- =================================================================
 
 create table if not exists public.entries (
@@ -53,11 +53,53 @@ drop policy if exists "auth read entries"   on public.entries;
 drop policy if exists "auth insert entries" on public.entries;
 drop policy if exists "auth update entries" on public.entries;
 drop policy if exists "auth delete entries" on public.entries;
+-- the allowlisted replacements, so this file stays safe to run again
+drop policy if exists "staff read entries"   on public.entries;
+drop policy if exists "staff insert entries" on public.entries;
+drop policy if exists "staff update entries" on public.entries;
+drop policy if exists "staff delete entries" on public.entries;
 
-create policy "auth read entries"   on public.entries for select to authenticated using (true);
-create policy "auth insert entries" on public.entries for insert to authenticated with check (true);
-create policy "auth update entries" on public.entries for update to authenticated using (true) with check (true);
-create policy "auth delete entries" on public.entries for delete to authenticated using (true);
+-- =====================================================================
+-- WHO COUNTS AS STAFF — the same allowlist the app screens sign-in with,
+-- but enforced here, where it cannot be edited by whoever is reading.
+--
+-- Google will hand a session to ANY Google account. The app checks the
+-- address and signs a stranger straight back out, but that check lives in
+-- JavaScript on the visitor's own machine: a stranger who authenticates
+-- and keeps their access token could read, change and delete every row
+-- through the REST API without the app being involved at all. These
+-- policies are what actually stops that.
+--
+-- Kept deliberately identical to the app's rule: the org domain, plus the
+-- two system owners on their personal addresses. Admins granted from the
+-- dashboard must already be @swangzavenue.com, so they need no entry here.
+-- Add an owner in ONE place only — if this list and SUPER_ADMINS in
+-- index.html ever disagree, somebody gets a silent, confusing denial.
+-- =====================================================================
+create or replace function public.is_swangz_staff()
+returns boolean
+language sql
+stable
+-- deliberately NOT security definer: it reads the caller's own JWT claim and
+-- touches no table, so running it as the owner would buy nothing and hand out
+-- privilege for free.
+as $$
+  select coalesce(
+    -- exact domain match: split_part avoids `like '%@swangzavenue.com'`,
+    -- which would also welcome anyone from notswangzavenue.com
+    split_part(lower(coalesce(auth.jwt() ->> 'email', '')), '@', 2) = 'swangzavenue.com'
+    or lower(coalesce(auth.jwt() ->> 'email', '')) in (
+      'marvinmusokessekatawa@gmail.com',
+      'arnoldkigozi0@gmail.com'
+    ),
+  false);
+$$;
+
+create policy "staff read entries"   on public.entries for select to authenticated using      (public.is_swangz_staff());
+create policy "staff insert entries" on public.entries for insert to authenticated with check (public.is_swangz_staff());
+create policy "staff update entries" on public.entries for update to authenticated using      (public.is_swangz_staff())
+                                                                                   with check (public.is_swangz_staff());
+create policy "staff delete entries" on public.entries for delete to authenticated using      (public.is_swangz_staff());
 
 -- =====================================================================
 -- Public tool requests (no sign-in)
@@ -105,11 +147,10 @@ create trigger entries_touch
 -- set it on their own laptop and every department user still saw "no folder
 -- has been set yet — ask an admin". One shared row fixes that.
 --
--- Read is open to any signed-in user, because everybody needs the folder.
--- Write matches the entries table above — any authenticated user, with the
--- app as the gate, since only the admin dashboard renders the field. If you
--- want that enforced by the database rather than by the UI, drop the two
--- write policies and use the commented pair underneath instead.
+-- Read and write are both limited to staff, the same as the entries table:
+-- everybody in the company needs to read the folder, and only the admin
+-- dashboard ever renders the field to write it. Restricting writes further,
+-- to the two owners alone, is a one-line change — see the note underneath.
 -- =====================================================================
 create table if not exists public.app_config (
   key         text primary key,
@@ -120,22 +161,26 @@ create table if not exists public.app_config (
 
 alter table public.app_config enable row level security;
 
-drop policy if exists "auth read config"   on public.app_config;
-drop policy if exists "auth insert config" on public.app_config;
-drop policy if exists "auth update config" on public.app_config;
+drop policy if exists "auth read config"    on public.app_config;
+drop policy if exists "auth insert config"  on public.app_config;
+drop policy if exists "auth update config"  on public.app_config;
+drop policy if exists "staff read config"   on public.app_config;
+drop policy if exists "staff insert config" on public.app_config;
+drop policy if exists "staff update config" on public.app_config;
 
-create policy "auth read config"   on public.app_config for select to authenticated using (true);
-create policy "auth insert config" on public.app_config for insert to authenticated with check (true);
-create policy "auth update config" on public.app_config for update to authenticated using (true) with check (true);
+create policy "staff read config"   on public.app_config for select to authenticated using      (public.is_swangz_staff());
+create policy "staff insert config" on public.app_config for insert to authenticated with check (public.is_swangz_staff());
+create policy "staff update config" on public.app_config for update to authenticated using      (public.is_swangz_staff())
+                                                                                      with check (public.is_swangz_staff());
 
--- Hardened alternative — only these accounts may change site-wide settings.
--- Swap the two policies above for these if you want the database to enforce it:
+-- Tighter still, if you would rather only the two owners could change a
+-- site-wide setting. Replace the two write policies above with:
 --
 -- create policy "owners insert config" on public.app_config for insert to authenticated
---   with check ( auth.email() in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') );
+--   with check ( lower(auth.jwt() ->> 'email') in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') );
 -- create policy "owners update config" on public.app_config for update to authenticated
---   using      ( auth.email() in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') )
---   with check ( auth.email() in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') );
+--   using      ( lower(auth.jwt() ->> 'email') in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') )
+--   with check ( lower(auth.jwt() ->> 'email') in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') );
 
 alter table public.app_config drop constraint if exists app_config_value_size;
 alter table public.app_config add constraint app_config_value_size
