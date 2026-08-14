@@ -22,13 +22,50 @@ Admins compile the business case and triage new-tool requests.
 2. **Escape all user/anon-supplied data** rendered into `innerHTML` with `escapeHTML` /
    `escapeAttr`, and route every URL through **`safeUrl()`** before it reaches an `href`
    (blocks `javascript:`/`data:`). Anonymous users can inject request data — treat it as hostile.
+   **A value going into an `on*` attribute is JS source, not text — use `jsArg(v)`.**
+   `escapeAttr` alone is not enough there: the parser decodes `&#39;` back to a quote
+   *before* the handler is compiled, so a stored value could close the string literal and
+   run whatever followed. That was a live stored-XSS route through the tool registry.
+   Never write ``onclick="fn('${escapeAttr(x)}')"``; write ``onclick="fn(${jsArg(x)})"``.
 3. **Preserve the field IDs.** The wizard steps reuse the original form field IDs
    (`f_toolName`, `f_category`, `f_status`, `f_reason`, `f_impact`, `f_tradTime`, `f_aiTime`,
    `f_tradCost`, `f_frequency`, `f_toolMonthlyCost`, `f_extraCredits`, `f_revenueDesc`,
    `f_revenueAmount`, plus `f_guestName/Email/Dept` for public mode). `loadDetailForm`,
    `saveDetail`, `updateConversions`, `renderProjects` all depend on them.
-4. **Supabase pushes are per-row upsert, never delete-all.** See "Backend/sync" — a blanket
+4. **Time is working time.** `UNIT_HOURS` says a day is 8 hours and a week 40, because
+   every figure here is work, not elapsed calendar time. `smartUnit` reads those
+   thresholds — never restate them. Figures are shown in hours, days or weeks; months
+   and years are input units only ("3.5 months saved each month" is nonsense).
+5. **Demo rows never leave the browser.** Anything tagged `isDemo` is filtered out of
+   every backend push — seeding is preview-only, but a reviewer can also sign in for real
+   on a preview host.
+6. **There is a test harness** — `cd test && npm install && npm test`. Add a check when
+   you fix something; `npm run audit` and `npm run dupes` catch whole classes at once.
+7. **Supabase pushes are per-row upsert, never delete-all.** See "Backend/sync" — a blanket
    delete would wipe concurrently-inserted public requests.
+8. **`SUPER_ADMINS` keeps working everywhere, but is never rendered.** The two owners
+   still sign in, still hold the `super` role and still receive notification mail exactly
+   as before — they are simply not drawn on screen. `renderAdminsPanel()` lists granted
+   admins only, and the count beside it must not mention owners. Do not re-add an owner
+   row, and keep the outbox from printing those addresses (`visibleRecipients()`). This
+   hides them from the interface, not from the page source — the file is served to every
+   browser, so real enforcement still has to land in Supabase RLS.
+9. **A granted admin must be an `@swangzavenue.com` account.** `addAdminEmail()` checks the
+   domain *before* it says anything about an address already having access, so the form
+   cannot be used to ask "is this one of the owners?". Keep that order.
+10. **The Swangz Drive folder is a company setting, not a personal one.** An admin sets it under
+   **Settings › Company Settings** (`acc_company`, field `cfg_drive`) and it applies to everyone;
+   no department can point elsewhere. It is configuration, not a figure — it briefly sat in
+   Money & Pricing, where nobody looks for a folder. It lives in `app_config`, because in
+   localStorage the admin set it on their own laptop and every department user still read "ask
+   an admin". `settings.driveFolderUrl` is only a cache. `saveCompanySettings()` publishes it
+   and only when the folder itself changed — sharing the handler with the hourly rate re-published
+   it on every keystroke. `configPushDrive()` re-checks `canSeeAdmin()` — the field not being
+   rendered is not a gate.
+11. **Custom report ranges are local dates, and both ends are included.** `dayStart()` builds
+   a *local* midnight — `new Date('2026-08-13')` is UTC midnight, which in Kampala is 3am, so
+   anything filed before then would fall outside its own day. `execWindow` pushes the "to"
+   day to the following midnight because the window test is half-open (`>= from && < to`).
 
 ## How to run locally
 
@@ -103,6 +140,12 @@ Script, see `apps-script/Code.gs`) | `supabase` (default).
   `anon` = INSERT only, and only rows where `tag='request'` AND `isPublic='true'` AND
   `requestStatus='new'`; plus a `octet_length(payload::text) < 32768` size guard. Anon cannot
   read/update/delete. If you change the anon-writable shape, update this policy and re-run it.
+- **`public.app_config` — site-wide settings, one row per key.** ⚠️ **Added after the original
+  schema was applied, so it must be re-run in the SQL editor before it does anything.** Holds
+  `drive_folder`; read by any `authenticated` user, written by the admin dashboard only.
+  `configPull()` runs from `autoSyncOnLoad()` above the once-per-load guard, so it lands on a
+  local backend and again after sign-in (the first attempt has no session for RLS to accept).
+  Every call fails quietly — a missing table or paused project must never block page load.
 
 ## Deploy
 

@@ -1,0 +1,17 @@
+const puppeteer = require('puppeteer-core'); const path=require('path'),fs=require('fs');
+const OUT=path.join(__dirname,'..','shots','wb'); const wait=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{ fs.mkdirSync(OUT,{recursive:true});
+  const b=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',headless:'new',args:['--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1440,980']});
+  const p=await b.newPage(); await p.setViewport({width:1440,height:980});
+  await p.goto('http://127.0.0.1:8000/index.html',{waitUntil:'networkidle2'}); await wait(1300);
+  await p.evaluate(()=>{ devBypassSignIn(); seedDemoData(true);
+    sessionStorage.setItem('swangz_admin_otp_v1',JSON.stringify({hash:'',email:currentEmail(),exp:Date.now()+36e5,tries:0,verified:true}));
+    adminUnlocked=true; switchView('admin'); showAdminContent(); renderAdmin(); setExecPeriod('all'); DECK.closeAll(true); DECK.open('sheetview'); });
+  await wait(1500);
+  await p.screenshot({path:path.join(OUT,'workbook.png')}); console.log('📸 workbook');
+  console.log(await p.evaluate(()=>{ const m=execWorkbookModel();
+    return JSON.stringify({sheets:(m.sheets||m).map?((m.sheets||m).map(s=>({name:s.name,rows:(s.rows||[]).length}))):'?'},null,1); }));
+  await p.evaluate(()=>{ DECK.closeAll(true); DECK.open('docview'); }); await wait(1500);
+  await p.screenshot({path:path.join(OUT,'docview.png')}); console.log('📸 docview');
+  await b.close(); process.exit(0);
+})();

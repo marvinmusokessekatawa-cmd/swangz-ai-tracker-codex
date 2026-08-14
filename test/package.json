@@ -1,0 +1,21 @@
+{
+  "name": "swangz-ai-tracker-test",
+  "private": true,
+  "description": "Headless harness for index.html. Nothing here ships — the app stays a single file with no build.",
+  "scripts": {
+    "test": "node suite.js",
+    "audit": "node audit.js",
+    "dupes": "node dupes.js",
+    "sweep": "node sweep.js",
+    "shots": "node shots.js",
+    "report": "node report.js",
+    "chrome": "node chrome.js",
+    "mobile": "node mobile.js"
+  },
+  "devDependencies": {
+    "acorn": "^8.14.0",
+    "acorn-walk": "^8.3.4",
+    "jsdom": "^25.0.1",
+    "puppeteer-core": "^23.0.0"
+  }
+}

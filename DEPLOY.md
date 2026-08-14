@@ -100,6 +100,13 @@ The current sync strategy (`replaceAll`) means if two people save at the same ti
 2. Open `supabase/schema.sql` from this folder, copy and paste the whole file, click **Run**.
 3. You should see `Success. No rows returned`.
 
+> **Re-run this on the live project too.** The file is safe to run again — every statement is
+> `if not exists` or `drop … / create …`. It now also creates `public.app_config`, which holds
+> the Swangz Drive folder so one admin setting reaches the whole team. Until it has been run,
+> the admin can set the folder but it stays in their own browser, and department users still
+> see *"no folder has been set yet — ask an admin"*. The folder itself is set in the dashboard
+> under **Settings › Company Settings**.
+
 ### Step 3 — Get your project URL + anon key
 1. Project Settings → **API**.
 2. Copy:
@@ -124,6 +131,51 @@ The current sync strategy (`replaceAll`) means if two people save at the same ti
 - Free tier covers 500 MB DB + 50k monthly active users — plenty for an internal tool
 
 ---
+
+## Publishing the redesign to the live site
+
+The company opens **<https://swangz-ai-tracker.netlify.app/>**. That site deploys from
+Marvin's repo, `marvinmusokessekatawa-cmd/swangz-ai-tracker-codex`, branch `main` — the
+served page is byte-identical to the `index.html` there. Nothing published from this repo
+reaches that URL until it reaches his.
+
+**The two histories are unrelated.** Marvin's repo is a single Codex-export commit from
+1 Aug 2026; this repo has its own root and 87 commits on top of it. `git push` will be
+refused, and `--force` would throw his commit away — so don't. Take both roots into one
+merge that keeps his commit reachable and this repo's tree as the result:
+
+```bash
+cd ~/swangz-ai-tracker-redesign
+git fetch --no-tags https://github.com/marvinmusokessekatawa-cmd/swangz-ai-tracker-codex.git \
+  main:refs/remotes/marvin/main
+
+git checkout -B live refs/remotes/marvin/main            # start from his commit
+git merge -s ours --allow-unrelated-histories --no-edit main   # record both parents
+git read-tree --reset -u main                            # tree becomes this repo's, exactly
+git commit --amend -m "The redesign becomes the live tracker"
+
+git rev-parse live^{tree} main^{tree}                    # the two must match before pushing
+git push https://github.com/marvinmusokessekatawa-cmd/swangz-ai-tracker-codex.git live:main
+git checkout main                                        # put the working tree back
+```
+
+`git checkout -B live` and `read-tree --reset -u` both rewrite the working tree, so commit or
+stash anything in progress first. The `rev-parse` line is the check that matters: if the two
+tree hashes differ, the merge did not take this repo's tree and the push must not happen.
+
+The push needs **write access to Marvin's repo** — as of 14 Aug 2026 this account has `READ`.
+Ask him to add you under Settings → Collaborators. Netlify redeploys on its own once `main`
+moves; it is a static publish with no build step, so exhausted build minutes do not block it.
+
+Two things in Supabase have to be done as well, or the live site is broken in ways the code
+cannot fix:
+
+1. **Re-run `supabase/schema.sql`** in the SQL editor. The whole file is safe to run again.
+   Until it is, `public.app_config` does not exist — verified 404 against the live project on
+   14 Aug 2026 — and the Drive folder never leaves the admin's own browser.
+2. **Add `https://swangz-ai-tracker.netlify.app`** as the **Site URL** and under
+   **Redirect URLs** in Authentication → URL Configuration. Google sign-in cannot complete
+   without it, which means nobody gets in at all.
 
 ## Day-1 launch checklist
 
