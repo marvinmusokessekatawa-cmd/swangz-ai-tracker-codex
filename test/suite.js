@@ -981,6 +981,37 @@ async function scenarioSignInRouting() {
     const owners = JSON.parse(run(`JSON.stringify(SUPER_ADMINS)`));
     const inSql = owners.filter(o => sql.includes(o));
     eq('every owner in the app is an owner in the database too', inSql.length, owners.length);
+
+    /* And you can get back out. The profile badge that carries "Sign out" is
+       inside #toolsView, so an admin routed into the portal had it sitting in
+       a hidden section — no sign-out anywhere, not even a button. */
+    run(`__t.signIn(); __t.asDept(false); switchView('admin'); applyRoleChrome();`);
+    const acct = JSON.parse(run(`(function () {
+      var el = document.getElementById('railAccount');
+      return JSON.stringify({
+        present: !!el,
+        hidden: el ? el.hidden : null,
+        outsideEveryView: el ? !el.closest('section.view') : null,
+        hasSignOut: el ? !!el.querySelector('.ra-out[onclick*="signOut"]') : null,
+        role: (document.getElementById('railRole') || {}).textContent,
+        name: (document.getElementById('railName') || {}).textContent
+      });
+    })()`));
+    ok('the rail carries an account block', acct.present);
+    ok('it sits outside every view, so the portal cannot hide it', acct.outsideEveryView);
+    ok('an owner in the portal can see it', acct.hidden === false);
+    eq('it says which role they hold', acct.role, 'System owner');
+    ok('and it carries a way to sign out', acct.hasSignOut);
+    ok('signing out asks first rather than just going',
+       /guardWith\('signOut'/.test(run(
+         `[...document.querySelectorAll('script')].map(s=>s.textContent).join('')`)));
+
+    /* It must not linger once nobody is signed in */
+    run(`authUser = null;
+         profile = { department:'', name:'', role:'', email:'', avatarUrl:'' };
+         saveProfile(); applyRoleChrome();`);
+    ok('and it is gone when nobody is signed in',
+       run(`document.getElementById('railAccount').hidden`) === true);
   });
 }
 

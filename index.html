@@ -2636,6 +2636,45 @@
   }
   @media (max-width: 919px) { .rail-hint { display: none; } }
 
+  /* ---- who you are, and the way out (see #railAccount) ----
+     In the rail, not in a view, because the rail is the only chrome both the
+     portal and the department side share. */
+  .rail-account {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 10px;
+    margin: 10px 0 2px; padding: 8px 10px;
+    border: 1px solid var(--glass-border); border-radius: 12px;
+    background: var(--glass-bg);
+  }
+  /* Beats the display:flex above on specificity, so hiding it actually hides it */
+  .rail-account[hidden] { display: none; }
+  .ra-avatar {
+    flex: none; width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 700; letter-spacing: .02em;
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    color: #0b0616; overflow: hidden;
+  }
+  .ra-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.28; }
+  .ra-name {
+    font-size: 12.5px; font-weight: 650; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ra-role {
+    font-size: 10.5px; color: var(--muted-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ra-out {
+    margin-left: auto; flex: none;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); border-radius: 9px;
+    display: grid; place-items: center; min-width: 32px; min-height: 32px;
+    transition: color .15s, background .2s;
+  }
+  .ra-out .ico { width: 16px; height: 16px; }
+  .ra-out:hover, .ra-out:focus-visible { color: var(--bad); background: rgba(255, 92, 122, 0.12); }
+  @media (pointer: coarse) { .ra-out { min-width: 44px; min-height: 44px; } }
+
   /* ============================================================
      DEPARTMENT SIDE — the dashboard is theirs again
      ============================================================ */
@@ -4098,6 +4137,23 @@
     <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" style="width:14px;height:14px;"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     Search <kbd>Ctrl K</kbd>
   </button>
+  <!-- Who you are, and the way out. This lives in the rail rather than in a
+       view because the rail is shared: the profile badge that used to carry
+       "Sign out" sits inside #toolsView, so once an admin was routed into the
+       portal there was no way to sign out at all — no button anywhere. -->
+  <div class="rail-account" id="railAccount" hidden>
+    <div class="ra-avatar" id="railAvatar" aria-hidden="true">?</div>
+    <div class="ra-text">
+      <span class="ra-name" id="railName">—</span>
+      <span class="ra-role" id="railRole">—</span>
+    </div>
+    <button type="button" class="ra-out" onclick="signOut()" title="Sign out" aria-label="Sign out">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/>
+      </svg>
+    </button>
+  </div>
 </header>
 
 <main>
@@ -8998,7 +9054,44 @@ document.addEventListener('DOMContentLoaded', function () {
     const btn = document.getElementById('btnAdmin');
     if (btn) btn.style.display = canSeeAdmin() ? '' : 'none';
     document.body.setAttribute('data-role', currentRole());
+    paintRailAccount();
   }
+
+  /* The rail's account block. Rides on applyRoleChrome because that already
+     runs at sign-in, at sign-out and on a slow poll, so this can never be left
+     showing somebody who has gone. */
+  function paintRailAccount() {
+    const box = document.getElementById('railAccount');
+    if (!box) return;
+    const email = (typeof currentEmail === 'function') ? currentEmail() : '';
+    box.hidden = !email;
+    if (!email) return;
+
+    const av = document.getElementById('railAvatar');
+    if (av) {
+      if (profile && profile.avatarUrl) {
+        av.innerHTML = '<img src="' + escapeAttr(profile.avatarUrl) + '" alt="" ' +
+          'style="width:100%;height:100%;object-fit:cover;" />';
+      } else {
+        const from = (profile && profile.name) || email;
+        av.textContent = from.split(/[\s.@_-]+/).map(s => s[0]).filter(Boolean)
+          .slice(0, 2).join('').toUpperCase() || '?';
+      }
+    }
+    const nameEl = document.getElementById('railName');
+    if (nameEl) nameEl.textContent = (profile && profile.name) || email.split('@')[0];
+    const roleEl = document.getElementById('railRole');
+    if (roleEl) {
+      const r = currentRole();
+      roleEl.textContent = r === 'super' ? 'System owner'
+                         : r === 'admin' ? 'Admin'
+                         : ((profile && profile.department) || 'Department');
+    }
+    /* The whole block is a title too, because the name is ellipsised in a
+       narrow rail and the address is the thing that identifies the account. */
+    box.title = email;
+  }
+  window.paintRailAccount = paintRailAccount;
   window.applyRoleChrome = applyRoleChrome;   // callable at sign-in/out, not only polled
   const nameEl = document.getElementById('profileName');
   if (nameEl) new MutationObserver(applyRoleChrome).observe(nameEl, { childList: true, subtree: true, characterData: true });
