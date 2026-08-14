@@ -62,12 +62,22 @@ in money — what the old way cost, the licence, extra credits, revenue — is s
 by an admin under **Money & Pricing**, where anything still uncosted appears
 under **Waiting on you**.
 
-## Before the real launch
-- Remove the `PREVIEW_BYPASS_HOSTS` / `PREVIEW_BYPASS_SUFFIXES` block in
-  `index.html` so the sign-in bypass cannot reach any deployed host.
-- Ask Marvin to add the final URL to Supabase → **Authentication → URL
-  Configuration → Redirect URLs**, or Google sign-in will not complete.
-- Decide about the admin email code — see below.
+## Going live
+
+**The live URL is <https://swangz-ai-tracker.netlify.app/>** — that is where the company
+reaches the tracker. Everything else in this file is a preview host.
+
+- ✅ **The sign-in bypass is gone.** `PREVIEW_BYPASS_HOSTS` / `PREVIEW_BYPASS_SUFFIXES` are
+  empty and `isLocalDev()` is localhost-only, so nothing that is deployed can skip sign-in.
+  The two lists stay declared and empty on purpose — `npm run audit` fails if a host is put
+  back. There is no preview toolbar on any deployed host any more.
+- ⬜ **Re-run `supabase/schema.sql`** in the Supabase SQL editor. The whole file is safe to
+  run again. Until it is, `public.app_config` does not exist and the Drive folder stays in
+  the admin's own browser.
+- ⬜ **Add the live URL to Supabase → Authentication → URL Configuration.** `https://swangz-ai-tracker.netlify.app`
+  as the **Site URL**, and in **Redirect URLs**. Without it Google sign-in never completes.
+- ✅ **The admin email code is deliberately not shipped.** Sign-in is Google + the allowlist
+  + the admin password, and the gate says so. See below.
 
 Run `cd test && npm run audit` to be told which of these are still outstanding.
 

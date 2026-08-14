@@ -128,8 +128,18 @@ console.log(`  (${declared.size} names declared across ${blocks.length} script b
 {
   const notes = [];
   if (/const OTP_ENDPOINT = ''/.test(src)) notes.push("OTP_ENDPOINT is empty — the admin's second factor is not delivered by email");
-  const m = src.match(/const PREVIEW_BYPASS_HOSTS = \[([\s\S]*?)\]/);
-  if (m && m[1].trim()) notes.push('PREVIEW_BYPASS_HOSTS still lists: ' + (m[1].match(/'[^']+'/g) || []).join(', '));
+  /* Both lists are tripwires: they stay declared and empty so putting a host
+     back is a visible failure rather than a quiet one. */
+  ['PREVIEW_BYPASS_HOSTS', 'PREVIEW_BYPASS_SUFFIXES'].forEach(name => {
+    const m = src.match(new RegExp('const ' + name + ' = \\[([\\s\\S]*?)\\]'));
+    if (!m) { notes.push(name + ' is gone — keep it declared and empty so a host cannot be added back unnoticed'); return; }
+    const listed = (m[1].match(/'[^']+'/g) || []);
+    if (listed.length) notes.push(name + ' still lists: ' + listed.join(', '));
+  });
+  /* A bypass that reaches a deployed host is the same hole by another name */
+  const dev = src.match(/function isLocalDev\(\)[\s\S]*?\n}/);
+  if (dev && /netlify|pages\.dev|workers\.dev|\.app'/.test(dev[0]))
+    notes.push('isLocalDev() names a deployed host — the sign-in bypass must be localhost-only');
   report('nothing preview-only is left switched on for the live site', notes);
 }
 
