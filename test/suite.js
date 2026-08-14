@@ -90,6 +90,26 @@ async function scenarioBoot() {
     ok('every registered tile kind is reachable', run(`(${JSON.stringify(KINDS)}).length`) === KINDS.length);
     ok('no admin markup rendered before sign-in',
        !doc.getElementById('adminView').classList.contains('active'));
+
+    /* The boot hold. #authView is the view marked active in the markup, so
+       without something over the top a signed-in reload shows the sign-in
+       screen and then jumps — it looked like being logged out, every time. */
+    ok('there is a mark to hold the screen while the app boots', !!doc.getElementById('bootHold'));
+    ok('and it hides the app rather than sitting behind it',
+       /html\.booting \.app-shell\s*\{\s*visibility:\s*hidden/.test(run(
+         `document.querySelector('style').textContent`)));
+    ok('the hold is lifted once boot has decided where to go',
+       !doc.documentElement.classList.contains('booting'));
+    ok('and it lifts even if boot throws, not only on the happy path',
+       /finally\s*\{\s*\n?\s*endBootHold\(\);/.test(run(
+         `[...document.querySelectorAll('script')].map(s=>s.textContent).join('')`)));
+
+    /* Nothing may block the first paint from the head any more */
+    const head = run(`document.head.innerHTML`);
+    ok('no render-blocking script is left in the head',
+       !/<script[^>]+src=/i.test(head), head.match(/<script[^>]+src=[^>]*>/i));
+    ok('the stylesheet for the fonts does not block it either',
+       !/rel="stylesheet"(?![^>]*media="print")/i.test(head.replace(/<noscript>[\s\S]*?<\/noscript>/gi, '')));
   });
 }
 
