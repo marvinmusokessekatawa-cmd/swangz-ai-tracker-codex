@@ -7,8 +7,9 @@ The repo stays **private** — Cloudflare Pages deploys from private repos on th
    **Connect to Git**.
 2. Authorise GitHub and pick **`arnoldkigozi0/swangz-ai-tracker-redesign`**.
 3. Settings:
-   - **Project name:** `swangz-ai-tracker`  ← must match exactly, the preview
-     bypass is scoped to this hostname
+   - **Project name:** `swangz-ai-tracker`
+     (the preview bypass that used to be scoped to this hostname is gone —
+     see the warning under "The preview toolbar")
    - **Production branch:** `main`
    - **Framework preset:** None
    - **Build command:** *(leave empty)*
@@ -20,8 +21,15 @@ redeploys automatically.
 
 ## The preview toolbar
 
-The bar at the bottom of the screen exists **only on preview hosts** (and
-localhost) — it is never built on the live site.
+⚠️ **Since 14 Aug 2026 this means localhost only.** `previewHost()` is now just
+`isLocalDev()`, and the bypass host lists are empty, so nothing deployed —
+including a Cloudflare deployment of this repo — shows the toolbar or the
+sign-in bypass. A deployed preview is an ordinary copy of the live app and has
+to be signed into like any other. If you want a private preview, put the
+hostname behind Cloudflare Access rather than relying on anything in the page.
+
+The bar at the bottom of the screen exists **only on localhost** — it is never
+built on any deployed site.
 
 | Control | What it does |
 |---|---|
