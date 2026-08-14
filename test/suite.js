@@ -821,13 +821,90 @@ async function scenarioAdminAccess() {
   });
 }
 
+async function scenarioDriveFolder() {
+  if (only && !'drive'.includes(only)) return;
+  await withApp(async ({ run }) => {
+    suite('19 · The Drive folder is set once by an admin and reaches everyone');
+    const settle = ms => new Promise(r => setTimeout(r, ms || 250));
+    /* Resolve a promise created inside the page, since run() is a plain eval */
+    const awaitInPage = async (expr, ms) => {
+      run(`window.__r = undefined; (${expr}).then(v => { window.__r = JSON.stringify(v === undefined ? null : v); });`);
+      await settle(ms);
+      return run(`window.__r`);
+    };
+
+    run('__t.signIn(); switchView("admin");');
+
+    /* Only a real Drive location counts as one */
+    ok('a Drive folder is accepted', run(`isDriveLink('https://drive.google.com/drive/folders/abc')`));
+    ok('a docs.google.com link is accepted', run(`isDriveLink('https://docs.google.com/document/d/1')`));
+    ok('anything else is refused', !run(`isDriveLink('https://dropbox.com/x')`));
+    ok('and so is a javascript: URL', !run(`isDriveLink('javascript:alert(1)')`));
+
+    /* It is configuration, not money. An admin looks for a folder under
+       Settings, and the Money tab is for figures only. */
+    ok('the folder field lives in Company Settings',
+       run(`!!document.querySelector('#acc_company #cfg_drive')`));
+    ok('and no longer sits in Money & Pricing',
+       !run(`!!document.querySelector('#acc_finance input[type="url"]')`));
+    eq('Company Settings opens from the Settings door',
+       run(`(groupOf('acc_company') || {}).label`), 'Settings');
+    ok('and the palette can still reach it',
+       run(`paletteCommands().some(c => /Company Settings/i.test(c.label))`));
+
+    /* The shared row lives in the project the whole team already reads */
+    const creds = JSON.parse(run(`JSON.stringify(configCreds())`));
+    ok('the folder is read from the shared project, not this browser',
+       /\/rest\/v1\/app_config$/.test(creds.ep), creds.ep);
+
+    /* Pulling applies the company's choice to whoever opened the page */
+    run(`window.__realFetch = window.fetch;
+         window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(
+           [{ value: { url: 'https://drive.google.com/drive/folders/COMPANY' } }]) });
+         settings.driveFolderUrl = ''; saveSettings();`);
+    const pulled = await awaitInPage('configPull()');
+    eq('a pull brings the company folder down', JSON.parse(pulled),
+       'https://drive.google.com/drive/folders/COMPANY');
+    eq('and the upload button now has somewhere to go',
+       run(`driveFolderUrl()`), 'https://drive.google.com/drive/folders/COMPANY');
+
+    /* A folder that is not a Drive link never reaches the button, however it got there */
+    run(`settings.driveFolderUrl = 'https://dropbox.com/team'; saveSettings();`);
+    eq('a non-Drive folder is ignored rather than opened', run(`driveFolderUrl()`), '');
+
+    /* A department user has no say: the write is refused before it is attempted */
+    run(`__t.asDept(true);`);
+    eq('a department user cannot publish a folder', await awaitInPage('configPushDrive()'), 'null');
+
+    /* An admin can */
+    run(`__t.asDept(false);
+         settings.driveFolderUrl = 'https://drive.google.com/drive/folders/NEW'; saveSettings();
+         window.__sent = null;
+         window.fetch = (url, opt) => { window.__sent = { url: String(url), body: opt && opt.body };
+           return Promise.resolve({ ok: true, text: () => Promise.resolve('') }); };`);
+    eq('an admin can publish it for the team', await awaitInPage('configPushDrive()'), 'true');
+    const sent = JSON.parse(run(`JSON.stringify(window.__sent)`) || 'null');
+    ok('it upserts the one config row rather than adding another',
+       !!sent && /on_conflict=key/.test(sent.url), sent && sent.url);
+    ok('and sends the folder the admin chose',
+       !!sent && /drive\.google\.com\/drive\/folders\/NEW/.test(sent.body), sent && sent.body);
+
+    /* A failure is reported, not swallowed into a false "saved" */
+    run(`window.fetch = () => Promise.resolve({ ok: false, status: 401,
+           text: () => Promise.resolve('denied') });`);
+    eq('a refused write reports itself', await awaitInPage('configPushDrive()'), 'false');
+
+    run(`window.fetch = window.__realFetch;`);
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
   for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioExecWording,
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
                    scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt,
-                   scenarioCustomRange, scenarioAdminAccess]) {
+                   scenarioCustomRange, scenarioAdminAccess, scenarioDriveFolder]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

@@ -53,7 +53,16 @@ Admins compile the business case and triage new-tool requests.
 9. **A granted admin must be an `@swangzavenue.com` account.** `addAdminEmail()` checks the
    domain *before* it says anything about an address already having access, so the form
    cannot be used to ask "is this one of the owners?". Keep that order.
-10. **Custom report ranges are local dates, and both ends are included.** `dayStart()` builds
+10. **The Swangz Drive folder is a company setting, not a personal one.** An admin sets it under
+   **Settings › Company Settings** (`acc_company`, field `cfg_drive`) and it applies to everyone;
+   no department can point elsewhere. It is configuration, not a figure — it briefly sat in
+   Money & Pricing, where nobody looks for a folder. It lives in `app_config`, because in
+   localStorage the admin set it on their own laptop and every department user still read "ask
+   an admin". `settings.driveFolderUrl` is only a cache. `saveCompanySettings()` publishes it
+   and only when the folder itself changed — sharing the handler with the hourly rate re-published
+   it on every keystroke. `configPushDrive()` re-checks `canSeeAdmin()` — the field not being
+   rendered is not a gate.
+11. **Custom report ranges are local dates, and both ends are included.** `dayStart()` builds
    a *local* midnight — `new Date('2026-08-13')` is UTC midnight, which in Kampala is 3am, so
    anything filed before then would fall outside its own day. `execWindow` pushes the "to"
    day to the following midnight because the window test is half-open (`>= from && < to`).
@@ -131,6 +140,12 @@ Script, see `apps-script/Code.gs`) | `supabase` (default).
   `anon` = INSERT only, and only rows where `tag='request'` AND `isPublic='true'` AND
   `requestStatus='new'`; plus a `octet_length(payload::text) < 32768` size guard. Anon cannot
   read/update/delete. If you change the anon-writable shape, update this policy and re-run it.
+- **`public.app_config` — site-wide settings, one row per key.** ⚠️ **Added after the original
+  schema was applied, so it must be re-run in the SQL editor before it does anything.** Holds
+  `drive_folder`; read by any `authenticated` user, written by the admin dashboard only.
+  `configPull()` runs from `autoSyncOnLoad()` above the once-per-load guard, so it lands on a
+  local backend and again after sign-in (the first attempt has no session for RLS to accept).
+  Every call fails quietly — a missing table or paused project must never block page load.
 
 ## Deploy
 

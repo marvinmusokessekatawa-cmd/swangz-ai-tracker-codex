@@ -96,3 +96,52 @@ drop trigger if exists entries_touch on public.entries;
 create trigger entries_touch
   before update on public.entries
   for each row execute function public.entries_touch_updated_at();
+
+-- =====================================================================
+-- Site-wide configuration — one row per setting
+--
+-- The Swangz Drive folder is chosen by an admin and has to reach the whole
+-- team. It used to live in the browser's localStorage, which meant the admin
+-- set it on their own laptop and every department user still saw "no folder
+-- has been set yet — ask an admin". One shared row fixes that.
+--
+-- Read is open to any signed-in user, because everybody needs the folder.
+-- Write matches the entries table above — any authenticated user, with the
+-- app as the gate, since only the admin dashboard renders the field. If you
+-- want that enforced by the database rather than by the UI, drop the two
+-- write policies and use the commented pair underneath instead.
+-- =====================================================================
+create table if not exists public.app_config (
+  key         text primary key,
+  value       jsonb not null,
+  updated_at  timestamptz not null default now(),
+  updated_by  text
+);
+
+alter table public.app_config enable row level security;
+
+drop policy if exists "auth read config"   on public.app_config;
+drop policy if exists "auth insert config" on public.app_config;
+drop policy if exists "auth update config" on public.app_config;
+
+create policy "auth read config"   on public.app_config for select to authenticated using (true);
+create policy "auth insert config" on public.app_config for insert to authenticated with check (true);
+create policy "auth update config" on public.app_config for update to authenticated using (true) with check (true);
+
+-- Hardened alternative — only these accounts may change site-wide settings.
+-- Swap the two policies above for these if you want the database to enforce it:
+--
+-- create policy "owners insert config" on public.app_config for insert to authenticated
+--   with check ( auth.email() in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') );
+-- create policy "owners update config" on public.app_config for update to authenticated
+--   using      ( auth.email() in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') )
+--   with check ( auth.email() in ('marvinmusokessekatawa@gmail.com', 'arnoldkigozi0@gmail.com') );
+
+alter table public.app_config drop constraint if exists app_config_value_size;
+alter table public.app_config add constraint app_config_value_size
+  check ( octet_length(value::text) < 4096 );
+
+drop trigger if exists app_config_touch on public.app_config;
+create trigger app_config_touch
+  before update on public.app_config
+  for each row execute function public.entries_touch_updated_at();

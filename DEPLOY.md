@@ -100,6 +100,13 @@ The current sync strategy (`replaceAll`) means if two people save at the same ti
 2. Open `supabase/schema.sql` from this folder, copy and paste the whole file, click **Run**.
 3. You should see `Success. No rows returned`.
 
+> **Re-run this on the live project too.** The file is safe to run again — every statement is
+> `if not exists` or `drop … / create …`. It now also creates `public.app_config`, which holds
+> the Swangz Drive folder so one admin setting reaches the whole team. Until it has been run,
+> the admin can set the folder but it stays in their own browser, and department users still
+> see *"no folder has been set yet — ask an admin"*. The folder itself is set in the dashboard
+> under **Settings › Company Settings**.
+
 ### Step 3 — Get your project URL + anon key
 1. Project Settings → **API**.
 2. Copy:

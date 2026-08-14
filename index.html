@@ -5259,6 +5259,11 @@ function mergeEntries(a, b) {
    self-heal: every time a teammate or the admin opens the page, all sides converge. */
 let _autoSyncedThisLoad = false;
 async function autoSyncOnLoad() {
+  /* Site config is a separate concern from the entry sync: it has to land even
+     when the backend is 'local', and again after a sign-in, because the first
+     attempt ran before there was a session for RLS to accept. So it sits above
+     the once-per-load guard. */
+  configPull().catch(() => {});
   if (_autoSyncedThisLoad) return;
   const b = settings.backend;
   if (!b || !b.mode || b.mode === 'local') return;
@@ -5412,6 +5417,110 @@ function supabaseEndpoint() {
   if (!base) throw new Error('Supabase URL not configured');
   if (!settings.backend.supabaseAnonKey) throw new Error('Supabase anon key not configured');
   return base + '/rest/v1/' + table;
+}
+
+/* ============================================================
+   SITE-WIDE CONFIG — the admin sets it once, everyone gets it.
+
+   The Swangz Drive folder is a company decision, not a personal one. It used
+   to live in localStorage, which meant the admin set it on their own laptop
+   and every department user still read "no folder has been set yet — ask an
+   admin". It now lives in one shared row; the local copy is only a cache, so
+   the button keeps working before the pull lands and while the project is
+   unreachable.
+
+   Needs public.app_config from supabase/schema.sql. Until that is run every
+   call here fails quietly and the app behaves exactly as it did before.
+   ============================================================ */
+const CONFIG_TABLE = 'app_config';
+const CONFIG_DRIVE_KEY = 'drive_folder';
+
+/* The config row lives in the project the whole team shares. If an admin has
+   pointed this browser at their own Supabase, honour that; otherwise use the
+   one baked into the page, the same way a public request submission does. */
+function configCreds() {
+  const b = settings.backend || {};
+  const own = b.mode === 'supabase' && b.supabaseUrl && b.supabaseAnonKey;
+  const base = String((own ? b.supabaseUrl : SUPABASE_URL_PUB) || '').trim().replace(/\/$/, '');
+  const key  = String((own ? b.supabaseAnonKey : SUPABASE_KEY_PUB) || '').trim();
+  if (!base || !key) return null;
+  return { ep: base + '/rest/v1/' + CONFIG_TABLE, key };
+}
+async function configHeaders(key) {
+  let bearer = key;
+  try {
+    if (supabaseClient && authUser) {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session && session.access_token) bearer = session.access_token;
+    }
+  } catch (_) { /* fall back to anon; the read policy will decide */ }
+  return { 'apikey': key, 'Authorization': 'Bearer ' + bearer, 'Content-Type': 'application/json' };
+}
+
+/* Read the company's folder and apply it here. Deliberately quiet: a missing
+   table, a paused project or no session must never stop the page loading. */
+async function configPull() {
+  const c = configCreds();
+  if (!c) return null;
+  try {
+    const res = await fetch(c.ep + '?key=eq.' + encodeURIComponent(CONFIG_DRIVE_KEY) + '&select=value',
+      { headers: await configHeaders(c.key) });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return null;
+    const url = String((rows[0].value && rows[0].value.url) || '').trim();
+    if (url === (settings.driveFolderUrl || '')) return url;   // already in step
+    settings.driveFolderUrl = url;
+    saveSettings();
+    refreshDriveUi();
+    return url;
+  } catch (err) { console.warn('config pull skipped', err); return null; }
+}
+
+/* Only an admin writes this. The field is never rendered for anyone else, and
+   this second check means a stray call cannot push one person's idea of the
+   folder over the company's. Returns null when it does not apply, false when
+   it genuinely failed — the caller says different things about each. */
+async function configPushDrive() {
+  if (typeof canSeeAdmin === 'function' && !canSeeAdmin()) return null;
+  const c = configCreds();
+  if (!c) return null;
+  const row = {
+    key: CONFIG_DRIVE_KEY,
+    value: { url: (settings.driveFolderUrl || '').trim() },
+    updated_at: new Date().toISOString(),
+    updated_by: (typeof currentEmail === 'function' ? currentEmail() : ''),
+  };
+  try {
+    const res = await fetch(c.ep + '?on_conflict=key', {
+      method: 'POST',
+      headers: Object.assign(await configHeaders(c.key),
+        { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify(row),
+    });
+    if (!res.ok) throw new Error('server ' + res.status + ' ' + (await res.text()).slice(0, 120));
+    return true;
+  } catch (err) { console.warn('config push failed', err); return false; }
+}
+let _configPushTimer = null;
+function configPushDriveDebounced() {
+  clearTimeout(_configPushTimer);
+  /* The field saves on every keystroke; the team only needs the finished URL. */
+  _configPushTimer = setTimeout(() => {
+    configPushDrive().then(res => {
+      if (res === true) toast('Drive folder saved for the whole team');
+      else if (res === false) toast('Saved here, but it did not reach the team — check Backend & Sync', true);
+    });
+  }, 1200);
+}
+/* Anything already on screen that names the folder has to catch up when the
+   pulled value differs from what was drawn. */
+function refreshDriveUi() {
+  try { if (typeof DECK !== 'undefined' && DECK.refresh) DECK.refresh(); } catch (_) {}
+  try {
+    const inp = document.getElementById('cfg_drive');
+    if (inp && document.activeElement !== inp) inp.value = settings.driveFolderUrl || '';
+  } catch (_) {}
 }
 async function supabasePushAll() {
   // Per-row UPSERT keyed on id (PostgREST: Prefer resolution=merge-duplicates).
@@ -9490,6 +9599,7 @@ const SECTION_ICONS = {
   acc_rotation: 'refresh', acc_business: 'chart', acc_registry: 'book',
   acc_manage: 'users', acc_admins: 'users', acc_backend: 'db', acc_actions: 'sliders',
   acc_summary: 'trophy', acc_finance: 'money', acc_calc: 'calc', acc_notify: 'inbox',
+  acc_company: 'drive',
 };
 function paletteCommands() {
   const cmds = [];
@@ -10327,7 +10437,7 @@ const RAIL_GROUPS = [
   /* Configuration is not daily work — it lives at the foot of the rail,
      outside the scrolling list, so it is always in reach. */
   { id: '__settings', label: 'Settings', icon: 'gear', atFoot: true,
-    sections: ['acc_notify', 'acc_actions', 'acc_admins', 'acc_backend'],
+    sections: ['acc_company', 'acc_notify', 'acc_actions', 'acc_admins', 'acc_backend'],
     badgeCount: () => (typeof settingsPending === 'function' ? settingsPending() : 0),
     badgeTitle: 'waiting on you' },
 ];
@@ -11706,9 +11816,6 @@ function injectAdminSections() {
       '<div><label for="fin_hourly">Blended hourly rate (USD)</label>' +
         '<input id="fin_hourly" type="number" min="0" step="1" placeholder="e.g. 12" oninput="saveFinanceSettings()" />' +
         '<div class="field-caption">Used to value the hours the team saves. Leave blank to report hours only.</div></div>' +
-      '<div><label for="fin_drive">Swangz Google Drive folder (media uploads)</label>' +
-        '<input id="fin_drive" type="url" placeholder="https://drive.google.com/drive/folders/…" oninput="saveFinanceSettings()" />' +
-        '<div class="field-caption">Where the team uploads project media. Their link is picked up from here.</div></div>' +
     '</div>' +
     '<div class="fin-tabs" id="finTabs">' +
       '<button type="button" class="active" data-fin="todo" onclick="setFinanceTab(\'todo\')">Waiting on you</button>' +
@@ -11749,6 +11856,17 @@ function injectAdminSections() {
     'Every figure in money lives here, and it lives on the tool. The team reports the work and the hours; ' +
     'you set the licence once per tool and it applies to every entry for it.';
 
+  /* The Drive folder is configuration, not money — an admin sets it once and
+     the whole company uploads there. It sat in Money & Pricing, which is where
+     figures live and where nobody looks for a folder. */
+  const company = make('acc_company', 'Company Settings', '—',
+    'Settings that apply to everyone, not just to you. An admin sets them once here and every department picks them up.',
+    '<div class="fin-settings">' +
+      '<div><label for="cfg_drive">Swangz Google Drive folder (media uploads)</label>' +
+        '<input id="cfg_drive" type="url" placeholder="https://drive.google.com/drive/folders/…" oninput="saveCompanySettings()" />' +
+        '<div class="field-caption">Set here once and it applies to the whole company — every department uploads to this folder and none of them can point somewhere else.</div></div>' +
+    '</div>');
+
   const notify = make('acc_notify', 'Notifications &amp; Documents', '—',
     'Who is written to when something is filed or decided, and who else is quietly copied. Recipients you add here go in BCC — the person who filed it never sees them.',
     '<div class="fin-settings">' +
@@ -11786,10 +11904,12 @@ function injectAdminSections() {
     content.insertBefore(finance, summary.nextSibling);
     content.insertBefore(calc, finance.nextSibling);
   } else { content.appendChild(finance); content.appendChild(calc); }
-  /* Notifications belong with the other settings, at the foot */
+  /* Company settings and notifications belong with the other settings, at the
+     foot. They go in ahead of Admin Actions, in the order the rail lists them,
+     so the Settings door still stands in front of one contiguous run. */
   const actions = document.getElementById('acc_actions');
-  if (actions) content.insertBefore(notify, actions);
-  else content.appendChild(notify);
+  if (actions) { content.insertBefore(company, actions); content.insertBefore(notify, actions); }
+  else { content.appendChild(company); content.appendChild(notify); }
 
   content.dataset.extraSections = '1';
 }
@@ -11905,13 +12025,36 @@ function saveFinanceSettings() {
   const rate = n('fin_rate');
   if (rate > 0) settings.usdToUgx = rate;
   settings.hourlyRateUSD = n('fin_hourly');
-  const drive = (document.getElementById('fin_drive') || {}).value || '';
-  settings.driveFolderUrl = drive.trim();
   saveSettings();
   const r = document.getElementById('rateInput');
   if (r && rate > 0) r.value = rate;
   clearTimeout(saveFinanceSettings._t);
   saveFinanceSettings._t = setTimeout(() => { try { renderAdmin(); } catch (_) {} }, 600);
+}
+
+/* ---------------- Company settings ---------------- */
+/* The Drive folder used to be saved by saveFinanceSettings, which meant every
+   keystroke on the hourly rate also re-published it. It has its own handler
+   now, and only publishes when the folder itself changed. */
+function saveCompanySettings() {
+  const drive = (document.getElementById('cfg_drive') || {}).value || '';
+  const prevDrive = (settings.driveFolderUrl || '').trim();
+  settings.driveFolderUrl = drive.trim();
+  saveSettings();
+  /* The folder is a company decision, so it goes up for everyone. */
+  if (settings.driveFolderUrl !== prevDrive) configPushDriveDebounced();
+  renderCompany();
+}
+
+function renderCompany() {
+  const drIn = document.getElementById('cfg_drive');
+  if (drIn && document.activeElement !== drIn) drIn.value = settings.driveFolderUrl || '';
+  const meta = document.getElementById('acc_companyMeta');
+  if (meta) meta.textContent = driveFolderUrl() ? 'Drive folder set' : 'no Drive folder yet';
+  /* The section header copies that meta line when the section opens, so it
+     would otherwise keep saying "no Drive folder yet" under a folder that is
+     plainly on screen. */
+  if (typeof renderSectionHead === 'function' && adminSection === 'acc_company') renderSectionHead();
 }
 /* ============================================================
    PRICING BELONGS TO THE TOOL, NOT TO EACH ENTRY
@@ -12081,10 +12224,8 @@ function renderFinance() {
 
   const rateIn = document.getElementById('fin_rate');
   const hrIn   = document.getElementById('fin_hourly');
-  const drIn   = document.getElementById('fin_drive');
   if (rateIn && document.activeElement !== rateIn) rateIn.value = settings.usdToUgx || '';
   if (hrIn   && document.activeElement !== hrIn)   hrIn.value   = settings.hourlyRateUSD || '';
-  if (drIn   && document.activeElement !== drIn)   drIn.value   = settings.driveFolderUrl || '';
 
   const all = pricedEntries();
   let ai = 0, trad = 0, net = 0, rev = 0, time = 0;
@@ -13853,7 +13994,7 @@ function driveFolderUrl() {
 }
 function openDriveFolder() {
   const url = driveFolderUrl();
-  if (!url) { toast('No Swangz Drive folder has been set yet — ask an admin to add it under Money & Pricing', true); return; }
+  if (!url) { toast('No Swangz Drive folder has been set yet — ask an admin to add it under Settings › Company Settings', true); return; }
   window.open(safeUrl(url), '_blank', 'noopener');
   toast('Upload your file, copy its share link, then come back — we will pick it up');
   armDriveCatcher();
@@ -15710,6 +15851,7 @@ function retryMail(id) {
       renderBusinessStrip();
       renderToolsSummary();
       renderFinance();
+      renderCompany();
       renderNotify();
       renderBusinessList();
       populateCalcPicker();
