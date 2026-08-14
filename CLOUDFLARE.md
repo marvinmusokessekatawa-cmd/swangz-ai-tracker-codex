@@ -79,11 +79,13 @@ reaches the tracker. Everything else in this file is a preview host.
   empty and `isLocalDev()` is localhost-only, so nothing that is deployed can skip sign-in.
   The two lists stay declared and empty on purpose — `npm run audit` fails if a host is put
   back. There is no preview toolbar on any deployed host any more.
-- ⬜ **Re-run `supabase/schema.sql`** in the Supabase SQL editor. The whole file is safe to
-  run again. Until it is, `public.app_config` does not exist and the Drive folder stays in
-  the admin's own browser.
-- ⬜ **Add the live URL to Supabase → Authentication → URL Configuration.** `https://swangz-ai-tracker.netlify.app`
-  as the **Site URL**, and in **Redirect URLs**. Without it Google sign-in never completes.
+- ✅ **`supabase/schema.sql` has been re-run** (14 Aug 2026). `public.app_config` exists, so
+  the Drive folder now reaches the whole company, and every policy on `entries` and
+  `app_config` goes through `public.is_swangz_staff()` instead of admitting any signed-in
+  account. Re-run it again after any change to that file; it is always safe to re-run.
+- ✅ **The Supabase redirect configuration needs nothing.** The build that ran here before the
+  redesign already signed in against the same project with the same
+  `redirectTo: window.location.origin + '/'`, so this URL is already trusted.
 - ✅ **The admin email code is deliberately not shipped.** Sign-in is Google + the allowlist
   + the admin password, and the gate says so. See below.
 
@@ -103,8 +105,9 @@ code shown to whoever is already looking at the screen proves nothing about who
 they are, and a step that proves nothing is worse than no step, because it
 looks like security.
 
-On a preview host the step still runs and shows the code, so the flow can be
-demonstrated to Marvin without a backend.
+On **localhost** the step still runs and shows the code, so the flow can be
+demonstrated without a backend. It no longer does that on any deployed host —
+a code printed on the screen of whoever is already reading it proves nothing.
 
 To turn it on for real: deploy an Apps Script or Supabase Edge Function that
 takes `{email, code}` and mails it, then set `OTP_ENDPOINT` to its URL.
