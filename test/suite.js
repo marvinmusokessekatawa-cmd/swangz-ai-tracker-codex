@@ -898,13 +898,75 @@ async function scenarioDriveFolder() {
   });
 }
 
+/* An owner signing in must land in the portal. The view tabs are hidden by
+   CSS with !important, so if the sign-in routing drops an owner into the
+   department view there is no door out of it and the app looks, from the
+   inside, exactly as though the owner were an ordinary user. */
+async function scenarioSignInRouting() {
+  if (only && !'routing'.includes(only)) return;
+  await withApp(async ({ run }) => {
+    suite('20 · Signing in puts you where your role belongs');
+
+    /* The tabs really are gone — this is why the routing has to be right */
+    ok('the view tabs are hidden, so routing is the only door',
+       run(`getComputedStyle(document.querySelector('.view-toggle')).display`) === 'none');
+
+    /* The regression: an owner who already has a department saved. The old
+       code routed on profile completeness alone and sent them to 'tools'. */
+    run(`__t.signIn(); __t.asDept(false);
+         profile.department='Production'; profile.name='Arnold'; profile.role='Redesign Lead'; saveProfile();
+         switchView('tools');   /* as the old boot left them */
+         routeSignedIn();`);
+    eq('an owner with a saved department lands in the portal', run('currentView'), 'admin');
+    eq('and is recognised as an owner', run('currentRole()'), 'super');
+
+    /* A department user must be unaffected by the fix */
+    run(`__t.asDept(true);
+         profile.department='Production'; profile.name='Ivan'; profile.role='Editor'; saveProfile();
+         routeSignedIn();`);
+    eq('a department user still lands in their own view', run('currentView'), 'tools');
+    ok('and is offered no way into the dashboard',
+       !run(`paletteCommands().some(c => /Open the Admin Dashboard/i.test(c.label))`));
+
+    /* The safety net: the rail is empty outside the admin view, so every
+       section command is missing there — the door must not depend on it. */
+    run(`__t.asDept(false); switchView('tools');`);
+    ok('an admin can reach the dashboard from the palette with an empty rail',
+       run(`paletteCommands().some(c => /Open the Admin Dashboard/i.test(c.label))`));
+    run(`paletteCommands().find(c => /Open the Admin Dashboard/i.test(c.label)).run();`);
+    eq('and that command actually opens it', run('currentView'), 'admin');
+
+    /* Who may sign in at all */
+    ok('an owner is allowed', run(`isEmailAllowed('arnoldkigozi0@gmail.com')`));
+    ok('the org domain is allowed', run(`isEmailAllowed('someone@swangzavenue.com')`));
+    ok('a stranger is refused', !run(`isEmailAllowed('random.person@gmail.com')`));
+    ok('and so is a look-alike domain', !run(`isEmailAllowed('someone@notswangzavenue.com')`));
+    ok('and an address that merely ends with the domain',
+       !run(`isEmailAllowed('someone@evil-swangzavenue.com')`));
+
+    /* The database enforces the same list. If these two ever drift, a real
+       member of staff gets a silent denial from Postgres that no amount of
+       reading index.html would explain. */
+    const fs = require('fs');
+    const sql = fs.readFileSync(require('path').join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8');
+    ok('the schema screens on the exact domain, not a suffix match',
+       /split_part\(lower\(coalesce\(auth\.jwt\(\) ->> 'email', ''\)\), '@', 2\) = 'swangzavenue\.com'/.test(sql));
+    ok('the schema no longer lets any signed-in account read the entries',
+       !/using \(true\)/.test(sql) && /is_swangz_staff\(\)/.test(sql));
+    const owners = JSON.parse(run(`JSON.stringify(SUPER_ADMINS)`));
+    const inSql = owners.filter(o => sql.includes(o));
+    eq('every owner in the app is an owner in the database too', inSql.length, owners.length);
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
   for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioExecWording,
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
                    scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt,
-                   scenarioCustomRange, scenarioAdminAccess, scenarioDriveFolder]) {
+                   scenarioCustomRange, scenarioAdminAccess, scenarioDriveFolder,
+                   scenarioSignInRouting]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

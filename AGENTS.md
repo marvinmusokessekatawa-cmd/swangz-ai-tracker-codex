@@ -66,6 +66,29 @@ Admins compile the business case and triage new-tool requests.
    a *local* midnight — `new Date('2026-08-13')` is UTC midnight, which in Kampala is 3am, so
    anything filed before then would fall outside its own day. `execWindow` pushes the "to"
    day to the following midnight because the window test is half-open (`>= from && < to`).
+12. **Sign-in routes by ROLE, through `routeSignedIn()`.** `.view-toggle` is
+   `display:none !important` — the tabs are gone on purpose, "the app decides where you
+   belong". That makes the routing the *only* door into the portal, so routing on profile
+   completeness alone stranded every owner in the department view with no way out; it read
+   from the inside exactly like "I signed in and I am not an owner". `routeAfterSignIn()`
+   always knew about roles but sat in the second script block and only fired for somebody
+   sitting on the sign-in screen — never on a page load that already had a session, which is
+   the normal case. Both boot and `onAuthStateChange` call `routeSignedIn()` now, which defers
+   to it and keeps the old behaviour as a fallback. `paletteCommands()` also carries an
+   explicit **Open the Admin Dashboard** entry: every other admin command is read out of
+   `#adminNav`, which is empty until the admin view has rendered once, so the palette was
+   empty for a stranded admin too.
+13. **The allowlist is enforced in Postgres, not only in JavaScript.** Google hands a session
+   to *any* Google account; `enforceEmailAllowlist()` signs a stranger straight back out, but
+   that runs on the visitor's own machine, and the policies used to be
+   `to authenticated using (true)` — so a stranger who kept their access token could read,
+   change and delete every row straight through the REST API. `public.is_swangz_staff()` now
+   gates every policy on `entries` and `app_config`. It screens the domain with
+   `split_part(email,'@',2) = 'swangzavenue.com'`, never `like '%@swangzavenue.com'`, which
+   would also admit `evil-swangzavenue.com`. **The owner list exists in two places** —
+   `SUPER_ADMINS` in `index.html` and the list inside that function. `npm test` asserts they
+   agree; if they ever drift, a real member of staff gets a silent denial from Postgres that
+   reading `index.html` would never explain.
 
 ## How to run locally
 

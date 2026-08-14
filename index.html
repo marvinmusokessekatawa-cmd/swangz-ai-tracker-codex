@@ -7985,6 +7985,25 @@ function importJSONFile(input) {
   input.value = '';   // allow re-selecting the same file later
 }
 
+/* Where a signed-in person belongs — by ROLE, not only by how complete their
+   profile is.
+
+   This used to send everyone to the department view, and `.view-toggle` is
+   `display:none !important`, so an owner who already had a department saved
+   landed in the portal with no door into the Admin Dashboard at all. It read
+   exactly like "I signed in and I am not an owner".
+
+   routeAfterSignIn() has always known about roles, but it lives in the second
+   script block and only ever ran when somebody was sitting on the sign-in
+   screen — never on a page load that already had a session, which is the
+   normal case. Defer to it when it is there, and keep the old behaviour as a
+   fallback so the first block is never dependent on the second. */
+function routeSignedIn() {
+  if (typeof routeAfterSignIn === 'function') { routeAfterSignIn(); return; }
+  if (!profile.department || !profile.role) switchView('landing');
+  else switchView('tools');
+}
+
 /* Rate input listener + initial backend render + auto-sync + auth check */
 document.addEventListener('DOMContentLoaded', async () => {
   const r = document.getElementById('rateInput');
@@ -8001,8 +8020,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     // Signed in. Pull/merge/push remote then route.
     autoSyncOnLoad().catch(()=>{});
-    if (!profile.department || !profile.role) switchView('landing');
-    else switchView('tools');
+    routeSignedIn();
   }
   mountDevBypass();  // local dev only; inert in production
 
@@ -8023,8 +8041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (wasUnauthenticated || currentView === 'auth') {
           if (typeof resetDeptPrompt === 'function') resetDeptPrompt();
           autoSyncOnLoad().catch(()=>{});
-          if (!profile.department || !profile.role) switchView('landing');
-          else switchView('tools');
+          routeSignedIn();
         }
         // Otherwise: stay where the user already is (detail form, admin, etc.)
       } else if (event === 'SIGNED_OUT') {
@@ -9612,6 +9629,11 @@ function paletteCommands() {
     secs.push({ icon: 'doc', label: 'Prepare the executive briefing', group: 'Reports', rank: repRank + 0.05, run: () => { showAdminSection('acc_exec'); setTimeout(openExecBriefing, 120); } });
     secs.push({ icon: 'doc', label: 'Copy automatic report',  group: 'Reports', rank: repRank + 0.1, run: () => copyAiReport() });
     secs.push({ icon: 'doc', label: 'Print automatic report', group: 'Reports', rank: repRank + 0.2, run: () => printAiReport() });
+    /* A door that does not depend on the rail already existing. Every section
+       command above is read out of #adminNav, which is empty until the admin
+       view has rendered once — so an admin standing in the department view had
+       nothing here either, and the view tabs are hidden. */
+    secs.push({ icon: 'grid', label: 'Open the Admin Dashboard', group: 'Admin', rank: 0.4, run: () => switchView('admin') });
     /* The big Add-tool CTA is gone from the portal, so keep a way in */
     secs.push({ icon: 'wand', label: 'Add an entry on a team\'s behalf', group: 'Admin', rank: 0.5, run: () => openAddChooser() });
     secs.sort((a, b) => a.rank - b.rank);          // keep each door's items together
