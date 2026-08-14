@@ -4,12 +4,22 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Swangz Avenue — AI Adoption Tracker</title>
-<!-- Supabase JS client (used for Google OAuth sign-in + session persistence) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
-<!-- Redesign fonts: Inter (UI) + JetBrains Mono (figures) -->
+<!-- Supabase JS client (Google OAuth sign-in + session persistence).
+     The tag itself lives at the foot of the body, because a blocking script in
+     the head means a blank page for the whole of a cross-origin round trip —
+     on a slow connection that was most of the wait. Fetching starts here all
+     the same, so it is usually in cache by the time the parser reaches it. -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" as="script" crossorigin
+      href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js">
+<!-- Redesign fonts: Inter (UI) + JetBrains Mono (figures).
+     Loaded without blocking the first paint; the faces carry display=swap, so
+     text is readable in the fallback until they arrive. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
 <link rel="icon" type="image/webp" href="assets/swangz-badge.webp">
 <!-- Declare that this page is ALREADY dark. Without this, Chrome on Android
      (Settings → Themes → "Auto dark theme") applies its own colour inversion
@@ -636,6 +646,36 @@
      the corners (ref: SPECTRA/stadium frames), a cool violet counter-light, a
      faint dot-grid for texture and an edge vignette for depth. Static layers =
      no per-frame GPU cost. */
+  /* ---- the boot hold (see #bootHold in the markup) ----
+     Literal colours on purpose: this has to paint correctly before anything
+     else has run, including whatever sets the theme. */
+  #bootHold {
+    position: fixed; inset: 0; z-index: 9999; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    background: #05070d;
+  }
+  html.booting #bootHold { display: flex; }
+  /* Hidden rather than removed, so nothing reflows when the hold lifts */
+  html.booting .app-shell { visibility: hidden; }
+  #bootHold img { width: 44px; height: 44px; opacity: .92; }
+  #bootHold span {
+    position: relative; overflow: hidden;
+    width: 116px; height: 2px; border-radius: 2px;
+    background: rgba(245, 197, 66, 0.16);
+  }
+  #bootHold span::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 38%;
+    border-radius: 2px; background: #f5c542;
+    animation: bootSlide 1.15s ease-in-out infinite;
+  }
+  @keyframes bootSlide {
+    0%   { transform: translateX(-110%); }
+    100% { transform: translateX(380%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #bootHold span::after { animation: none; left: 0; width: 100%; opacity: .5; }
+  }
+
   /* Base colour lives on <html>, NOT <body>. A background-color on body
      propagates to the page canvas and paints over anything at a negative
      z-index — which silently hid the aurora. Layer order is therefore:
@@ -4005,6 +4045,32 @@
 </style>
 </head>
 <body>
+<!-- Held over the app while a saved session is read back. #authView is the
+     view marked active in the markup, so a reload used to show the sign-in
+     screen for a moment and then jump to the dashboard — it read as "you have
+     been logged out" every single time. This is raised only when there is a
+     session to restore, so a genuine first visit still gets the sign-in card
+     immediately, and it lifts itself after six seconds whatever happens. -->
+<div id="bootHold" aria-hidden="true">
+  <img src="assets/swangz-badge.webp" alt="" width="44" height="44" />
+  <span></span>
+</div>
+<script>
+(function () {
+  /* Runs before the app's own scripts and before the Supabase client is
+     fetched, so the mark is on screen while all of that is still happening
+     rather than a blank page.
+
+     Raised for everybody, not only for a session being restored. The sign-in
+     button is drawn by markup but wired up by the script block at the foot of
+     the page, so showing the card first would offer a button that does nothing
+     for as long as that takes — which on a slow connection is exactly when
+     somebody would press it. */
+  document.documentElement.classList.add('booting');
+  /* A failsafe, not a timing assumption: if boot throws, nobody is trapped. */
+  setTimeout(function () { document.documentElement.classList.remove('booting'); }, 6000);
+})();
+</script>
 <div class="aurora" aria-hidden="true">
   <span class="a1"></span><span class="a2"></span><span class="a3"></span><span class="a4"></span>
 </div>
@@ -4958,6 +5024,13 @@
 </div><!-- /.app-shell -->
 
 <div id="toast" class="toast">Saved</div>
+
+<!-- Moved down from the head. It still has to run BEFORE the block below,
+     which reads window.supabase at parse time to build the client — but by
+     standing here the markup and the boot hold have already painted, so the
+     wait for it is spent looking at the app rather than at nothing. The head
+     preloads it, so this is usually served straight from cache. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js" crossorigin></script>
 
 <script>
 /* --------------------------------------------------------
@@ -8014,13 +8087,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Auth check FIRST. Phase 2 RLS requires auth — running auto-sync before
   // the user is signed in would just hit an RLS denial. Wait for auth, then
   // sync if there's a session.
-  await refreshAuthSession();
-  if (!authUser) {
-    switchView('auth');
-  } else {
-    // Signed in. Pull/merge/push remote then route.
-    autoSyncOnLoad().catch(()=>{});
-    routeSignedIn();
+  /* The hold comes down once the view is decided, not before — lifting it any
+     earlier is what the flash was. In a finally, because the one thing worse
+     than a flash is a mark that never goes away. */
+  const endBootHold = () => document.documentElement.classList.remove('booting');
+  try {
+    await refreshAuthSession();
+    if (!authUser) {
+      switchView('auth');
+    } else {
+      // Signed in. Pull/merge/push remote then route.
+      autoSyncOnLoad().catch(()=>{});
+      routeSignedIn();
+    }
+  } finally {
+    endBootHold();
   }
   mountDevBypass();  // local dev only; inert in production
 
