@@ -7,8 +7,9 @@ The repo stays **private** — Cloudflare Pages deploys from private repos on th
    **Connect to Git**.
 2. Authorise GitHub and pick **`arnoldkigozi0/swangz-ai-tracker-redesign`**.
 3. Settings:
-   - **Project name:** `swangz-ai-tracker`  ← must match exactly, the preview
-     bypass is scoped to this hostname
+   - **Project name:** `swangz-ai-tracker`
+     (the preview bypass that used to be scoped to this hostname is gone —
+     see the warning under "The preview toolbar")
    - **Production branch:** `main`
    - **Framework preset:** None
    - **Build command:** *(leave empty)*
@@ -20,8 +21,15 @@ redeploys automatically.
 
 ## The preview toolbar
 
-The bar at the bottom of the screen exists **only on preview hosts** (and
-localhost) — it is never built on the live site.
+⚠️ **Since 14 Aug 2026 this means localhost only.** `previewHost()` is now just
+`isLocalDev()`, and the bypass host lists are empty, so nothing deployed —
+including a Cloudflare deployment of this repo — shows the toolbar or the
+sign-in bypass. A deployed preview is an ordinary copy of the live app and has
+to be signed into like any other. If you want a private preview, put the
+hostname behind Cloudflare Access rather than relying on anything in the page.
+
+The bar at the bottom of the screen exists **only on localhost** — it is never
+built on any deployed site.
 
 | Control | What it does |
 |---|---|
@@ -71,11 +79,13 @@ reaches the tracker. Everything else in this file is a preview host.
   empty and `isLocalDev()` is localhost-only, so nothing that is deployed can skip sign-in.
   The two lists stay declared and empty on purpose — `npm run audit` fails if a host is put
   back. There is no preview toolbar on any deployed host any more.
-- ⬜ **Re-run `supabase/schema.sql`** in the Supabase SQL editor. The whole file is safe to
-  run again. Until it is, `public.app_config` does not exist and the Drive folder stays in
-  the admin's own browser.
-- ⬜ **Add the live URL to Supabase → Authentication → URL Configuration.** `https://swangz-ai-tracker.netlify.app`
-  as the **Site URL**, and in **Redirect URLs**. Without it Google sign-in never completes.
+- ✅ **`supabase/schema.sql` has been re-run** (14 Aug 2026). `public.app_config` exists, so
+  the Drive folder now reaches the whole company, and every policy on `entries` and
+  `app_config` goes through `public.is_swangz_staff()` instead of admitting any signed-in
+  account. Re-run it again after any change to that file; it is always safe to re-run.
+- ✅ **The Supabase redirect configuration needs nothing.** The build that ran here before the
+  redesign already signed in against the same project with the same
+  `redirectTo: window.location.origin + '/'`, so this URL is already trusted.
 - ✅ **The admin email code is deliberately not shipped.** Sign-in is Google + the allowlist
   + the admin password, and the gate says so. See below.
 
@@ -95,8 +105,9 @@ code shown to whoever is already looking at the screen proves nothing about who
 they are, and a step that proves nothing is worse than no step, because it
 looks like security.
 
-On a preview host the step still runs and shows the code, so the flow can be
-demonstrated to Marvin without a backend.
+On **localhost** the step still runs and shows the code, so the flow can be
+demonstrated without a backend. It no longer does that on any deployed host —
+a code printed on the screen of whoever is already reading it proves nothing.
 
 To turn it on for real: deploy an Apps Script or Supabase Edge Function that
 takes `{email, code}` and mails it, then set `OTP_ENDPOINT` to its URL.
