@@ -1015,6 +1015,57 @@ async function scenarioSignInRouting() {
   });
 }
 
+/* The rail's search was a bare <button>, so it rendered as the browser's own
+   grey 3D button next to fields that are all hairline glass. */
+async function scenarioSearchLook() {
+  if (only && !'search'.includes(only)) return;
+  await withApp(async ({ doc, run }) => {
+    suite('21 · Every search box reads as the same thing');
+
+    const css = run(`document.querySelector('style').textContent`);
+
+    /* Every box that says "Search" is dressed as one */
+    run(`__t.signIn(); switchView('admin'); renderAdmin();`);
+    /* The rule is "a magnifier, one way or the other": the shared class draws
+       it into the field, and the palette — which is a wrapper with a real
+       SVG beside the input — is allowed to keep its own rather than end up
+       with two. What is not allowed is a search box with neither. */
+    const boxes = JSON.parse(run(`JSON.stringify(
+      [...document.querySelectorAll('input[placeholder]')]
+        .filter(i => /^search/i.test(i.placeholder))
+        .map(i => ({
+          id: i.id,
+          tagged: i.classList.contains('search-input'),
+          ownIcon: !!(i.parentElement && i.parentElement.querySelector('svg'))
+        })))`));
+    ok('there are search boxes to check', boxes.length >= 3, boxes.length + ' found');
+    const bare = boxes.filter(b => !b.tagged && !b.ownIcon).map(b => b.id || '(no id)');
+    eq('none of them is left without a magnifier', bare.join(',') || 'none', 'none');
+    const plain = boxes.filter(b => !b.ownIcon);
+    ok('and the ordinary ones all share one treatment rather than each its own',
+       plain.length >= 3 && plain.every(b => b.tagged),
+       plain.map(b => b.id + ':' + b.tagged).join(' '));
+
+    ok('which sets a magnifier inside the field',
+       /\.search-input\s*\{[^}]*background-image:\s*url\("data:image\/svg\+xml/.test(css));
+
+    /* The bug that would silently undo it */
+    ok('the focus rule sets background-color, not the background shorthand',
+       /input:focus[^{]*\{[^}]*background-color:/.test(css) &&
+       !/input:focus[^{]*\{[^}]*[^-]background:\s*rgba/.test(css));
+
+    /* The rail hint must not fall back to native button chrome */
+    const hint = css.match(/\.rail-hint\s*\{[^}]*\}/);
+    ok('the rail search declares its own surface', !!hint && /background-color:/.test(hint[0]));
+    ok('and its own corners, rather than a square native button',
+       !!hint && /border-radius:/.test(hint[0]));
+    ok('and its own border', !!hint && /border:\s*1px solid/.test(hint[0]));
+    ok('and the app\'s own typeface', !!hint && /font-family:\s*inherit/.test(hint[0]));
+    ok('the rail search is still the way into the palette',
+       !!doc.querySelector('.rail-hint[onclick*="openPalette"]'));
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
@@ -1022,7 +1073,7 @@ async function scenarioSignInRouting() {
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
                    scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt,
                    scenarioCustomRange, scenarioAdminAccess, scenarioDriveFolder,
-                   scenarioSignInRouting]) {
+                   scenarioSignInRouting, scenarioSearchLook]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

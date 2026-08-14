@@ -853,13 +853,28 @@
   button.primary:active, button.secondary:active, button.danger:active, button.ghost:active { transform: scale(.97); }
 
   /* ---- Inputs ---- */
+  /* background-COLOR, not the background shorthand: the shorthand resets
+     background-image, which silently wiped the magnifier off every search
+     field the moment it was focused. Same family as the .filters select rule. */
   input, select, textarea {
-    background: rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius: 10px;
-    transition: border-color .15s, box-shadow .15s, background .15s;
+    background-color: rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius: 10px;
+    transition: border-color .15s, box-shadow .15s, background-color .15s;
   }
   input:focus, select:focus, textarea:focus {
-    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167,139,250,0.18); background: rgba(255,255,255,0.06);
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167,139,250,0.18); background-color: rgba(255,255,255,0.06);
   }
+
+  /* ---- Search fields read as one thing everywhere ----
+     The magnifier is set into the field rather than wrapped around it, so a
+     box built in a JS string gets it from the class alone, with no markup. */
+  .search-input {
+    padding-left: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238493b4' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px 50%;
+    background-size: 15px 15px;
+  }
+  .search-input::placeholder { color: var(--muted-2); }
 
   /* ---- Accessible keyboard focus ring ---- */
   a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
@@ -2624,12 +2639,26 @@
     }
     .admin-nav button .ico { width: 17px; height: 17px; flex: 0 0 auto; }
     .admin-nav button .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    /* A quiet hint that the palette exists */
+    /* The way into the palette. It is a <button>, and carried no appearance of
+       its own, so it was rendering as the browser's default grey 3D button —
+       square, mid-grey, Arial — next to fields that are all hairline glass.
+       It opens a search, so it is dressed as a search field. */
     .rail-hint {
-      margin-top: auto; padding: 10px 12px; font-size: 10.5px; color: var(--muted-2);
-      display: flex; align-items: center; gap: 7px; flex: 0 0 auto;
+      margin-top: auto; flex: 0 0 auto; width: 100%;
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 11px; text-align: left; cursor: pointer;
+      font-family: inherit; font-size: 12px; color: var(--muted-2);
+      background-color: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border); border-radius: 10px;
+      transition: border-color .15s, background-color .15s, color .15s;
     }
+    .rail-hint:hover {
+      color: var(--muted); border-color: var(--border-2);
+      background-color: rgba(255,255,255,0.07);
+    }
+    .rail-hint .ico { width: 14px; height: 14px; flex: 0 0 auto; opacity: .85; }
     .rail-hint kbd {
+      margin-left: auto; flex: 0 0 auto;
       font-family: var(--font-mono); font-size: 9.5px; color: var(--muted);
       border: 1px solid var(--glass-border); border-radius: 5px; padding: 2px 5px;
     }
@@ -4766,7 +4795,7 @@
             <option value="approved">Approved</option>
             <option value="declined">Declined</option>
           </select>
-          <input id="reqSearch" placeholder="Search tool / requester / department…" oninput="renderRequestsInbox()" />
+          <input id="reqSearch" class="search-input" placeholder="Search tool / requester / department…" oninput="renderRequestsInbox()" />
         </div>
         <div id="requestsInboxList"></div>
       </div>
@@ -4886,7 +4915,7 @@
             <option>In Active Use</option>
             <option>Scaling Across Team</option>
           </select>
-          <input id="adminSearch" placeholder="Search tool / project…" oninput="renderAdmin()" />
+          <input id="adminSearch" class="search-input" placeholder="Search tool / project…" oninput="renderAdmin()" />
         </div>
 
         <div class="section-title">By Department — Monthly Net Savings</div>
@@ -4965,7 +4994,7 @@
       </summary>
       <div class="acc-body">
         <p class="help">Fix mis-attributed entries — for example, if someone accidentally adopted an entry that wasn't theirs from the "Found N entries that may be yours" banner. Reassigning updates who the entry belongs to in My History on every device.</p>
-        <input id="manageSearchInput" type="text" placeholder="Search by tool name, submitter, email, or department…" oninput="renderManageSubmissions()" style="margin-bottom: 10px;" />
+        <input id="manageSearchInput" type="text" class="search-input" placeholder="Search by tool name, submitter, email, or department…" oninput="renderManageSubmissions()" style="margin-bottom: 10px;" />
         <div id="manageList"></div>
       </div>
     </details>
@@ -11981,7 +12010,7 @@ function injectAdminSections() {
     'Every tool in the tracker on one page — who uses it, what stage it is at, what it costs and what it returns. Choose any row for the full report.',
     '<div class="sum-strip" id="sumStrip"></div>' +
     '<div class="sum-controls">' +
-      '<input id="sumSearch" placeholder="Search tool, department or category…" oninput="renderToolsSummary()" />' +
+      '<input id="sumSearch" class="search-input" placeholder="Search tool, department or category…" oninput="renderToolsSummary()" />' +
       '<select id="sumSort" onchange="renderToolsSummary()">' +
         '<option value="net">Sort by net saved</option>' +
         '<option value="name">Sort by name</option>' +
