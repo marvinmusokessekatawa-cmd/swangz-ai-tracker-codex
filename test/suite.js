@@ -949,10 +949,15 @@ async function scenarioSignInRouting() {
        reading index.html would explain. */
     const fs = require('fs');
     const sql = fs.readFileSync(require('path').join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8');
+    /* Only what Postgres will actually run: the file documents the rollback in
+       comments, and those legitimately contain the old permissive policies. */
+    const live = sql.split('\n').filter(l => !l.trim().startsWith('--')).join('\n');
     ok('the schema screens on the exact domain, not a suffix match',
-       /split_part\(lower\(coalesce\(auth\.jwt\(\) ->> 'email', ''\)\), '@', 2\) = 'swangzavenue\.com'/.test(sql));
-    ok('the schema no longer lets any signed-in account read the entries',
-       !/using \(true\)/.test(sql) && /is_swangz_staff\(\)/.test(sql));
+       /split_part\(lower\(coalesce\(auth\.jwt\(\) ->> 'email', ''\)\), '@', 2\) = 'swangzavenue\.com'/.test(live));
+    ok('no policy it runs lets just any signed-in account at the entries',
+       !/using \(true\)/.test(live) && /is_swangz_staff\(\)/.test(live));
+    ok('and the way back is written down next to them',
+       /drop policy if exists "staff read entries"/.test(sql.split('\n').filter(l => l.trim().startsWith('--')).join('\n')));
     const owners = JSON.parse(run(`JSON.stringify(SUPER_ADMINS)`));
     const inSql = owners.filter(o => sql.includes(o));
     eq('every owner in the app is an owner in the database too', inSql.length, owners.length);
