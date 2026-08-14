@@ -101,6 +101,22 @@ create policy "staff update entries" on public.entries for update to authenticat
                                                                                    with check (public.is_swangz_staff());
 create policy "staff delete entries" on public.entries for delete to authenticated using      (public.is_swangz_staff());
 
+-- Check it before trusting it. Signed in as staff this returns true; it is the
+-- one query that tells you whether the whole allowlist is working:
+--   select auth.jwt() ->> 'email' as who, public.is_swangz_staff() as allowed;
+--
+-- IF IT LOCKS THE TEAM OUT — say the tokens carry no email claim — this puts
+-- the old behaviour back in one paste, and the app keeps working exactly as it
+-- did before, with the allowlist enforced in the page only:
+--   drop policy if exists "staff read entries"   on public.entries;
+--   drop policy if exists "staff insert entries" on public.entries;
+--   drop policy if exists "staff update entries" on public.entries;
+--   drop policy if exists "staff delete entries" on public.entries;
+--   create policy "auth read entries"   on public.entries for select to authenticated using (true);
+--   create policy "auth insert entries" on public.entries for insert to authenticated with check (true);
+--   create policy "auth update entries" on public.entries for update to authenticated using (true) with check (true);
+--   create policy "auth delete entries" on public.entries for delete to authenticated using (true);
+
 -- =====================================================================
 -- Public tool requests (no sign-in)
 -- The app lets anyone submit a tool *request* without a Google account
