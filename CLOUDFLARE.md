@@ -39,9 +39,14 @@ Under **Money & Pricing**:
 | Setting | Why it matters |
 |---|---|
 | **Blended hourly rate (USD)** | Without it the hours the team saves are reported as hours only. With it, every briefing also states what those hours are worth. |
-| **Swangz Google Drive folder** | Where the team uploads project media. The "Upload to Swangz Drive" button in the project tile opens this folder; without it, that button just says to ask an admin. Only Google Drive links are accepted anywhere in the app. |
 
-Under **Notifications & Documents**:
+Under **Settings → Company Settings**:
+
+| Setting | Why it matters |
+|---|---|
+| **Swangz Google Drive folder** | Where the team uploads project media. The "Upload to Swangz Drive" button in the project tile opens this folder; without it, that button just says to ask an admin. Only Google Drive links are accepted anywhere in the app. Set once, it reaches every department — but only once `supabase/schema.sql` has been re-run, since it is stored in the shared `app_config` table. |
+
+Under **Settings → Notifications & Documents**:
 
 | Setting | Why it matters |
 |---|---|
