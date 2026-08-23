@@ -41,6 +41,9 @@ const W=390,H=844;
         const b = el.getBoundingClientRect();
         return b.width > 0 && b.height > 0 && (b.height < 36 || b.width < 30) && el.offsetParent;
       }).slice(0,6).map(el => (el.tagName+'.'+(typeof el.className==='string'?el.className:'')).slice(0,44)
+                 + (el.id ? '#' + el.id : '')
+                 + (el.getAttribute('name') ? '[name=' + el.getAttribute('name') + ']' : '')
+                 + (el.type ? '[type=' + el.type + ']' : '')
                  + ' ' + Math.round(el.getBoundingClientRect().width)+'x'+Math.round(el.getBoundingClientRect().height));
       return { scrollW: de.scrollWidth, clientW: de.clientWidth, over, small };
     });
@@ -49,7 +52,7 @@ const W=390,H=844;
     console.log(`${side?'✗':'✓'} ${name.padEnd(22)} ${side?('SIDEWAYS '+r.scrollW+'>'+r.clientW):'no sideways scroll'}`);
     if (r.over.length) console.log('    off-screen: ' + r.over.join(' | '));
     if (r.small.length) console.log('    small taps: ' + r.small.join(' | '));
-    return side || r.over.length;
+    return side || r.over.length || r.small.length;
   };
 
   let bad = 0;
@@ -61,7 +64,14 @@ const W=390,H=844;
   await p.evaluate(()=>{ if(typeof endTour==='function') endTour(); togglePreviewAsDept(true); switchView('tools'); });
   bad += await audit('02-department') ? 1 : 0;
   await p.evaluate(()=>openAddChooser()); bad += await audit('03-chooser') ? 1 : 0;
-  await p.evaluate(()=>chooseAddType('report')); bad += await audit('04-wizard') ? 1 : 0;
+  await p.evaluate(()=>chooseAddType('report'));
+  const promptUnderWizard = await p.evaluate(() => {
+    const prompt = document.getElementById('deptPrompt');
+    const wizard = document.getElementById('detailView');
+    return !!(prompt && wizard && wizard.classList.contains('open') && !prompt.hidden);
+  });
+  if (promptUnderWizard) { console.log('✗ dept prompt stayed visible under wizard'); bad++; }
+  bad += await audit('04-wizard') ? 1 : 0;
   await p.evaluate(()=>{ gotoStep(2); }); bad += await audit('05-wizard-2') ? 1 : 0;
   await p.evaluate(()=>{ closeWizard(); togglePreviewAsDept(false);
     sessionStorage.setItem('swangz_admin_otp_v1',JSON.stringify({hash:'',email:currentEmail(),exp:Date.now()+36e5,tries:0,verified:true}));

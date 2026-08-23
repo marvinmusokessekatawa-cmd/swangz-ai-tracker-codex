@@ -1,0 +1,54 @@
+{
+  "packageId": "com.swangzavenue.aitracker",
+  "host": "swangz-ai-tracker.netlify.app",
+  "name": "Swangz Avenue — AI Tracker",
+  "launcherName": "AI Tracker",
+  "display": "standalone",
+  "themeColor": "#02040A",
+  "themeColorDark": "#02040A",
+  "navigationColor": "#02040A",
+  "navigationColorDark": "#02040A",
+  "navigationDividerColor": "#02040A",
+  "navigationDividerColorDark": "#02040A",
+  "backgroundColor": "#02040A",
+  "enableNotifications": false,
+  "startUrl": "/?source=app",
+  "iconUrl": "https://swangz-ai-tracker.netlify.app/assets/icon-512.png",
+  "maskableIconUrl": "https://swangz-ai-tracker.netlify.app/assets/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./swangz-release.keystore",
+    "alias": "swangz"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Report a tool",
+      "shortName": "Report",
+      "url": "/?do=report",
+      "chosenIconUrl": "https://swangz-ai-tracker.netlify.app/assets/icon-192.png"
+    },
+    {
+      "name": "Request a tool",
+      "shortName": "Request",
+      "url": "/?do=request",
+      "chosenIconUrl": "https://swangz-ai-tracker.netlify.app/assets/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://swangz-ai-tracker.netlify.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://swangz-ai-tracker.netlify.app/",
+  "minSdkVersion": 21,
+  "orientation": "any",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "1.0.0"
+}

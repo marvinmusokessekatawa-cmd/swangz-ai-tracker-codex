@@ -1,0 +1,37 @@
+{
+  "name": "Swangz Avenue — AI Tracker",
+  "short_name": "AI Tracker",
+  "description": "Record the AI tools your department uses, and ask for the ones you need.",
+  "id": "/",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "orientation": "any",
+  "background_color": "#02040a",
+  "theme_color": "#02040a",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/assets/icon-192.png",           "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png",           "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-maskable-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Report a tool",
+      "short_name": "Report",
+      "description": "Log an AI tool your team already uses",
+      "url": "/?do=report",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Request a tool",
+      "short_name": "Request",
+      "description": "Ask leadership for a tool the team needs",
+      "url": "/?do=request",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

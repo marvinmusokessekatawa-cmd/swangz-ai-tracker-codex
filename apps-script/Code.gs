@@ -11,6 +11,22 @@
  *   GET  ?action=list                            → { ok:true, entries:[...] }
  *   GET  ?action=ping                            → { ok:true, pong:true }
  *   POST { action:'replaceAll', entries:[...] }  → wipes & rewrites all three tabs
+ *   POST { action:'upsert', entry:{...} }        → writes one row
+ *   POST { action:'notify', to, cc, bcc, subject, body,
+ *          fromName, attachmentName, attachmentHtml }
+ *                                                → sends one email, Bcc stays hidden
+ *
+ * ⚠️ A POST with no action is REFUSED. It used to default to 'replaceAll',
+ * which meant a notification payload (no entries) read as "replace everything
+ * with nothing" — pointing the tracker's mail endpoint at this URL would have
+ * emptied the spreadsheet.
+ *
+ * Deploy: Extensions → Apps Script → Deploy → New deployment → Web app,
+ * "Execute as: Me", "Who has access: Anyone". Mail is sent from the Google
+ * account that owns this script, so that account needs to be one the company
+ * is happy to have as the sender. MailApp is capped per day
+ * (100 on a consumer account, 1500 on Workspace) — _notify reports what is
+ * left on every send so the outbox can show it.
  */
 
 const SHEET_ID      = '1hvxKoDfmHYxHFifwQLsymuA-LUWBTA5vVCxMpdBgKMI';
@@ -192,12 +208,81 @@ function doGet(e) {
   }
 }
 
+/**
+ * Send one notification. The tracker posts these when something is filed and
+ * when a decision is made; the person who filed it is on To or Cc, and anyone
+ * the admin has chosen to copy quietly is on Bcc and stays there.
+ *
+ * The submission document travels as an HTML attachment so the message itself
+ * stays short enough to read on a phone.
+ */
+function _notify(body) {
+  var to  = _addrs(body.to);
+  var cc  = _addrs(body.cc);
+  var bcc = _addrs(body.bcc);
+  if (!to.length && !cc.length && !bcc.length) return _err('notify needs at least one recipient');
+
+  var opts = {
+    name: String(body.fromName || 'Swangz Avenue AI Tracker'),
+    htmlBody: _mailHtml(body),
+  };
+  if (cc.length)  opts.cc  = cc.join(',');
+  if (bcc.length) opts.bcc = bcc.join(',');
+  if (body.attachmentHtml) {
+    opts.attachments = [Utilities.newBlob(String(body.attachmentHtml), 'text/html',
+      String(body.attachmentName || 'submission.html'))];
+  }
+  /* An empty To with only Bcc recipients is legal but looks like spam to most
+     filters, so the sender addresses it to themselves in that case. */
+  var toLine = to.length ? to.join(',') : Session.getEffectiveUser().getEmail();
+  MailApp.sendEmail(toLine, String(body.subject || '(no subject)'), _plain(body), opts);
+  return _ok({ sent: 1, to: to.length, cc: cc.length, bcc: bcc.length, quotaLeft: MailApp.getRemainingDailyQuota() });
+}
+
+function _addrs(v) {
+  var list = Array.isArray(v) ? v : String(v || '').split(',');
+  var seen = {}, out = [];
+  list.forEach(function (a) {
+    var s = String(a || '').trim().toLowerCase();
+    if (!s || s.indexOf('@') < 1 || seen[s]) return;
+    seen[s] = true; out.push(s);
+  });
+  return out;
+}
+function _esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+function _plain(body) {
+  return String(body.body || '') + (body.attachmentHtml ? '\n\n(The full document is attached.)' : '');
+}
+function _mailHtml(body) {
+  return '' +
+    '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;' +
+    'font-size:15px;line-height:1.55;color:#111;max-width:560px;">' +
+      '<p style="margin:0 0 6px;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#8a8a99;">' +
+        'Swangz Avenue &middot; AI Tracker</p>' +
+      '<p style="margin:0 0 18px;font-size:19px;font-weight:700;">' + _esc(body.subject || '') + '</p>' +
+      '<p style="margin:0 0 18px;">' + _esc(body.body || '') + '</p>' +
+      (body.attachmentHtml
+        ? '<p style="margin:0;color:#555;font-size:13px;">The full submission is attached as a document.</p>'
+        : '') +
+    '</div>';
+}
+
 function doPost(e) {
   try {
     let body = {};
     try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (_) { body = {}; }
     if (!_checkSecret(body.secret)) return _err('forbidden');
-    const action = body.action || 'replaceAll';
+    /* No default. This used to fall back to 'replaceAll', so a POST that named
+       no action — a mail notification, say, whose payload carries no entries —
+       was read as "replace everything with nothing" and cleared the sheet.
+       Pointing the tracker's mail endpoint at this URL would have wiped it. */
+    const action = body.action || body.kind || '';
+    if (!action) return _err('no action given — refusing to guess');
+    if (action === 'notify') return _notify(body);
     if (action === 'replaceAll') {
       const incoming = Array.isArray(body.entries) ? body.entries : [];
       const sh = _sheet();
@@ -252,4 +337,32 @@ function rebuildReports() {
   _writeReport(entries);
   _writeSummary(entries);
   return entries.length;
+}
+
+/**
+ * RUN THIS ONCE, FROM THE EDITOR, BEFORE THE TRACKER CAN SEND ANYTHING.
+ *
+ * Apps Script works out which permissions a project needs from the code, and
+ * asks for them the first time a human runs something. Deploying does not ask.
+ * So a project deployed before MailApp appeared in it is live, answers
+ * correctly, and still cannot send — the web app returns
+ *
+ *     "You do not have permission to call MailApp.sendEmail"
+ *
+ * Pick this function in the toolbar dropdown, press Run, and grant the
+ * permission Google asks for. It then sends you a message from this account,
+ * which is the same account every tracker notification will come from — so a
+ * message arriving is proof of the whole path, not just of the permission.
+ *
+ * Safe to run again at any time. It touches nothing but your own inbox.
+ */
+function authoriseAndTest() {
+  var me = Session.getEffectiveUser().getEmail();
+  MailApp.sendEmail(me, '[Swangz AI Tracker] Permission granted', 
+    'This account can now send mail for the tracker.\n\n' +
+    'Every notification staff receive will come from this address.\n' +
+    'Messages left in today\'s quota: ' + MailApp.getRemainingDailyQuota(),
+    { name: 'Swangz Avenue AI Tracker' });
+  Logger.log('Sent to ' + me + '. Quota left: ' + MailApp.getRemainingDailyQuota());
+  return me;
 }

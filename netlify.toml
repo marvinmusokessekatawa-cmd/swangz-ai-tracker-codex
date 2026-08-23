@@ -6,6 +6,10 @@
   publish = "."
   command = ""
 
+# Netlify serves a real file before it applies a 200 rewrite, so /sw.js and
+# /manifest.webmanifest resolve to themselves. Listed here so nobody has to
+# rediscover that: a rewrite that swallowed the worker would silently disable
+# installing, with no error anywhere.
 [[redirects]]
   from = "/*"
   to   = "/index.html"
@@ -18,3 +22,30 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy       = "strict-origin-when-cross-origin"
     # The app uses crypto.subtle (admin password hashing); served over HTTPS this works.
+
+# The worker decides what every visitor caches, so it must never itself be
+# served from cache — a stale sw.js pins people to an old caching policy and
+# no deploy can reach them.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type  = "application/manifest+json; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+# Icons and brand art never change without changing name.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# The version is in the filename, so this can be cached hard and for ever.
+[[headers]]
+  for = "/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

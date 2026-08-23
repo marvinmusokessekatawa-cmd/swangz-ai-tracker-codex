@@ -66,18 +66,39 @@ Admins compile the business case and triage new-tool requests.
    a *local* midnight — `new Date('2026-08-13')` is UTC midnight, which in Kampala is 3am, so
    anything filed before then would fall outside its own day. `execWindow` pushes the "to"
    day to the following midnight because the window test is half-open (`>= from && < to`).
-12. **Sign-in routes by ROLE, through `routeSignedIn()`.** `.view-toggle` is
-   `display:none !important` — the tabs are gone on purpose, "the app decides where you
-   belong". That makes the routing the *only* door into the portal, so routing on profile
-   completeness alone stranded every owner in the department view with no way out; it read
-   from the inside exactly like "I signed in and I am not an owner". `routeAfterSignIn()`
-   always knew about roles but sat in the second script block and only fired for somebody
-   sitting on the sign-in screen — never on a page load that already had a session, which is
-   the normal case. Both boot and `onAuthStateChange` call `routeSignedIn()` now, which defers
-   to it and keeps the old behaviour as a fallback. `paletteCommands()` also carries an
-   explicit **Open the Admin Dashboard** entry: every other admin command is read out of
-   `#adminNav`, which is empty until the admin view has rendered once, so the palette was
-   empty for a stranded admin too.
+12. **Everyone lands in their department; the admin door is `#railAdminBtn`.** An admin is a
+   member of staff with a second job, and the dashboard is that second job, not their home —
+   `routeAfterSignIn()` sends everybody to `tools`. This is **only safe while the door is
+   drawn**. `.view-toggle` is `display:none !important`, so routing used to be the sole way
+   across, and routing on profile completeness alone once stranded every owner in the
+   department view with no way out (it read from the inside exactly like "I signed in and I
+   am not an owner"). The door is now explicit and lives in the **account menu** (`#railWho` →
+   `#accountMenu`), repeated by name in `#profileMenu`. **The rail lists sections and nothing
+   else** — Arnold asked for the standalone rail button to go, and it did. The account block is
+   where it had to land: `#profileMenu` is inside `#toolsView`, so on its own it is missing from
+   the portal, which is exactly where an admin needs the way back. The entry is drawn for *every*
+   signed-in account and carries `.is-locked` for accounts without access: a locked door explains
+   itself, a missing one reads as a bug. `paletteCommands()` also carries an explicit
+   **Open the Admin Dashboard** entry: every other admin command is read out of `#adminNav`,
+   which is empty until the admin view has rendered once.
+13. **The admin list is a shared row, not a browser's.** `extraAdmins()` reads localStorage,
+   but that is only a *cache* of `app_config.admin_emails`, published by `configPushAdmins()`
+   and applied by `applyAdminsConfig()` on every `configPull()`. It used to be localStorage
+   and nothing else, which meant a grant was written on the granting owner's own laptop and
+   the person being promoted read their own empty copy for ever — "I added them as an admin
+   and their dashboard never changed". An **absent** row is not an empty list: `applyAdminsConfig`
+   ignores it, or an unreachable table would revoke everyone. Postgres enforces owner-only
+   writes to that one key (`public.is_swangz_owner()` in `supabase/schema.sql`) — the app's
+   owner check runs on the grantee's own machine and proves nothing. ⚠️ **The new policy must
+   be re-run in the SQL editor** before a grant can leave the browser.
+14. **The admin password belongs to the admin.** `settings.adminPasswordHash` was one shared
+   secret: whoever opened the dashboard first chose it and every other admin typed that same
+   string. It is now per-address, PBKDF2-stretched with a per-record salt, held per device in
+   `swangz_admin_pass_v2`, and asked for **every** time the dashboard is entered (leaving it
+   sets `adminUnlocked = false`). The Google session is the authentication; this is the second
+   gate in front of the figures, against a laptop left open. `adoptLegacyAdminPassword()`
+   accepts the old shared password exactly once and converts it, so an upgrade cannot lock an
+   owner out of their own dashboard.
 13. **The allowlist is enforced in Postgres, not only in JavaScript.** Google hands a session
    to *any* Google account; `enforceEmailAllowlist()` signs a stranger straight back out, but
    that runs on the visitor's own machine, and the policies used to be
@@ -122,6 +143,21 @@ renderWizardProgress/updateWizardFooter`.
   required = tool name + category on step 1, business reason on step 2).
 - Existing entries (`currentToolId` set) open **fully unlocked** for free review/edit.
 
+### Two inboxes, one working tile
+- **Reports Inbox** (`acc_reports`, `renderReportsInbox`) and **Requests Inbox** (`acc_requests`)
+  are the same shape on the two kinds of entry, and both sit under the **Tools** door.
+  A report had no inbox at all until now — the only routes to one were Tools Entered
+  (consolidates by tool, loses who filed it) and Manage Submissions (for fixing attribution).
+- Reports carry `reportStatus`: `new → reviewed → confirmed → returned`. Nothing filters on it —
+  an unconfirmed report is still what the team reported, and dropping it from `filteredEntries()`
+  would change the company's numbers based on an admin's reading habits.
+- **`DECK.register('decide')` is the one action tile** for both kinds: the three status buttons
+  (`DECISIONS` / `REPORT_DECISIONS`), the note, the price, and the per-message BCC choice.
+  Deciding and pricing used to be two errands in two places and the second was easy to skip.
+  It is gated on `canSeeAdmin()` **in the builder**, not only by who can reach it.
+- `decide._bcc` carries the tile's copy choice into the `setRequestStatus`/`setReportStatus`
+  wrappers, which are what actually send. A status change from anywhere else uses the standing list.
+
 ### Report vs Request (same wizard, a tag)
 - Every entry has `tag: 'report' | 'request'`. "+ Add Tool" opens a chooser (`#addChooser`,
   `openAddChooser`/`chooseAddType`). Requests also carry `requestStatus`
@@ -143,6 +179,61 @@ reason, impact, projects[], tradTime, tradTimeUnit, aiTime, aiTimeUnit, tradCost
 frequency, revenueDesc, revenueAmount, toolMonthlyCost, extraCredits, submittedAt, updatedAt`.
 Registry "stubs" (`kind:'registry'`) power the tool-name autocomplete and are filtered out of
 dashboards by `dashboardEntries()`.
+
+15. **The mail endpoint must be sent `action:'notify'`.** The app used to POST `{kind:'notify'}`
+   while `apps-script/Code.gs` dispatched on `body.action` and **defaulted to `replaceAll`** —
+   so a notification, which carries no entries, read as *replace every row with nothing*.
+   Pointing the mail endpoint at the sheet URL would have emptied the spreadsheet on the first
+   message. The script now refuses an actionless POST; `deliver()` names the action. A `200`
+   carrying `{ok:false}` is a refusal, not a success — check the body, not the status.
+   Mail settings live in `app_config.notify_settings` for the same reason the admin list does.
+16. **Media is any link, and it is shown rather than described.** `DRIVE_HOSTS`/`isDriveLink`
+   still exist for the *company folder*, but a project's link may be anywhere — `mediaKind()`
+   names the host and `mediaViewerHTML()` plays it. **Host checks come before extension checks**:
+   a Dropbox share URL ends in `.mov` but serves an HTML page. Anything unrecognised is a link
+   and is **never** put in an `<iframe>`, so a pasted URL cannot become an arbitrary frame.
+   Do not add `referrerpolicy="no-referrer"` to the video iframes — YouTube and Vimeo check the
+   referrer and answer "Error 153" without one.
+17. **The tool name is a real combobox, not a `<datalist>`.** Chrome filters a datalist against
+   what is already typed, so once a tool was chosen the list held one entry — its own — and the
+   dropdown read as dead; you could not change your mind without clearing the field first.
+   `toolPickerMatches()` deliberately returns **everything** when the value exactly matches a
+   known tool. The list is built at body level (`toolPickerEl`) because the wizard step is its
+   own scroller and would crop it to four rows.
+
+18. **Every delete must call `backendDeleteEntry`/`backendDeleteEntries`.** Pushes are upsert-only,
+   so a row removed from `entries` and nothing else is pulled straight back on the next sync.
+   `removeTool` and `deleteCurrent` always did this; **`deleteSubmission` and `deleteRegistryTool`
+   did not** — which is why rubbish an admin had deleted kept reappearing on every screen. If you
+   add a delete path, propagate it or it does not exist.
+   Related: **`looksLikeTest()` flags, it never removes.** "test" is a guess and a guess must not
+   delete a department's work on its own; the admin ticks and confirms. `pickAllManage` selects
+   only `manageVisible` — all of what is *listed*, never all of what exists.
+   It matches on two things: `JUNK_NAMES` (the whole name is junk) and `JUNK_MARKERS` (a phrase
+   that means junk **anywhere** in the name or the submitter). The row that prompted it was
+   `__POLICY TEST - delete me__` filed by `policy-test` — someone checking the anon-insert policy
+   against the live database and leaving the rows behind — which an exact-name match walked past.
+   Keep `JUNK_MARKERS` to phrases no real product carries: a bare `\btest\b` would take
+   *TestGorilla* and *A/B Test Suite* with it. Both inboxes mark flagged rows, because that is
+   where they are actually seen.
+
+19. **It is an installable app, and the HTML must never be cached first.** `manifest.webmanifest`
+   + `sw.js` make the page installable on Windows, macOS and Android; `APPS.md` covers the
+   packaged `.exe`/`.dmg`/`.apk` built by `.github/workflows/apps.yml`. The one rule inside the
+   worker that must not change: **index.html is network-first.** The whole app is that one file,
+   so a cache-first rule would freeze every installed user on the build they happened to install
+   and no deploy could ever reach them. Everything else is cache-first. Bump `CACHE` in `sw.js`
+   when `SHELL` changes. Supabase, Google and Apps Script URLs are never intercepted — a cached
+   answer for someone's entries, or for an auth call, is a bug with consequences.
+   The desktop and Android apps are **windows onto the live URL**, not copies: Google refuses
+   OAuth from an embedded browser, so `desktop/main.js` strips `Electron/…` out of the user agent
+   and the Android build is a TWA (real Chrome underneath). `/.well-known/assetlinks.json` carries
+   the signing key's fingerprint and must be regenerated with the key if it ever changes.
+20. **The default theme is midnight, and it is stamped in `<head>`.** `THEME_DEFAULT` sets it, but
+   the chooser lives at the foot of the page — so a small inline script in `<head>` applies the
+   saved theme before a rule is parsed. Without it every load painted the base palette and flipped,
+   which is a gold flash on a slow machine. Anyone who has already chosen a theme keeps it; only
+   the default moved.
 
 ## Backend / sync
 

@@ -95,6 +95,21 @@ as $$
   false);
 $$;
 
+-- The two owners, on their own. Staff may write ordinary configuration; only an
+-- owner may write the row that decides who is an admin, because that row is a
+-- privilege boundary and not a setting. Same list as SUPER_ADMINS in
+-- index.html and the same list as above — npm test asserts all three agree.
+create or replace function public.is_swangz_owner()
+returns boolean
+language sql
+stable
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', '')) in (
+    'marvinmusokessekatawa@gmail.com',
+    'arnoldkigozi0@gmail.com'
+  );
+$$;
+
 create policy "staff read entries"   on public.entries for select to authenticated using      (public.is_swangz_staff());
 create policy "staff insert entries" on public.entries for insert to authenticated with check (public.is_swangz_staff());
 create policy "staff update entries" on public.entries for update to authenticated using      (public.is_swangz_staff())
@@ -185,9 +200,16 @@ drop policy if exists "staff insert config" on public.app_config;
 drop policy if exists "staff update config" on public.app_config;
 
 create policy "staff read config"   on public.app_config for select to authenticated using      (public.is_swangz_staff());
-create policy "staff insert config" on public.app_config for insert to authenticated with check (public.is_swangz_staff());
-create policy "staff update config" on public.app_config for update to authenticated using      (public.is_swangz_staff())
-                                                                                      with check (public.is_swangz_staff());
+
+-- Writes: staff for ordinary settings, owners only for 'admin_emails'.
+-- Without the key test, any member of staff could POST themselves onto the
+-- admin list straight through PostgREST and skip the dashboard entirely — the
+-- app's own owner-only check runs on their machine and proves nothing.
+create policy "staff insert config" on public.app_config for insert to authenticated
+  with check ( public.is_swangz_staff() and (key <> 'admin_emails' or public.is_swangz_owner()) );
+create policy "staff update config" on public.app_config for update to authenticated
+  using      ( public.is_swangz_staff() and (key <> 'admin_emails' or public.is_swangz_owner()) )
+  with check ( public.is_swangz_staff() and (key <> 'admin_emails' or public.is_swangz_owner()) );
 
 -- Tighter still, if you would rather only the two owners could change a
 -- site-wide setting. Replace the two write policies above with:

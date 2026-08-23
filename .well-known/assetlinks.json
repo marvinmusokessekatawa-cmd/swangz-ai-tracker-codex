@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.swangzavenue.aitracker",
+    "sha256_cert_fingerprints": [
+      "42:D0:2D:E7:5F:5C:11:47:55:CD:D0:65:F7:A1:5E:FC:F6:8D:6B:9D:CF:18:C6:91:1A:74:2A:89:4F:EB:F6:83"
+    ]
+  }
+}]

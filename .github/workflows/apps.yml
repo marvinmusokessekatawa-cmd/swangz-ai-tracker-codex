@@ -1,0 +1,155 @@
+# Build the installable apps.
+# ---------------------------------------------------------------------------
+# Why this runs here and not on a laptop: a Windows installer has to be built
+# on Windows, a .dmg has to be built on macOS, and an Android build needs the
+# JDK, the Android SDK and Gradle — several gigabytes and a lot of RAM. GitHub
+# gives all three runners free on a public repo, so nobody's machine has to
+# carry it.
+#
+# Run it: Actions → "Build the apps" → Run workflow. Or push a tag like
+# v1.0.0, which also publishes a Release with the files attached.
+#
+# What comes out:
+#   Windows   Swangz-AI-Tracker-<ver>-x64-setup.exe      (installer)
+#             Swangz-AI-Tracker-<ver>-x64-portable.exe   (no install, runs anywhere)
+#   macOS     Swangz-AI-Tracker-<ver>-x64.dmg  and  -arm64.dmg
+#   Android   swangz-ai-tracker.apk                      (signed, sideloadable)
+#
+# ⚠️ The desktop builds are UNSIGNED. Windows SmartScreen will say "unknown
+# publisher" on first run and macOS Gatekeeper will refuse a double-click —
+# right-click → Open gets past it. Signing certificates cost money annually
+# (Apple $99/yr, a Windows OV cert more) and are the only cure. The Android
+# build IS signed, with our own key, which is all sideloading needs.
+name: Build the apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write          # needed only by the release job
+
+jobs:
+  windows:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      # No lockfile is committed, so `npm install` rather than `npm ci`.
+      - run: npm install
+        working-directory: desktop
+      - run: npm run build:win
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            desktop/dist/*.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS (.dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+        working-directory: desktop
+      # CSC_IDENTITY_AUTO_DISCOVERY=false stops electron-builder hunting for a
+      # signing certificate that does not exist and failing the build.
+      - run: npm run build:mac
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: desktop/dist/*.dmg
+          if-no-files-found: error
+
+  android:
+    name: Android (.apk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+
+      # The signing key is the app's identity — whoever holds it can ship an
+      # update Android will trust as ours — so it is never in the repository.
+      # Add it once: Settings → Secrets and variables → Actions →
+      #   ANDROID_KEYSTORE_B64   base64 of android/swangz-release.keystore
+      #   ANDROID_KEYSTORE_PASS  the store password
+      #   ANDROID_KEY_PASS       the key password
+      - name: Restore the signing key
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 is not set — see the comment above this step."
+            exit 1
+          fi
+          echo "$KS" | base64 -d > android/swangz-release.keystore
+          echo "key restored ($(stat -c%s android/swangz-release.keystore) bytes)"
+
+      - name: Build the TWA
+        working-directory: android
+        env:
+          KS_PASS:  ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          npm install -g @bubblewrap/cli@latest
+          # Bubblewrap fetches its own JDK/SDK on first run and accepts the
+          # Android licences non-interactively.
+          bubblewrap doctor || true
+          bubblewrap build --skipPwaValidation \
+            --signingKeyPath ./swangz-release.keystore \
+            --signingKeyAlias swangz <<EOF
+          $KS_PASS
+          $KEY_PASS
+          EOF
+          ls -la ./*.apk ./*.aab || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: |
+            android/*.apk
+            android/*.aab
+          if-no-files-found: error
+
+  release:
+    name: Publish a release
+    needs: [windows, macos, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/**/*
+          generate_release_notes: true
+          body: |
+            **Swangz AI Tracker — installable apps**
+
+            | Platform | File | Notes |
+            |---|---|---|
+            | Windows | `…-setup.exe` | Normal installer. SmartScreen will warn once — *More info → Run anyway*. |
+            | Windows | `…-portable.exe` | No install. Runs from a folder or a USB stick. |
+            | macOS | `…-x64.dmg` / `…-arm64.dmg` | Apple Silicon is `arm64`. First launch: **right-click → Open**. |
+            | Android | `…​.apk` | Allow "install from unknown sources" once, then open. |
+
+            All four are the same app: a window onto
+            https://swangz-ai-tracker.netlify.app, so they update themselves
+            whenever the site is deployed. Nobody needs to reinstall for a fix.
+
+            Prefer no download at all? Open the site in Chrome or Edge and press
+            **Install the app** on the sign-in screen — same icon, same window,
+            no security warnings.

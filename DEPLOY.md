@@ -85,6 +85,89 @@ The current sync strategy (`replaceAll`) means if two people save at the same ti
 
 ---
 
+## Mail — the endpoint that actually sends
+
+The tracker writes to people when something is filed and when it is decided. A
+browser cannot send email, so this needs the same Apps Script web app.
+
+**Sign in to script.google.com with the @swangzavenue.com account that should be
+the sender before you start.** Whichever account creates the script is the
+account the mail comes from — staff will see that address on every
+notification, and it cannot be changed afterwards without redeploying. A
+Workspace account also raises the daily cap from 100 messages to 1,500.
+
+1. Deploy `apps-script/Code.gs` as a **Web app** — *Execute as: Me*, *Who has
+   access: Anyone*. Copy the `…/exec` URL.
+2. In the app: **Settings › Notifications & Documents → Mail endpoint**, paste
+   it, then press **Send myself a test**. A message should arrive within a
+   minute. The setting is published to `app_config`, so every other admin picks
+   it up — it is not per-laptop.
+3. The first send asks the script's owning Google account for permission to
+   send mail on its behalf. **Mail is sent from that account**, so use one the
+   company is happy to have as the sender.
+
+### ⚠️ Paste and SAVE the code before you deploy
+
+**A deployment is a frozen snapshot of a version, not a live view of the
+editor.** Deploy an empty project and the URL keeps serving that empty project
+for ever, however much code you paste afterwards. The symptom is an HTTP **200**
+whose body is an HTML page reading *"Script function not found: doPost"* — and
+because the status is 200, anything naive treats it as success. This happened on
+the first real deployment.
+
+To fix it without losing the URL:
+
+> **Deploy → Manage deployments → the pencil (Edit) → Version: _New version_ → Deploy**
+
+The `/exec` URL is unchanged; only the code behind it moves forward. Do this
+after *every* edit to `Code.gs`, or the change is not live.
+
+Press **Send myself a test** in the app to check. It reads the reply properly
+now — an HTML error page is reported as a failure with the fix named, never as
+a send.
+
+### ⚠️ Then grant permission to send — deploying does not ask
+
+Apps Script works out which permissions a project needs *from the code*, and
+asks for them the first time a **human runs** something in the editor.
+Deploying never asks. So a project deployed before `MailApp` appeared in it is
+live, answers every request correctly, and still cannot send a single message:
+
+```json
+{"ok":false,"error":"You do not have permission to call MailApp.sendEmail"}
+```
+
+In the editor, choose **`authoriseAndTest`** in the toolbar dropdown and press
+**Run**. Google shows *"Authorization required"* → **Review permissions** →
+pick the account → **Advanced** → **Go to … (unsafe)** → **Allow**.
+
+That "unsafe" screen is normal for a script you wrote yourself and have not
+paid Google to verify. It is asking to send mail as you, which is the point.
+
+The function then emails **you**, from the account every tracker notification
+will come from — so a message arriving is proof of the whole path, not just of
+the permission. Redeploy a new version afterwards.
+
+**It can be the same deployment as the Sheets backend, or a separate one.**
+Either is safe now — but it was not before. The app used to POST
+`{kind:'notify', …}` while the script dispatched on `action` and defaulted to
+`replaceAll`, so a notification (which carries no entries) read as *replace
+every row with nothing*. Pointing the mail endpoint at the sheet URL would have
+emptied the spreadsheet on the first message. The script now **refuses a POST
+with no action**, and the app names `action:'notify'`. If you are running an
+older copy of `Code.gs`, redeploy it before setting a mail endpoint.
+
+**Sending limits.** Google caps `MailApp` at 100 messages a day on a consumer
+account and 1,500 on Workspace. Every send reports what is left and the app
+keeps the figure; when it runs out, messages fail rather than vanish and sit in
+the outbox with the reason.
+
+**Without an endpoint** nothing is lost: every message queues in the outbox
+under the same panel and can be opened in your own mail client, attachment and
+all.
+
+---
+
 ## Option 3 — Supabase backend (proper database, real-time ready)
 
 1–2 hours of setup. Best long-term option once usage is significant.

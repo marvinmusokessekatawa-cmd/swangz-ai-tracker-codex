@@ -72,6 +72,15 @@ const MONEY_TILES = ['money', 'toolPricing'];
 async function withApp(fn, opts) {
   const app = await boot(opts);
   app.run(HELPERS);
+  /* run() is a plain eval, so anything async inside the page has to be given a
+     moment and read back. Handed to every scenario rather than redefined in
+     each one that happens to need it. */
+  app.settle = ms => new Promise(r => setTimeout(r, ms || 250));
+  app.awaitInPage = async (expr, ms) => {
+    app.run(`window.__r = undefined; (${expr}).then(v => { window.__r = JSON.stringify(v === undefined ? null : v); });`);
+    await app.settle(ms);
+    return app.run(`window.__r`);
+  };
   try { await fn(app); } finally { app.dom.window.close(); }
 }
 
@@ -97,7 +106,7 @@ async function scenarioBoot() {
     ok('there is a mark to hold the screen while the app boots', !!doc.getElementById('bootHold'));
     ok('and it hides the app rather than sitting behind it',
        /html\.booting \.app-shell\s*\{\s*visibility:\s*hidden/.test(run(
-         `document.querySelector('style').textContent`)));
+         `[...document.querySelectorAll('style')].map(s => s.textContent).join('\\n')`)));
     ok('the hold is lifted once boot has decided where to go',
        !doc.documentElement.classList.contains('booting'));
     ok('and it lifts even if boot throws, not only on the happy path',
@@ -110,6 +119,9 @@ async function scenarioBoot() {
        !/<script[^>]+src=/i.test(head), head.match(/<script[^>]+src=[^>]*>/i));
     ok('the stylesheet for the fonts does not block it either',
        !/rel="stylesheet"(?![^>]*media="print")/i.test(head.replace(/<noscript>[\s\S]*?<\/noscript>/gi, '')));
+    ok('the sign-in screen no longer shows design/development credits',
+       !/designed\s*&\s*developed by/i.test(doc.body.textContent) && !doc.querySelector('.credits'),
+       (doc.body.textContent.match(/.{0,30}designed.{0,80}/i) || [''])[0]);
   });
 }
 
@@ -161,6 +173,41 @@ async function scenarioTilesDept() {
     ok('a moneyless submission document does not cite an FX rate',
        !/converted at/i.test(doc2.text), (doc2.text.match(/.{0,60}converted at.{0,40}/i) || [''])[0]);
     ok('no console error in the department pass', errors.length === 0, errors.slice(0, 3).join('\n      '));
+  });
+}
+
+async function scenarioReportWizardScope() {
+  if (only && !'wizard-report'.includes(only)) return;
+  await withApp(async ({ run, doc }) => {
+    suite('3b · Reporting a tool never asks for money');
+    run('__t.signIn(); profile.department = "Production"; saveProfile(); switchView("tools"); chooseAddType("report");');
+    eq('report mode has only the four non-money steps', run('JSON.stringify(wizardStepPlan())'), '[1,2,3,4]');
+    eq('the footer counts four steps', doc.getElementById('wizCount').textContent, 'Step 1 of 4');
+    ok('AI Cost is not part of the report wizard',
+       run('document.querySelector(".wizard-step[data-step=\\"5\\"]").hidden') === true);
+    ok('Revenue is not part of the report wizard',
+       run('document.querySelector(".wizard-step[data-step=\\"6\\"]").hidden') === true);
+    run(`document.getElementById("f_toolName").value = "Descript";
+         document.getElementById("f_category").value = document.getElementById("f_category").options[1].value;
+         document.getElementById("f_reason").value = "Cuts review time";
+         onDetailDirty();`);
+    run('gotoStep(5)');
+    eq('trying to jump into the old money step lands on the last report step',
+       run('Number(document.querySelector(".wizard-step.active").dataset.step)'), 4);
+    ok('the old traditional-cost field is hidden even for an admin reporting a tool',
+       run('document.getElementById("f_tradCost").closest(".grid > div").style.display') === 'none');
+    ok('the visible report wording stays about time, not dollars',
+       /How long the work takes/i.test(run('document.querySelector(".wizard-step.active .step-title").textContent')) &&
+       !/US Dollars|subscription|revenue/i.test(run('document.querySelector(".wizard-step.active").textContent')),
+       run('document.querySelector(".wizard-step.active").textContent').slice(0, 180));
+    const reportId = run(`closeWizard(); seedDemoData(true);
+      const e = entries.find(x => x.tag !== 'request' && x.kind !== 'registry');
+      e.tradCost = 1200; e.toolMonthlyCost = 99; e.extraCredits = 15; e.revenueAmount = 5000;
+      e.id;`);
+    const reportDoc = JSON.parse(run(`__t.reset(); JSON.stringify(__t.open('submissionDoc', ${JSON.stringify(reportId)}))`));
+    ok('the report document excludes money even when the entry has prices',
+       !/\\$|\\bMoney\\b|subscription|revenue|UGX|converted at/i.test(reportDoc.text),
+       reportDoc.text.match(/.{0,50}(\\$|Money|subscription|revenue|UGX|converted at).{0,50}/i)?.[0] || '');
   });
 }
 
@@ -839,6 +886,89 @@ async function scenarioAdminAccess() {
     eq('a granted admin is an admin', run('currentRole()'), 'admin');
     ok('but cannot change the list', !run(`isSuperAdmin('ops@swangzavenue.com')`));
   });
+
+  /* The bug this replaced: the list lived in localStorage, so the grant was
+     written on the granting owner's laptop and the person being promoted read
+     their own empty copy for ever. "Added as admin, dashboard never changed." */
+  await withApp(async ({ run, awaitInPage, settle }) => {
+    suite('18b · A grant leaves the browser that made it');
+
+    run(`__t.signIn(); __t.asDept(false);
+         window.__sent = null;
+         window.fetch = (url, opt) => { window.__sent = { url: String(url), body: opt && opt.body };
+           return Promise.resolve({ ok: true, text: () => Promise.resolve('') }); };`);
+    eq('an owner can publish the admin list', await awaitInPage('configPushAdmins()'), 'true');
+    const sent = JSON.parse(run(`JSON.stringify(window.__sent || {})`));
+    ok('it goes to the shared config table, not to this browser',
+       /\/rest\/v1\/app_config/.test(sent.url || ''), sent.url);
+    ok('under its own key, beside the Drive folder',
+       /"key"\s*:\s*"admin_emails"/.test(sent.body || ''), (sent.body || '').slice(0, 90));
+
+    /* Granting is what actually has to publish it — not a separate button
+       somebody has to remember to press afterwards. */
+    run(`saveExtraAdmins([]); window.__sent = null;
+         document.getElementById('newAdminEmail').value = 'ops@swangzavenue.com';
+         addAdminEmail();`);
+    await settle();
+    ok('granting someone admin publishes the list by itself',
+       /admin_emails/.test(run(`String((window.__sent || {}).body || '')`)));
+
+    /* And the other end: a pull makes somebody an admin on their own machine */
+    run(`saveExtraAdmins([]);
+         authUser = { id:'u', email:'ops@swangzavenue.com', user_metadata:{} };
+         syncProfileFromAuth(authUser);`);
+    eq('before the pull they are an ordinary user', run(`currentRole()`), 'user');
+    run(`window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(
+           [{ key: 'admin_emails', value: { emails: ['ops@swangzavenue.com'] } }]) });`);
+    await awaitInPage('configPull()');
+    eq('after it they hold the admin role', run(`currentRole()`), 'admin');
+    eq('and the door in their account menu has opened',
+       run(`renderAccountMenu(); !!document.querySelector('#accountMenu button:not(.is-locked) .sm-txt')
+            && /Admin dashboard(?! \\(no)/.test(document.getElementById('accountMenu').textContent)`), true);
+
+    /* An unreachable table must never be read as "there are no admins" */
+    run(`window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve([]) });`);
+    await awaitInPage('configPull()');
+    eq('an empty config does not quietly take admin away', run(`currentRole()`), 'admin');
+
+    /* Postgres has to enforce it too — the owner-only check in the app runs on
+       the grantee's own machine and proves nothing. */
+    const fs = require('fs'), path = require('path');
+    const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8');
+    const live = sql.split('\n').filter(l => !l.trim().startsWith('--')).join('\n');
+    ok('the database knows who the owners are', /function public\.is_swangz_owner/.test(live));
+    ok('and only they may write the admin list',
+       (live.match(/admin_emails/g) || []).length >= 2, String((live.match(/admin_emails/g) || []).length));
+  });
+
+  /* The password used to be one shared secret: whoever opened the dashboard
+     first chose it and every other admin typed that same string, so it said
+     nothing about who was reading the company's figures. */
+  await withApp(async ({ run, awaitInPage }) => {
+    suite('18c · The admin password belongs to the admin');
+
+    run(`__t.signIn(); __t.asDept(false); adminUnlocked = false;`);
+    await awaitInPage(`setAdminPassFor('one@swangzavenue.com', 'correct horse')`);
+    ok('a password set for one admin verifies for them',
+       JSON.parse(await awaitInPage(`verifyAdminPass('one@swangzavenue.com', 'correct horse')`)));
+    ok('and does not let a different admin in',
+       !JSON.parse(await awaitInPage(`verifyAdminPass('two@swangzavenue.com', 'correct horse')`)));
+    ok('nor the same admin with the wrong password',
+       !JSON.parse(await awaitInPage(`verifyAdminPass('one@swangzavenue.com', 'correct horsey')`)));
+
+    /* Stretched, not a bare digest — a short password would not survive one */
+    const rec = JSON.parse(run(`JSON.stringify(adminPassRecord('one@swangzavenue.com'))`));
+    ok('it is salted', !!rec.salt && rec.salt.length >= 32, String(rec.salt || '').length);
+    ok('and stretched rather than hashed once', rec.iters >= 100000, String(rec.iters));
+
+    /* Upgrading must not lock out the owner who set the old shared one */
+    run(`localStorage.removeItem('swangz_admin_pass_v2');`);
+    await awaitInPage(`(async () => { settings.adminPasswordHash = await hashPassword('oldshared'); saveSettings(); })()`);
+    ok('the old shared password still opens it once',
+       JSON.parse(await awaitInPage(`adoptLegacyAdminPassword('one@swangzavenue.com', 'oldshared')`)));
+    ok('and becomes that admin\'s own from then on',
+       JSON.parse(await awaitInPage(`verifyAdminPass('one@swangzavenue.com', 'oldshared')`)));
+  });
 }
 
 async function scenarioDriveFolder() {
@@ -877,14 +1007,15 @@ async function scenarioDriveFolder() {
     ok('the folder is read from the shared project, not this browser',
        /\/rest\/v1\/app_config$/.test(creds.ep), creds.ep);
 
-    /* Pulling applies the company's choice to whoever opened the page */
+    /* Pulling applies the company's choice to whoever opened the page. One
+       request carries every setting, so the rows are keyed. */
     run(`window.__realFetch = window.fetch;
          window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(
-           [{ value: { url: 'https://drive.google.com/drive/folders/COMPANY' } }]) });
+           [{ key: 'drive_folder', value: { url: 'https://drive.google.com/drive/folders/COMPANY' } }]) });
          settings.driveFolderUrl = ''; saveSettings();`);
-    const pulled = await awaitInPage('configPull()');
-    eq('a pull brings the company folder down', JSON.parse(pulled),
-       'https://drive.google.com/drive/folders/COMPANY');
+    await awaitInPage('configPull()');
+    eq('a pull brings the company folder down',
+       run(`settings.driveFolderUrl`), 'https://drive.google.com/drive/folders/COMPANY');
     eq('and the upload button now has somewhere to go',
        run(`driveFolderUrl()`), 'https://drive.google.com/drive/folders/COMPANY');
 
@@ -918,34 +1049,70 @@ async function scenarioDriveFolder() {
   });
 }
 
-/* An owner signing in must land in the portal. The view tabs are hidden by
-   CSS with !important, so if the sign-in routing drops an owner into the
-   department view there is no door out of it and the app looks, from the
-   inside, exactly as though the owner were an ordinary user. */
+/* Everybody lands in their own department, an admin included — an admin is a
+   member of staff with a second job, and the dashboard is that second job. The
+   view tabs are hidden by CSS with !important, so this is only safe while
+   there is a visible door: take the rail button away and this is once again
+   the bug where an owner is stranded in the department view with no way out. */
 async function scenarioSignInRouting() {
   if (only && !'routing'.includes(only)) return;
   await withApp(async ({ run }) => {
     suite('20 · Signing in puts you where your role belongs');
 
-    /* The tabs really are gone — this is why the routing has to be right */
-    ok('the view tabs are hidden, so routing is the only door',
+    /* The tabs really are gone — this is why the door has to be right */
+    ok('the view tabs are hidden, so the rail door is the only way across',
        run(`getComputedStyle(document.querySelector('.view-toggle')).display`) === 'none');
 
-    /* The regression: an owner who already has a department saved. The old
-       code routed on profile completeness alone and sent them to 'tools'. */
     run(`__t.signIn(); __t.asDept(false);
          profile.department='Production'; profile.name='Arnold'; profile.role='Redesign Lead'; saveProfile();
-         switchView('tools');   /* as the old boot left them */
+         switchView('auth');
          routeSignedIn();`);
-    eq('an owner with a saved department lands in the portal', run('currentView'), 'admin');
-    eq('and is recognised as an owner', run('currentRole()'), 'super');
+    eq('an owner lands in their own department, like everyone else', run('currentView'), 'tools');
+    eq('and is still recognised as an owner', run('currentRole()'), 'super');
 
-    /* A department user must be unaffected by the fix */
+    /* The door that makes the line above safe. It is NOT a rail button — the
+       rail lists sections — it lives in the account menu, which is the one
+       piece of chrome both the portal and the department side share. */
+    ok('the rail carries no admin button of its own',
+       !run(`!!document.getElementById('railAdminBtn')`));
+    ok('the account block opens a menu instead', !!run(`!!document.getElementById('railWho')`));
+    run(`openAccountMenu();`);
+    ok('and that menu carries the way into the dashboard',
+       /Admin dashboard/.test(run(`document.getElementById('accountMenu').textContent`)),
+       run(`document.getElementById('accountMenu').textContent`).slice(0, 90));
+    ok('not locked, for somebody who has access',
+       !run(`!!document.querySelector('#accountMenu .is-locked')`));
+    run(`closeAccountMenu();`);
+    ok('the profile menu names it too, for anyone who missed it',
+       !run(`document.getElementById('pmAdminBtn').hidden`));
+    /* The harness signs in pre-unlocked for convenience; lock it so this is a
+       real arrival at the door rather than a walk through an open one. */
+    run(`adminUnlocked = false; openAdminDashboard();`);
+    eq('pressing it opens the dashboard', run('currentView'), 'admin');
+    eq('which asks before it shows anything',
+       run(`document.getElementById('adminContent').style.display`), 'none');
+    run(`openAccountMenu();`);
+    ok('and the same entry is now the way back',
+       /Your department/.test(run(`document.getElementById('accountMenu').textContent`)),
+       run(`document.getElementById('accountMenu').textContent`).slice(0, 90));
+    run(`closeAccountMenu();`);
+    run(`openAdminDashboard();`);
+    eq('which it does', run('currentView'), 'tools');
+    ok('and leaving locks the dashboard again', !run('adminUnlocked'));
+
+    /* A department user gets the same door, visibly shut */
     run(`__t.asDept(true);
          profile.department='Production'; profile.name='Ivan'; profile.role='Editor'; saveProfile();
          routeSignedIn();`);
-    eq('a department user still lands in their own view', run('currentView'), 'tools');
-    ok('and is offered no way into the dashboard',
+    eq('a department user lands in their own view', run('currentView'), 'tools');
+    run(`openAccountMenu();`);
+    ok('the door is named for them too, so it is not a secret',
+       /Admin dashboard/.test(run(`document.getElementById('accountMenu').textContent`)));
+    ok('but it is visibly shut', !!run(`!!document.querySelector('#accountMenu .is-locked')`));
+    run(`closeAccountMenu();`);
+    run(`openAdminDashboard();`);
+    eq('and pressing it leaves them where they are', run('currentView'), 'tools');
+    ok('they are offered no dashboard command either',
        !run(`paletteCommands().some(c => /Open the Admin Dashboard/i.test(c.label))`));
 
     /* The safety net: the rail is empty outside the admin view, so every
@@ -1022,7 +1189,9 @@ async function scenarioSearchLook() {
   await withApp(async ({ doc, run }) => {
     suite('21 · Every search box reads as the same thing');
 
-    const css = run(`document.querySelector('style').textContent`);
+    /* Every style block, not just the first — the head carries a small
+       @font-face block ahead of the main stylesheet. */
+    const css = run(`[...document.querySelectorAll('style')].map(s => s.textContent).join('\\n')`);
 
     /* Every box that says "Search" is dressed as one */
     run(`__t.signIn(); switchView('admin'); renderAdmin();`);
@@ -1066,14 +1235,475 @@ async function scenarioSearchLook() {
   });
 }
 
+/* A report had no inbox — the only routes to one were Tools Entered, which
+   consolidates by tool and loses who filed what, and Manage Submissions, which
+   is for fixing attribution. The thing the tracker exists to collect was the
+   thing an admin could not sit down and work through. */
+async function scenarioReportsInbox() {
+  if (only && !'reports'.includes(only)) return;
+  await withApp(async ({ run, doc }) => {
+    suite('22 · Reports have an inbox of their own');
+
+    run(`__t.signIn(); seedDemoData(true); adminUnlocked = true; switchView('admin'); renderAdmin();`);
+
+    ok('there is a Reports Inbox section', !!doc.getElementById('acc_reports'));
+    eq('it opens from the Tools door, beside the Requests Inbox',
+       run(`(groupOf('acc_reports') || {}).label`), 'Tools');
+    eq('and so does the Requests Inbox', run(`(groupOf('acc_requests') || {}).label`), 'Tools');
+    ok('the Requests door is gone from the rail — it was almost always empty',
+       !run(`RAIL_GROUPS.some(g => g.id === '__requests')`));
+
+    /* Deliberately the same shape as the requests inbox: same job, two kinds */
+    ok('it filters like the requests inbox does', !!doc.getElementById('repStatusFilter'));
+    ok('and searches like it', !!doc.getElementById('repSearch'));
+
+    run(`showAdminSection('acc_reports'); renderReportsInbox();`);
+    const rows = run(`document.querySelectorAll('#reportsInboxList .deck-row').length`);
+    ok('every reported tool is listed', rows > 0, String(rows));
+    eq('and requests are not among them, they have their own list',
+       run(`reportEntries().filter(e => e.tag === 'request').length`), 0);
+    ok('a row opens the same working tile a request opens',
+       run(`/DECK.open\\('entry'/.test(document.getElementById('reportsInboxList').innerHTML)`));
+
+    /* The filters that answer "what is waiting on me" */
+    run(`document.getElementById('repStatusFilter').value = '__unpriced'; renderReportsInbox();`);
+    ok('it can show only what has not been priced',
+       run(`document.querySelectorAll('#reportsInboxList .deck-row').length`) <= rows);
+    run(`document.getElementById('repStatusFilter').value = ''; renderReportsInbox();`);
+
+    /* A status of its own — a report is not approved or declined, it is
+       checked. And it must never be filtered out of the company's figures. */
+    const before = run(`filteredEntries().length`);
+    run(`const first = reportEntries()[0]; setReportStatus(first.id, 'returned');`);
+    eq('marking a report does not change the figures it feeds', run(`filteredEntries().length`), before);
+    eq('the status is recorded on the entry', run(`reportEntries().some(e => e.reportStatus === 'returned')`), true);
+
+    /* The badge has to count the work, not one corner of it */
+    run(`document.querySelectorAll('#reportsInboxList .deck-row');`);
+    ok('the Tools badge counts unread reports as well as unread requests',
+       run(`inboxPending()`) >= run(`requestEntries().filter(e => (e.requestStatus||'new') === 'new').length`));
+
+    /* The two documents the whole thing exists to produce are named on the
+       rail rather than folded behind a word that describes neither */
+    ok('the Executive Report is on the rail itself', !run(`groupOf('acc_exec')`));
+    ok('and so is the Core Business Case', !run(`groupOf('acc_business')`));
+    const rail = run(`JSON.stringify([...document.querySelectorAll('#adminNav > button:not(.is-grouped), .rail-group')]
+        .map(b => (b.querySelector('.nav-label') || b).textContent.trim()))`);
+    eq('and the rail reads in the order the work happens', JSON.parse(rail).join(' › '),
+       'Overview › Tools › Money › Executive Report › Core Business Case › Settings');
+
+    /* Settings is one door, not five loose entries */
+    ['acc_company', 'acc_notify', 'acc_admins', 'acc_actions', 'acc_backend'].forEach(id =>
+      eq(id.replace('acc_', '') + ' is under Settings', run(`(groupOf('${id}') || {}).label`), 'Settings'));
+  });
+
+  /* The same split on the person's own side */
+  await withApp(async ({ run, doc }) => {
+    suite('23 · Your own list is two lists');
+
+    run(`__t.signIn(); __t.asDept(true); seedDemoData(true);
+         profile.department='Production'; profile.name='Marvin Musoke'; profile.email='marvin@swangzavenue.com'; saveProfile();
+         entries.filter(e => e.isDemo).slice(0, 4).forEach((e, i) => {
+           e.submittedByEmail = 'marvin@swangzavenue.com';
+           if (i >= 2) { e.tag = 'request'; e.requestStatus = 'new'; }
+         });
+         saveEntries(); switchView('tools'); renderToolsList();`);
+
+    const tabs = run(`[...document.querySelectorAll('.mytools-tabs button')].map(b => b.dataset.tab).join(',')`);
+    eq('there are two tabs, reported and requested', tabs, 'report,request');
+    ok('and each carries its own count',
+       run(`document.querySelectorAll('.mytools-tabs .mt-count').length`) === 2);
+    eq('it opens on what you have reported', run(`myToolsTab`), 'report');
+    ok('showing only reports',
+       run(`myEntries().filter(e => e.tag !== 'request').length`) ===
+       run(`document.querySelectorAll('.tools-table tbody tr').length`));
+    ok('and the Type column is gone, because the tab already says it',
+       !/>Type</.test(run(`document.getElementById('toolsList').innerHTML`)));
+    ok('a report now shows what the admin has done about it',
+       /Where it stands/i.test(run(`document.getElementById('toolsList').innerHTML`)));
+
+    run(`setMyToolsTab('request');`);
+    eq('the other tab shows only requests',
+       run(`document.querySelectorAll('.tools-table tbody tr').length`),
+       run(`myEntries().filter(e => e.tag === 'request').length`));
+
+    /* An empty tab has to explain itself rather than look broken */
+    run(`entries.forEach(e => { if (e.tag === 'request') e.tag = 'report'; }); saveEntries(); renderToolsList();`);
+    /* jsdom has no innerText — textContent is the honest read here */
+    ok('an empty tab says what would put something in it',
+       /Request a new tool/i.test(run(`document.getElementById('toolsList').textContent`)),
+       String(run(`document.getElementById('toolsList').textContent`) || '').slice(0, 90));
+    ok('and the tabs are still there to get back',
+       run(`document.querySelectorAll('.mytools-tabs button').length`) === 2);
+  });
+}
+
+/* The tool name was an <input list="toolRegistry">. A native datalist filters
+   itself against what is already in the field, so once a tool had been picked
+   the list held exactly one entry — its own — and the dropdown read as dead.
+   You could not change your mind without clearing the field first. */
+async function scenarioToolPicker() {
+  if (only && !'picker'.includes(only)) return;
+  await withApp(async ({ run, doc }) => {
+    suite('24 · You can change your mind about the tool');
+
+    run(`__t.signIn(); __t.asDept(true);
+         profile.department='Production'; profile.name='Marvin'; saveProfile();
+         switchView('tools'); chooseAddType('report');`);
+
+    const input = doc.getElementById('f_toolName');
+    ok('the field is no longer bound to a native datalist', !input.getAttribute('list'));
+    eq('it is a combobox', input.getAttribute('role'), 'combobox');
+    ok('with a control that opens it', !!doc.getElementById('toolComboBtn'));
+
+    const total = run(`toolPickerRows().length`);
+    ok('the registry has tools to offer', total > 10, String(total));
+
+    run(`toolPickerOpen();`);
+    eq('an empty field offers everything', run(`toolPickerMatches('').length`), total);
+    ok('typing narrows it', run(`toolPickerMatches('run').length`) < total);
+    ok('and still finds the tool', run(`toolPickerMatches('run').some(t => /runway/i.test(t.name))`));
+
+    /* The bug itself */
+    run(`toolPickerChoose('Runway');`);
+    eq('choosing one fills the field', run(`document.getElementById('f_toolName').value`), 'Runway');
+    eq('and the field\'s own handlers ran, so the official site came with it',
+       run(`document.getElementById('f_officialUrl').value`), 'https://runwayml.com/');
+    eq('re-opening on a settled field offers every tool, not just the chosen one',
+       run(`toolPickerMatches('Runway').length`), total);
+    run(`toolPickerOpen();`);
+    eq('so the list is there to change your mind with',
+       run(`document.querySelectorAll('#toolComboList .combo-item').length`), total);
+    ok('and the one already chosen is marked',
+       run(`!!document.querySelector('#toolComboList .combo-item.picked')`));
+
+    /* Not clipped: the wizard step is its own scroller */
+    eq('the list hangs off the body so nothing can crop it',
+       run(`document.getElementById('toolComboList').parentNode === document.body`), true);
+    ok('and it is fixed rather than flowing inside the wizard',
+       /\.combo-list\s*\{[^}]*position:\s*fixed/.test(
+         [...doc.querySelectorAll('style')].map(s => s.textContent).join('\n')));
+
+    /* A tool nobody has recorded is a legitimate answer */
+    /* A name genuinely nobody has recorded — Sora et al are built in */
+    run(`document.getElementById('f_toolName').value = 'Nyege Nyege Cutter'; toolPickerOpen();`);
+    ok('an unknown name is offered rather than refused',
+       /Use “Nyege Nyege Cutter”/.test(run(`document.getElementById('toolComboList').innerHTML`)),
+       String(run(`document.getElementById('toolComboList').textContent`) || '').slice(0, 80));
+
+    run(`toolPickerClose();`);
+    eq('closing hides it', run(`document.getElementById('toolComboList').hidden`), true);
+    run(`closeWizard();`);
+    eq('and closing the wizard cannot leave it floating over the page',
+       run(`document.getElementById('toolComboList').hidden`), true);
+  });
+}
+
+/* Mail has never actually sent, and the one route that would have tried was
+   destructive: the app POSTed {kind:'notify'} and the Apps Script dispatched
+   on `action`, defaulting to 'replaceAll' — so pointing the mail endpoint at
+   the sheet would have replaced every row with an empty list. */
+async function scenarioMail() {
+  if (only && !'mail'.includes(only)) return;
+  const fs = require('fs'), path = require('path');
+  const gs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Code.gs'), 'utf8');
+
+  await withApp(async ({ run, doc, settle }) => {
+    suite('25 · Mail actually goes, and cannot wipe the sheet');
+
+    ok('the script no longer defaults an actionless POST to replaceAll',
+       !/const action = body\.action \|\| 'replaceAll'/.test(gs));
+    ok('it refuses to guess instead', /refusing to guess/.test(gs));
+    ok('and it knows how to send one', /action === 'notify'/.test(gs));
+    ok('with the quiet copies kept quiet', /opts\.bcc\s*=/.test(gs));
+
+    run(`__t.signIn(); __t.asDept(false); seedDemoData(true); adminUnlocked = true;`);
+    run(`const s = notifySettings();
+         s.endpoint = 'https://example.invalid/exec'; s.method = 'endpoint';
+         s.bcc = ['gm@swangzavenue.com']; saveNotifySettings(s);
+         window.__posts = [];
+         window.fetch = (url, opt) => { window.__posts.push(JSON.parse(opt.body));
+           return Promise.resolve({ ok: true, text: () => Promise.resolve('{"ok":true,"quotaLeft":97}') }); };`);
+
+    run(`const e = entries.find(x => x.tag !== 'request');
+         e.submittedByEmail = 'ivan@swangzavenue.com'; saveEntries();
+         window.__eid = e.id;`);
+    run(`setReportStatus(window.__eid, 'confirmed');`);
+    await settle(300);
+    const posts = JSON.parse(run(`JSON.stringify(window.__posts)`));
+    eq('confirming a report sends exactly one message', posts.length, 1);
+    eq('it names the action, so the script cannot mistake it for a wipe', posts[0].action, 'notify');
+    ok('it is addressed to the person who filed it',
+       (posts[0].to || []).includes('ivan@swangzavenue.com'), JSON.stringify(posts[0].to));
+    ok('the standing copy list rides on BCC, never CC',
+       (posts[0].bcc || []).includes('gm@swangzavenue.com') && !(posts[0].cc || []).length);
+    ok('and it reads as a report being confirmed, not a request being approved',
+       /confirmed/i.test(posts[0].subject) && /business case/i.test(posts[0].body), posts[0].body.slice(0, 80));
+    eq('the outbox records it as sent', run(`outbox().filter(m => m.entryId === window.__eid)[0].state`), 'sent');
+    eq('and the sending quota it reported is kept', run(`mailQuotaLeft`), 97);
+
+    /* Apps Script answers 200 for its own error pages too, so the status code
+       proves nothing. This is not hypothetical: the first real deployment
+       returned "Script function not found: doPost" — HTTP 200, HTML body — and
+       the old code swallowed the JSON.parse error and marked the message SENT.
+       Somebody would have been waiting on mail that never left. */
+    run(`window.fetch = () => Promise.resolve({ ok: true, text: () => Promise.resolve(
+           '<html><title>Error</title><body>Script function not found: doPost</body></html>') });
+         const e3 = entries.filter(x => x.tag !== 'request')[2]; window.__eid3 = e3.id;
+         setReportStatus(window.__eid3, 'confirmed');`);
+    await settle(300);
+    eq('an HTML error page is a failure, not a send',
+       run(`outbox().filter(m => m.entryId === window.__eid3)[0].state`), 'failed');
+    ok('and it says how to fix that exact deployment mistake',
+       /new version/i.test(run(`outbox().filter(m => m.entryId === window.__eid3)[0].error`)),
+       run(`outbox().filter(m => m.entryId === window.__eid3)[0].error`).slice(0, 90));
+
+    /* The reply reader, on every shape the endpoint can answer with */
+    eq('valid JSON saying ok is a send',
+       run(`readMailReply('{"ok":true,"quotaLeft":97}').ok`), true);
+    eq('and the quota it reports is kept',
+       run(`readMailReply('{"ok":true,"quotaLeft":97}').data.quotaLeft`), 97);
+    eq('a sign-in page is caught by name',
+       run(`/sign in/i.test(readMailReply('<html>accounts.google.com/ServiceLogin Sign in</html>').why)`), true);
+    eq('so is a missing authorisation',
+       run(`/authoris/i.test(readMailReply('<html>Authorization is required</html>').why)`), true);
+    eq('an empty reply is never a send', run(`readMailReply('').ok`), false);
+    eq('and neither is any other web page', run(`readMailReply('<html>hello</html>').ok`), false);
+
+    /* A 200 carrying { ok:false } is a refusal, not a success */
+    run(`window.fetch = () => Promise.resolve({ ok: true, text: () => Promise.resolve('{"ok":false,"error":"forbidden"}') });
+         const e2 = entries.filter(x => x.tag !== 'request')[1]; window.__eid2 = e2.id;
+         setReportStatus(window.__eid2, 'returned');`);
+    await settle(300);
+    eq('a 200 that says it refused is recorded as a failure',
+       run(`outbox().filter(m => m.entryId === window.__eid2)[0].state`), 'failed');
+
+    /* The admin decides who is copied on THIS message */
+    run(`DECK.open('decide', window.__eid);`);
+    ok('the action tile offers the quiet-copy choice', !!doc.getElementById('dc_bcc'));
+    ok('and a place to copy someone once', !!doc.getElementById('dc_bccExtra'));
+    ok('and the price, so deciding and pricing are one errand', !!doc.getElementById('dc_sub'));
+    run(`document.getElementById('dc_bcc').checked = false;
+         document.getElementById('dc_bccExtra').value = 'once@swangzavenue.com';`);
+    eq('unticking drops the standing list but keeps the one-off',
+       run(`JSON.stringify(decideBccList())`), '["once@swangzavenue.com"]');
+
+    /* A department user must not find the buttons that decide their own entry.
+       The tile is closed first: the Deck keeps an open tile as it was built,
+       so reopening the same key would otherwise measure the admin's copy. */
+    run(`DECK.closeAll(true); __t.asDept(true); DECK.open('decide', window.__eid);`);
+    ok('a department user is not shown the decision buttons',
+       run(`document.querySelectorAll('.decide-btn').length`) === 0);
+  });
+
+  /* A public request is an anonymous insert from a browser with no session and
+     therefore no mail settings to read — so the one route built for people
+     outside the company told nobody. The first admin to load sends it. */
+  await withApp(async ({ run, settle }) => {
+    suite('25b · A public request does not arrive in silence');
+
+    run(`__t.signIn(); __t.asDept(false);
+         localStorage.removeItem('swangz_public_announced_v1');
+         const s = notifySettings(); s.endpoint = ''; saveNotifySettings(s);
+         entries = entries.filter(e => !e.isPublic);
+         entries.push({ id: 'pub1', kind:'tool', tag:'request', requestStatus:'new', isPublic:true,
+           toolName:'HeyGen', department:'Marketing', submittedBy:'A stranger',
+           submittedByEmail:'brian@swangzavenue.com', submittedAt:new Date().toISOString() });
+         saveEntries();`);
+
+    eq('the first run takes a baseline rather than mailing the whole backlog',
+       run(`announcePublicRequests()`), 0);
+    eq('so nothing was queued for it', run(`outbox().filter(m => m.entryId === 'pub1').length`), 0);
+
+    run(`entries.push({ id: 'pub2', kind:'tool', tag:'request', requestStatus:'new', isPublic:true,
+           toolName:'Descript', department:'Content', submittedBy:'Someone else',
+           submittedByEmail:'joel@swangzavenue.com', submittedAt:new Date().toISOString() });
+         saveEntries();`);
+    eq('one that turns up afterwards is announced', run(`announcePublicRequests()`), 1);
+    eq('exactly once, however many times the page syncs', run(`announcePublicRequests()`), 0);
+    eq('and it went to the admins', run(`outbox().filter(m => m.entryId === 'pub2')[0].to.length`) > 0, true);
+
+    /* Never from a department user's browser — they cannot see the inbox and
+       must not be the ones sending the company's mail. */
+    run(`__t.asDept(true);
+         entries.push({ id: 'pub3', kind:'tool', tag:'request', requestStatus:'new', isPublic:true,
+           toolName:'Kling', department:'Events', submittedBy:'Third', submittedAt:new Date().toISOString() });
+         saveEntries();`);
+    eq('a department user announces nothing', run(`announcePublicRequests()`), 0);
+    await settle(50);
+  });
+
+  /* Evidence has to be visible, and it lives wherever the work lives */
+  await withApp(async ({ run }) => {
+    suite('26 · Media is shown, from wherever it lives');
+
+    run(`__t.signIn(); __t.asDept(false);`);
+    const kind = u => JSON.parse(run(`JSON.stringify(mediaKind(${JSON.stringify(u)}))`) || 'null');
+
+    eq('a YouTube watch link becomes a player',
+       kind('https://www.youtube.com/watch?v=dQw4w9WgXcQ').embed,
+       'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+    eq('so does a youtu.be one', kind('https://youtu.be/abc123XYZ').embed,
+       'https://www.youtube-nocookie.com/embed/abc123XYZ');
+    eq('and a Vimeo link', kind('https://vimeo.com/123456789').embed, 'https://player.vimeo.com/video/123456789');
+    eq('a Drive file gets its preview', kind('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQ/view').embed,
+       'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQ/preview');
+    eq('a Drive folder has no preview to give', kind('https://drive.google.com/drive/folders/XYZ').embed, '');
+    eq('an image is an image', kind('https://cdn.example.com/a/cover.jpg').kind, 'image');
+    /* A Dropbox share URL ends .mov but serves a web page — host before extension */
+    eq('a Dropbox share link is a link, not a broken video player',
+       kind('https://dropbox.com/s/xyz/cut.mov').kind, 'link');
+    eq('and it is named', kind('https://dropbox.com/s/xyz/cut.mov').label, 'Dropbox');
+    eq('an unknown host is named by its host', kind('https://films.example.co.ug/reel').label, 'films.example.co.ug');
+    eq('and it is never framed', kind('https://films.example.co.ug/reel').embed, '');
+    eq('a javascript: URL is not media at all', kind('javascript:alert(1)'), null);
+
+    /* And the rule that used to refuse everything but Drive */
+    run(`profile.department='Production'; profile.name='M'; saveProfile();
+         switchView('tools'); chooseAddType('report');
+         document.getElementById('f_toolName').value = 'Runway';
+         document.getElementById('f_toolName').dispatchEvent(new Event('input', { bubbles: true }));
+         const o = [...document.getElementById('f_category').options].find(x => x.value);
+         document.getElementById('f_category').value = o.value;
+         document.getElementById('f_persistInRegistry').checked = true;
+         addProject({ id:'p1', name:'Reel', link:'https://vimeo.com/123456789', description:'', traditional:'', aiWay:'', benefit:'' });`);
+    const before = run(`entries.length`);
+    run(`saveDetail();`);
+    ok('a Vimeo link no longer blocks saving', run(`entries.length`) > before,
+       'entries ' + before + ' → ' + run(`entries.length`));
+    run(`addProject({ id:'p2', name:'Bad', link:'javascript:alert(1)', description:'', traditional:'', aiWay:'', benefit:'' });`);
+    const n2 = run(`entries.length`);
+    run(`saveDetail();`);
+    eq('but something the app cannot open still does', run(`entries.length`), n2);
+  });
+
+  /* Being told inside the app, not only by email */
+  await withApp(async ({ run, doc }) => {
+    suite('27 · You are told in the app as well');
+
+    run(`__t.signIn(); __t.asDept(true); seedDemoData(true);
+         profile.department='Production'; profile.name='Ivan'; profile.email='ivan@swangzavenue.com'; saveProfile();
+         authUser = { id:'u', email:'ivan@swangzavenue.com', user_metadata:{} };
+         localStorage.removeItem('swangz_notif_seen_v1:ivan@swangzavenue.com');
+         const e = entries.find(x => x.tag !== 'request');
+         e.submittedByEmail = 'ivan@swangzavenue.com';
+         e.reportStatus = 'confirmed'; e.decidedAt = new Date().toISOString(); saveEntries();`);
+    ok('an answer on your own entry is something you are told about',
+       run(`notifItems().length`) >= 1, String(run(`notifItems().length`)));
+    ok('and it is unread until you look', run(`notifUnread()`) >= 1);
+    run(`paintBell();`);
+    eq('so the bell is marked', run(`document.getElementById('railBellDot').hidden`), false);
+    run(`markNotifSeen();`);
+    eq('looking clears it', run(`notifUnread()`), 0);
+    eq('and the mark goes with it', run(`document.getElementById('railBellDot').hidden`), true);
+
+    /* A department user is not shown the admin's workload */
+    ok('a department user is not told about other people\'s filings',
+       run(`notifItems().every(n => !/filed a/.test(n.title))`));
+  });
+}
+
+/* Somebody tried the app out on the live site and filed tools called "test",
+   "policy", "delete me". Those are not confined to a list: they are counted in
+   Tools Entered, in the money, in the graph, in the Executive Report and in the
+   business case — so a handful of them read as the tracker being broken. And
+   deleting one did not work, because deleting told the database nothing and the
+   next sync brought it straight back. */
+async function scenarioJunk() {
+  if (only && !'junk'.includes(only)) return;
+  await withApp(async ({ run, doc, settle }) => {
+    suite('28 · Rubbish can be cleared out, and stays cleared');
+
+    run(`__t.signIn(); __t.asDept(false); seedDemoData(true); adminUnlocked = true;
+         ['policy','test','delete me','Test 2','asdf'].forEach((n, i) => entries.push({
+           id: 'junk' + i, kind: 'tool', tag: 'report', toolName: n, department: 'Production',
+           submittedBy: 'Someone', category: '', reason: '', impact: '', projects: [],
+           submittedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+         saveEntries(); switchView('admin'); renderAdmin(); showAdminSection('acc_manage');`);
+
+    /* Flagged, not deleted: "test" is a guess and a guess must not remove a
+       department's work on its own. */
+    ok('the junk is recognised', run(`entries.filter(e => e.id.indexOf('junk') === 0).every(looksLikeTest)`));
+    ok('and real tools are not', run(`entries.filter(e => /ChatGPT|Runway|Midjourney/.test(e.toolName || '')).every(e => !looksLikeTest(e))`));
+    ok('the panel says how many look like tests',
+       /look like tests/.test(run(`document.getElementById('acc_manageMeta').textContent`)),
+       run(`document.getElementById('acc_manageMeta').textContent`));
+
+    run(`document.getElementById('manageFilter').value = 'junk'; renderManageSubmissions();`);
+    eq('the filter shows exactly those', run(`document.querySelectorAll('#manageList .mg-row').length`), 5);
+
+    /* "All" means all of what is listed — never all of what exists */
+    run(`pickAllManage(true);`);
+    eq('selecting all takes only what is shown', run(`manageChecked.size`), 5);
+    run(`document.getElementById('manageFilter').value = ''; renderManageSubmissions();`);
+    eq('and a tick cannot survive a filter that hides its row', run(`manageChecked.size`), 5);
+    run(`document.getElementById('manageSearchInput').value = 'policy'; renderManageSubmissions();`);
+    eq('narrowing the list narrows the selection with it', run(`manageChecked.size`), 1);
+    run(`document.getElementById('manageSearchInput').value = ''; document.getElementById('manageFilter').value = 'junk';
+         renderManageSubmissions(); pickAllManage(true);`);
+
+    /* The bug underneath: deleting never told the database */
+    run(`settings.backend = Object.assign({}, settings.backend || {}, { mode: 'supabase' });
+         window.__del = [];
+         window.fetch = (url, opt) => { if (opt && opt.method === 'DELETE') window.__del.push(String(url));
+           return Promise.resolve({ ok: true, text: () => Promise.resolve('') }); };
+         removeCheckedSubmissions();`);
+    await settle(200);
+    ok('it asks before removing anything', !!doc.querySelector('.deck-panel .ask-body'));
+    ok('and names what will go', /policy/.test(run(`document.querySelector('.deck-panel .ask-body').textContent`)));
+    run(`answerAsk(true);`);
+    await settle(300);
+    eq('the rubbish is gone', run(`entries.filter(e => e.id.indexOf('junk') === 0).length`), 0);
+    eq('the real entries are untouched', run(`entries.filter(e => /ChatGPT/.test(e.toolName || '')).length > 0`), true);
+    ok('and the database was told, in one request',
+       run(`window.__del.length`) === 1 && /junk0/.test(run(`window.__del[0]`)), run(`String(window.__del)`).slice(0, 120));
+
+    /* The row that started this: "__POLICY TEST - delete me__", filed by
+       "policy-test" as a public request. An exact-name match would have walked
+       straight past it, and it was sitting in the Requests Inbox looking like
+       something waiting on a decision. */
+    run(`entries.push({ id:'pt1', kind:'tool', tag:'request', requestStatus:'new', isPublic:true,
+           toolName:'__POLICY TEST - delete me__', submittedBy:'policy-test', department:'Production',
+           submittedAt:new Date().toISOString() });
+         saveEntries();`);
+    ok('a marker anywhere in the name is caught, not just an exact match',
+       run(`looksLikeTest(entries.find(e => e.id === 'pt1'))`));
+    ok('and so is a submitter called policy-test',
+       run(`looksLikeTest({ toolName: 'Something Plausible', submittedBy: 'policy-test' })`));
+    /* …without taking real tools with it */
+    ok('a real tool with "test" in its name survives',
+       !run(`looksLikeTest({ toolName:'TestGorilla', submittedBy:'Sarah N.', reason:'screening', tradTime:2, aiTime:1, frequency:4 })`));
+    ok('and so does one with "Test" as a word',
+       !run(`looksLikeTest({ toolName:'A/B Test Suite', submittedBy:'Ivan M.', reason:'landing pages', tradTime:3, aiTime:1, frequency:6 })`));
+    run(`showAdminSection('acc_requests'); renderRequestsInbox();`);
+    ok('the requests inbox marks it where it is actually seen',
+       /looks like a test/.test(run(`document.getElementById('requestsInboxList').innerHTML`)));
+
+    /* The single-row path had the same hole. It is wrapped by guardWith, so it
+       asks first — answer it, or nothing is deleted and the check passes for
+       the wrong reason. */
+    run(`window.__del = [];
+         entries.push({ id:'solo', kind:'tool', tag:'report', toolName:'test', department:'Production', submittedAt:new Date().toISOString() });
+         saveEntries(); deleteSubmission('solo');`);
+    await settle(200);
+    ok('removing one submission asks before it acts', !!doc.querySelector('.deck-panel .ask-body'));
+    eq('and until it is answered, nothing has gone', run(`entries.some(e => e.id === 'solo')`), true);
+    run(`answerAsk(true);`);
+    await settle(300);
+    eq('answering removes it', run(`entries.some(e => e.id === 'solo')`), false);
+    ok('and the database is told about that one too',
+       run(`window.__del.length`) === 1 && /solo/.test(run(`window.__del[0]`)), run(`String(window.__del)`).slice(0, 120));
+  });
+}
+
 /* ============================== run ============================== */
 (async () => {
   const t0 = Date.now();
-  for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioExecWording,
+  for (const s of [scenarioBoot, scenarioTilesAdmin, scenarioTilesDept, scenarioReportWizardScope, scenarioExecWording,
                    scenarioFigures, scenarioHostile, scenarioEmpty, scenarioRequestDecision,
                    scenarioCorruptStorage, scenarioInjection, scenarioDemoContainment, scenarioUnits, scenarioAdminGate, scenarioNoDialogs, scenarioWorkbook, scenarioDeptPrompt,
                    scenarioCustomRange, scenarioAdminAccess, scenarioDriveFolder,
-                   scenarioSignInRouting, scenarioSearchLook]) {
+                   scenarioSignInRouting, scenarioSearchLook, scenarioReportsInbox, scenarioToolPicker, scenarioMail, scenarioJunk]) {
     try { await s(); } catch (e) { fail++; failures.push(current + ' › scenario crashed: ' + (e.stack || e.message));
       console.log('  \x1b[31m✗ scenario crashed: ' + e.message + '\x1b[0m'); }
   }

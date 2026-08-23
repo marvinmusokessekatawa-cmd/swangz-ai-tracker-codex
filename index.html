@@ -4,22 +4,133 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Swangz Avenue — AI Adoption Tracker</title>
+<script>
+/* The theme, stamped before a single rule is parsed.
+   The chooser that owns THEME_KEY lives at the foot of the page, so until this
+   ran here the browser painted the base palette first and then flipped — a
+   gold flash on every load, which is exactly what you notice on a slow
+   machine. Same key, same values; this only moves the moment it is applied.
+   Kept deliberately tiny and dependency-free: anything that throws in here
+   would block the whole page. */
+(function () {
+  try {
+    var t = localStorage.getItem('swangz_theme_v1');
+    document.documentElement.setAttribute('data-theme',
+      (t === 'swangz' || t === 'aurora' || t === 'midnight') ? t : 'midnight');
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'midnight');
+  }
+})();
+
+/* The service worker, and the install offer, registered from the <head>.
+   ------------------------------------------------------------------
+   Both of these used to live in the last script block, which sits *after* the
+   blocking Supabase tag that loads from a CDN. So on a slow or dropping
+   connection — the exact case the worker exists to survive — the worker never
+   installed at all, because the code that installs it was queued behind a
+   third-party download. It was measurably flaky: the same page registered on
+   one load and not the next, entirely depending on whether jsDelivr answered.
+
+   Neither of these needs anything from the app, so neither waits for it.
+   The install event is only captured here; the button that uses it is drawn
+   further down, once there is a DECK to open and a toast to show. */
+(function () {
+  try {
+    /* Chrome fires this once and does not repeat it. Miss it and the Install
+       button never appears, however long the page waits afterwards. */
+    window.__swangzInstallEvent = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__swangzInstallEvent = e;
+      if (typeof window.paintInstall === 'function') { try { window.paintInstall(); } catch (_) {} }
+    });
+
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      /* Normally you register on `load`, so caching the shell does not compete
+         with the first paint. But `load` waits for the Supabase tag, which is a
+         cross-origin download — so on the slow connection this is all for, it
+         can be a long time or never. Whichever comes first: `load`, or four
+         seconds. Registered once either way. */
+      var swDone = false;
+      var registerSW = function () {
+        if (swDone) return;
+        swDone = true;
+        navigator.serviceWorker.register('/sw.js').then(function (reg) {
+          /* A deploy landed while somebody had the app open. The HTML is
+             network-first so they already have the new page; this clears the
+             old worker out behind them rather than waiting for every tab. */
+          reg.addEventListener('updatefound', function () {
+            var sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', function () {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                sw.postMessage('skip-waiting');
+              }
+            });
+          });
+        }).catch(function (err) { console.warn('service worker not registered', err); });
+      };
+      window.addEventListener('load', registerSW);
+      setTimeout(registerSW, 4000);
+    }
+  } catch (e) { /* never let this stop the page */ }
+})();
+</script>
 <!-- Supabase JS client (Google OAuth sign-in + session persistence).
      The tag itself lives at the foot of the body, because a blocking script in
      the head means a blank page for the whole of a cross-origin round trip —
      on a slow connection that was most of the wait. Fetching starts here all
      the same, so it is usually in cache by the time the parser reaches it. -->
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="preload" as="script" crossorigin
-      href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js">
-<!-- Redesign fonts: Inter (UI) + JetBrains Mono (figures).
-     Loaded without blocking the first paint; the faces carry display=swap, so
-     text is readable in the fallback until they arrive. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
+<!-- Installable. Chrome and Edge turn this into a real app: its own window and
+     icon on Windows and macOS, a home-screen app on Android, and "Add to Home
+     Screen" on iOS. Nothing here changes how the page behaves in a tab. -->
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#02040a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="AI Tracker" />
+<meta name="description" content="Swangz Avenue's AI Adoption Tracker — record the AI tools your department uses, and ask for the ones you need." />
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="icon" href="/assets/icon-192.png" sizes="192x192" type="image/png" />
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+<!-- Start fetching the Supabase client while the rest of the head is parsed.
+     No crossorigin now that it is our own file — adding it to a same-origin
+     preload makes the browser fetch it a second time, which is the opposite
+     of the point. -->
+<link rel="preload" as="script" href="/vendor/supabase-js-2.45.0.min.js">
+<!-- Redesign fonts: Inter (UI) + JetBrains Mono (figures), served from our own
+     origin as VARIABLE faces.
+     Two reasons, and the second is the real one:
+       · The Google Fonts stylesheet was one cross-origin round trip for 1KB
+         before a single glyph was requested. Measured here it took 683ms on a
+         good run and 7.0s on a bad one — on a slow link staff read the
+         fallback face for seven seconds.
+       · The design uses weights 620, 650 and 750. Those do not exist as static
+         faces; the browser was rounding them to the nearest hundred. A
+         variable font renders them as drawn.
+     Latin subset only — this is an English app, and dropping the other six
+     subsets is most of the weight. 47KB + 39KB, cached for ever by sw.js.
+     To update: re-run the fetch in APPS.md and replace both files. -->
+<link rel="preload" as="font" type="font/woff2" href="/vendor/fonts/inter-var-latin.woff2" crossorigin>
+<style>
+  @font-face  {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url(/vendor/fonts/inter-var-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face  {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 100 800;
+    font-display: swap;
+    src: url(/vendor/fonts/jetbrains-mono-var-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+</style>
 <link rel="icon" type="image/webp" href="assets/swangz-badge.webp">
 <!-- Declare that this page is ALREADY dark. Without this, Chrome on Android
      (Settings → Themes → "Auto dark theme") applies its own colour inversion
@@ -618,6 +729,155 @@
   .req-status.s-reviewed { background: rgba(124,92,255,0.18); color:#c7bcff; border:1px solid rgba(124,92,255,0.5); }
   .req-status.s-approved { background: rgba(61,220,151,0.16); color: var(--good); border:1px solid rgba(61,220,151,0.5); }
   .req-status.s-declined { background: rgba(255,92,122,0.14); color: var(--bad); border:1px solid rgba(255,92,122,0.45); }
+  /* A report's own two end states. Confirmed reads like approved because it is
+     the same good news; sent back is a question, not a refusal, so it is amber
+     rather than red — nothing has been rejected. */
+  .req-status.s-confirmed { background: rgba(61,220,151,0.16); color: var(--good); border:1px solid rgba(61,220,151,0.5); }
+  .req-status.s-returned  { background: rgba(245,197,66,0.16); color: var(--brand-gold, #f5c542); border:1px solid rgba(245,197,66,0.45); }
+
+  /* What is waiting on the admin, said on the row rather than found by opening it */
+  .rep-flags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .rep-flag {
+    font-size: 10px; font-weight: 700; letter-spacing: .3px;
+    padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    border: 1px solid var(--glass-border); color: var(--muted-2);
+  }
+  .rep-flag.new   { background: rgba(167,139,250,0.14); color: var(--accent); border-color: rgba(167,139,250,0.42); }
+  .rep-flag.price { background: rgba(245,197,66,0.13); color: var(--brand-gold, #f5c542); border-color: rgba(245,197,66,0.4); }
+  .rep-flag.media { background: rgba(34,211,238,0.12); color: #67e8f9; border-color: rgba(34,211,238,0.35); }
+
+  /* Reported / Requested, on the person's own side */
+  .mytools-tabs { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .mytools-tabs button {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--glass-border); background: var(--glass-bg);
+    color: var(--muted); font-family: inherit; font-size: 12.5px; font-weight: 650;
+    transition: color .15s, border-color .2s, background .2s;
+  }
+  .mytools-tabs button:hover { color: var(--text); border-color: var(--border-2, var(--glass-border)); }
+  .mytools-tabs button.active {
+    color: var(--brand-gold, #f5c542);
+    border-color: rgba(245,197,66,0.5); background: rgba(245,197,66,0.12);
+  }
+  .mytools-tabs .mt-count {
+    font-size: 11px; font-weight: 700; min-width: 18px; padding: 1px 6px;
+    border-radius: 999px; background: rgba(255,255,255,0.08); color: inherit;
+  }
+  .mytools-tabs button.active .mt-count { background: rgba(245,197,66,0.22); }
+
+  /* ---- The tool picker (see toolPicker* in the script) ---- */
+  .combo { position: relative; }
+  .combo > input { padding-right: 38px; }
+  .combo-toggle {
+    position: absolute; top: 0; right: 0; height: 100%; width: 36px;
+    display: grid; place-items: center;
+    background: transparent; border: none; cursor: pointer; color: var(--muted);
+    border-radius: 0 10px 10px 0; transition: color .15s;
+  }
+  .combo-toggle:hover { color: var(--text); }
+  .combo-toggle .ico { width: 15px; height: 15px; transition: transform .18s; }
+  .combo > input[aria-expanded="true"] ~ .combo-toggle .ico { transform: rotate(180deg); }
+  /* Body-level and fixed, so no scroller in the wizard can crop it */
+  .combo-list {
+    position: fixed; z-index: 3000;
+    max-height: 264px; overflow-y: auto; padding: 6px;
+    border: 1px solid var(--glass-border); border-radius: 12px;
+    background: var(--panel, #14101f);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.5);
+  }
+  .combo-list[hidden] { display: none; }
+  .combo-item {
+    display: flex; align-items: baseline; gap: 10px; width: 100%;
+    padding: 8px 10px; border-radius: 9px; cursor: pointer; text-align: left;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text); font-family: inherit; font-size: 12.5px;
+  }
+  .combo-item:hover, .combo-item.cursor { background: rgba(255,255,255,0.06); border-color: var(--glass-border); }
+  .combo-item.picked { color: var(--brand-gold, #f5c542); }
+  .combo-item.is-new { color: var(--brand-gold, #f5c542); }
+  .combo-item .ci-name { font-weight: 620; white-space: nowrap; }
+  .combo-item .ci-url {
+    margin-left: auto; font-size: 11px; color: var(--muted-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .combo-item .ci-tag {
+    margin-left: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: .3px;
+    padding: 1px 6px; border-radius: 999px; color: var(--muted-2);
+    background: rgba(255,255,255,0.07);
+  }
+  .combo-empty { padding: 14px 10px; font-size: 12px; color: var(--muted-2); }
+
+  /* ---- Attached media, shown rather than linked ---- */
+  .media-view { margin: 10px 0 4px; }
+  .media-view .mv-frame {
+    position: relative; width: 100%; padding-top: 56.25%;
+    border-radius: 12px; overflow: hidden; background: #000;
+    border: 1px solid var(--glass-border);
+  }
+  .media-view .mv-frame iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  }
+  .media-view .mv-img {
+    display: block; width: 100%; max-height: 340px; object-fit: contain;
+    border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3);
+  }
+  .media-view .mv-el { display: block; width: 100%; border-radius: 12px; }
+  .media-view audio.mv-el { height: 40px; }
+  .media-view .mv-open {
+    display: inline-block; margin-top: 8px;
+    font-size: 11.5px; font-weight: 650; color: var(--muted);
+    text-decoration: none; border-bottom: 1px solid var(--glass-border);
+  }
+  .media-view .mv-open:hover { color: var(--brand-gold, #f5c542); }
+  .media-view.is-link {
+    padding: 12px 14px; border-radius: 12px;
+    border: 1px dashed var(--glass-border); background: var(--glass-bg);
+  }
+  .media-view.is-link .mv-open { margin-top: 0; }
+  .media-view .mv-note { display: block; margin-top: 4px; font-size: 11px; color: var(--muted-2); }
+  .pj-preview:empty { display: none; }
+  .proj-nomedia { font-size: 11.5px; color: var(--muted-2); font-style: italic; margin: 8px 0 4px; }
+
+  /* ---- Clearing out submissions in bulk ---- */
+  .manage-bulk {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 12px; padding: 9px 12px;
+    border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-bg);
+    font-size: 12.5px; color: var(--muted);
+  }
+  .manage-bulk[hidden] { display: none; }
+  .manage-bulk .spacer { flex: 1 1 auto; }
+  .manage-bulk .mg-all {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    white-space: nowrap;   /* or "Select all 5 shown" stacks into three lines */
+  }
+  .manage-bulk .mg-all input { width: 16px; height: 16px; cursor: pointer; }
+  .manage-bulk .mg-count { font-weight: 650; color: var(--text); }
+  .manage-bulk .mg-count.muted { font-weight: 500; color: var(--muted-2); }
+  .manage-bulk button.danger { font-size: 12px; padding: 6px 13px; border-radius: 9px; }
+
+  .mg-row { padding: 0 0 0 12px; gap: 0; cursor: default; }
+  .mg-row:hover { transform: none; }
+  .mg-row.picked { border-color: rgba(245,197,66,0.5); background: rgba(245,197,66,0.07); }
+  .mg-tick { display: grid; place-items: center; padding: 6px; cursor: pointer; }
+  .mg-tick input { width: 16px; height: 16px; cursor: pointer; }
+  .mg-open {
+    display: flex; align-items: center; gap: 14px; flex: 1 1 auto; min-width: 0;
+    padding: 14px 16px; background: none; border: none; cursor: pointer;
+    color: inherit; font: inherit; text-align: left;
+  }
+  .ask-item {
+    display: block; padding: 3px 0; font-size: 12.5px; color: var(--muted);
+  }
+
+  /* A button that reads as a link, for a door inside a caption */
+  .linkish {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font: inherit; color: var(--brand-gold, #f5c542);
+    border-bottom: 1px solid rgba(245,197,66,0.4);
+  }
+  .linkish:hover { border-bottom-color: var(--brand-gold, #f5c542); }
   .req-actions { display:flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; align-items:center; }
   .req-actions button.rb { font-size: 12px; padding: 6px 11px; border-radius: 8px; border:1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; }
   .req-actions button.rb:hover { border-color: var(--border-2); }
@@ -625,6 +885,17 @@
   .req-note { width: 100%; margin-top: 10px; }
 
   /* Public request entry button on the auth screen */
+  /* The install offer. Quiet — it sits under the sign-in button and is not
+     the thing anybody came here to press. */
+  .install-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; margin-top: 12px; font-size: 12.5px;
+  }
+  .install-btn[hidden] { display: none; }
+  .install-btn .ico { width: 15px; height: 15px; }
+  /* Inside the installed app there is nothing left to install */
+  @media (display-mode: standalone) { .install-btn { display: none !important; } }
+
   .auth-divider { display:flex; align-items:center; gap: 12px; color: var(--muted-2); font-size: 11px; margin: 20px 0 14px; }
   .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background: var(--border); }
 
@@ -1456,6 +1727,10 @@
   .profile-menu .pm-ico { color: var(--accent); width: 16px; text-align: center; }
   .profile-menu .pm-danger { color: var(--bad); }
   .profile-menu .pm-danger .pm-ico { color: var(--bad); }
+  /* Shown, and visibly shut. A door nobody can open still has to say so. */
+  .profile-menu .pm-locked { opacity: .5; }
+  .profile-menu #pmAdminBtn:not(.pm-locked) .pm-ico { color: var(--brand-gold, #f5c542); }
+  .profile-menu button[hidden] { display: none; }
   .pm-sep { height: 1px; background: var(--glass-border); margin: 5px 8px; }
 
   .dept-overview { margin-bottom: 18px; }
@@ -1629,9 +1904,9 @@
 
   /* ============================================================
      THEMES — set with data-theme on <html>.
-       aurora   (default) violet + cyan, luminous
-       midnight             true dark, minimal colour, maximum focus
-       gold                 Swangz brand gold, warm
+       midnight (default) true dark, minimal colour, maximum focus
+       aurora             violet + cyan, luminous
+       swangz             brand gold, warm
      ============================================================ */
   html[data-theme="midnight"] {
     --accent: #93a4c8; --accent-strong: #c8d3ea; --accent-2: #6d7f9f;
@@ -1917,6 +2192,36 @@
   /* the numbered dots became dashes — the bar's own rules carry it now */
   .wiz-progress { gap: 8px; margin-top: 18px; }
   .wiz-progress .ws.current { box-shadow: 0 0 0 3px var(--accent-glow); }
+  @media (max-width: 760px) {
+    .wiz-progress .ws,
+    .wiz-progress .ws.done,
+    .wiz-progress .ws.current {
+      height: 40px;
+      min-height: 40px;
+      background: transparent;
+      box-shadow: none;
+      transform: none;
+    }
+    .wiz-progress .ws::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 4px;
+      transform: translateY(-50%);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+    }
+    .wiz-progress .ws.done::before {
+      background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+    }
+    .wiz-progress .ws.current::before {
+      height: 7px;
+      background: linear-gradient(90deg, var(--accent-strong), var(--accent-2));
+      box-shadow: 0 0 0 3px rgba(245,197,66,0.10);
+    }
+  }
 
   /* Segmented Report / Request control */
   .seg { background: rgba(255,255,255,0.05); border-color: var(--glass-border); padding: 4px; }
@@ -2272,29 +2577,14 @@
   }
   .auth-foot a:hover, .auth-foot button:hover { color: var(--accent); }
   .auth-legal { text-align: center; font-size: 11px; color: var(--muted-2); margin-top: 14px; line-height: 1.6; }
+  @media (max-width: 520px) {
+    .auth-foot a, .auth-foot button {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+    }
+  }
 
-  /* ---- Credits ---- */
-  .credits { text-align: center; margin-top: 30px; display: grid; justify-items: center; gap: 9px; }
-  .credits-rule {
-    width: 120px; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(245,197,66,.55), transparent);
-  }
-  .credits-kicker {
-    margin: 0; font-size: 9.5px; font-weight: 800; letter-spacing: 2.6px;
-    text-transform: uppercase; color: var(--muted-2);
-  }
-  .credits-names {
-    margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
-    font-size: 13.5px; font-weight: 600; letter-spacing: .4px;
-  }
-  .credits-names span {
-    background: linear-gradient(180deg, #fff7e4, var(--accent) 70%, #b8860b);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    transition: filter .25s;
-  }
-  .credits-names:hover span { filter: drop-shadow(0 2px 14px var(--accent-glow)); }
-  .credits-names i { font-style: normal; color: var(--muted-2); font-size: 11px; }
-  @media (max-height: 720px) { .credits { margin-top: 20px; } }
   /* Short viewports (laptops, landscape phones): compress so the card never clips */
   @media (max-height: 720px) {
     .auth-brand { margin-bottom: 14px; }
@@ -2321,6 +2611,26 @@
       min-height: 54px;
     }
     .brand { flex: 0 1 auto; min-width: 0; }
+
+    /* On department screens the shared account block used to sit on the same
+       row as the product name, leaving the wordmark and the user's name drawn
+       on top of each other. Stack the chrome: brand first, account second. */
+    body:not([data-shell="auth"]):not([data-section="admin"]) header {
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    body:not([data-shell="auth"]):not([data-section="admin"]) header .brand {
+      width: 100%;
+      flex: 0 0 100%;
+    }
+    body:not([data-shell="auth"]):not([data-section="admin"]) header .rail-account {
+      width: 100%;
+      margin: 0;
+    }
+    body:not([data-shell="auth"]):not([data-section="admin"]) header .ra-who {
+      min-height: 44px;
+    }
 
     /* Admin section pills must not grow the bar — they scroll on their own row.
        Sized to hold a 44px touch target now that the pills ARE the navigation. */
@@ -2670,8 +2980,10 @@
      portal and the department side share. */
   .rail-account {
     flex: 0 0 auto;
-    display: flex; align-items: center; gap: 10px;
-    margin: 10px 0 2px; padding: 8px 10px;
+    /* Tight, because the name has to survive beside two icon buttons — at the
+       old spacing "Marvin Musoke" came out as "Marvin ..." */
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0 2px; padding: 8px 9px;
     border: 1px solid var(--glass-border); border-radius: 12px;
     background: var(--glass-bg);
   }
@@ -2693,16 +3005,49 @@
     font-size: 10.5px; color: var(--muted-2);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .ra-bell {
+    position: relative; margin-left: auto; flex: none;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); border-radius: 9px;
+    display: grid; place-items: center; min-width: 26px; min-height: 26px;
+    transition: color .15s, background .2s;
+  }
+  .ra-bell .ico { width: 15px; height: 15px; }
+  .ra-bell:hover, .ra-bell:focus-visible { color: var(--brand-gold, #f5c542); background: rgba(245,197,66,0.12); }
+  .ra-bell .ra-dot {
+    position: absolute; top: 4px; right: 4px;
+    min-width: 7px; height: 7px; border-radius: 999px;
+    background: var(--brand-gold, #f5c542);
+    box-shadow: 0 0 0 2px var(--glass-bg);
+  }
+  .ra-bell .ra-dot[hidden] { display: none; }
+  .ra-bell + .ra-out { margin-left: 0; }
+  @media (pointer: coarse) { .ra-bell { min-width: 40px; min-height: 40px; } }
+
   .ra-out {
     margin-left: auto; flex: none;
     background: transparent; border: none; cursor: pointer;
     color: var(--muted); border-radius: 9px;
-    display: grid; place-items: center; min-width: 32px; min-height: 32px;
+    display: grid; place-items: center; min-width: 26px; min-height: 26px;
     transition: color .15s, background .2s;
   }
-  .ra-out .ico { width: 16px; height: 16px; }
+  .ra-out .ico { width: 15px; height: 15px; }
   .ra-out:hover, .ra-out:focus-visible { color: var(--bad); background: rgba(255, 92, 122, 0.12); }
   @media (pointer: coarse) { .ra-out { min-width: 44px; min-height: 44px; } }
+
+  /* Your name is the button. The rail lists sections; the way across to the
+     admin dashboard is not a section, it is something about your account, so
+     it lives in this menu with Profile, Settings and the way out. */
+  .ra-who {
+    display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
+    background: none; border: none; padding: 0; margin: 0;
+    font: inherit; color: inherit; text-align: left; cursor: pointer;
+    border-radius: 9px;
+  }
+  @media (max-width: 919px) { .ra-who { min-height: 44px; } }
+  .ra-who:hover .ra-name, .ra-who:focus-visible .ra-name { color: var(--brand-gold, #f5c542); }
+  /* A mark, not a second control: something in the menu is waiting */
+  .ra-who .ra-name { transition: color .15s; }
 
   /* ============================================================
      DEPARTMENT SIDE — the dashboard is theirs again
@@ -2847,6 +3192,22 @@
     font-size: 9.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
     color: var(--muted-2); padding: 8px 11px 9px;
   }
+  /* Captions inside a door, so a long list reads as a few jobs */
+  .rail-menu .sm-group {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
+    color: var(--muted-2); opacity: .78;
+    padding: 12px 11px 5px; margin-top: 3px;
+    border-top: 1px solid var(--glass-border);
+  }
+  .rail-menu .sm-head + .sm-group { border-top: none; margin-top: 0; padding-top: 2px; }
+
+  /* The account menu reuses the rail menu's surface — same object, same rules */
+  .rail-menu .sm-sep { height: 1px; background: var(--glass-border); margin: 5px 8px; }
+  .account-menu { min-width: 214px; }
+  .account-menu .is-danger { color: var(--bad); }
+  .account-menu .is-danger .ico { color: var(--bad); }
+  .account-menu .is-locked { opacity: .5; }
+  .account-menu button:not(.is-locked):not(.is-danger) .ico { color: var(--brand-gold, #f5c542); }
   .rail-menu button {
     display: flex; align-items: center; gap: 11px; width: 100%; min-height: 44px;
     text-align: left; background: transparent; border: 1px solid transparent;
@@ -3126,6 +3487,8 @@
     transition: background .2s, border-color .2s, transform .2s cubic-bezier(.16,.84,.32,1);
   }
   .deck-row:hover { background: rgba(255,255,255,0.06); border-color: var(--border-2); transform: translateX(3px); }
+  /* Not yet read — a gold edge rather than a second badge to decode */
+  .deck-row.is-fresh { border-left: 2px solid var(--brand-gold, #f5c542); }
   .deck-row:active { transform: translateX(3px) scale(.995); }
   .dr-ico {
     flex: 0 0 auto; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
@@ -3475,6 +3838,7 @@
   }
   .who-told .ico { width: 16px; height: 16px; flex: 0 0 auto; color: var(--accent); margin-top: 1px; }
   .who-told b { color: var(--text); font-weight: 700; }
+  .who-told b.wt-warn { color: var(--brand-gold, #f5c542); }
 
   /* ---- Documents and the outbox ---- */
   .doc-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
@@ -3668,11 +4032,68 @@
     background: rgba(245,197,66,0.14); box-shadow: inset 2px 0 0 rgba(245,197,66,0.6);
   }
   @media (max-width: 760px) {
-    .doc-stage { margin: -16px -15px -20px; padding: 15px 10px 20px; }
-    .doc-paper { padding: 26px 20px 30px; font-size: 13px; }
+    .doc-stage {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      margin: -16px 0 -20px;
+      padding: 15px 0 20px;
+    }
+    .doc-paper {
+      box-sizing: border-box;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0;
+      overflow: hidden;
+      padding: 26px 20px 30px;
+      font-size: 13px;
+    }
     .doc-paper h1 { font-size: 20px; }
-    .doc-paper table { font-size: 11px; }
+    .doc-paper table { font-size: 11px; table-layout: fixed; }
     .doc-paper th, .doc-paper td { padding: 5px 6px; }
+    .doc-paper table.ctrl,
+    .doc-paper table.ctrl tbody,
+    .doc-paper table.ctrl tr,
+    .doc-paper table:not(.ctrl),
+    .doc-paper table:not(.ctrl) tbody,
+    .doc-paper table:not(.ctrl) tr,
+    .doc-paper table:not(.ctrl) th,
+    .doc-paper table:not(.ctrl) td {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .doc-paper table.ctrl tr {
+      display: grid;
+      grid-template-columns: minmax(0, 34%) minmax(0, 66%);
+    }
+    .doc-paper table.ctrl td {
+      width: auto !important;
+      box-sizing: border-box;
+    }
+    .doc-paper table:not(.ctrl) td.k {
+      border-bottom: 0;
+    }
+    .doc-paper table:not(.ctrl) td.k + td {
+      border-top: 0;
+    }
+    .doc-paper .num {
+      text-align: left;
+    }
+    .doc-paper td,
+    .doc-paper th,
+    .doc-paper a {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: normal;
+    }
+    .doc-paper a {
+      min-height: 40px;
+      max-width: 100%;
+      display: inline-block;
+    }
     .sheet-grid-wrap { max-height: 46vh; }
     .sheet-legend { display: none; }
   }
@@ -3969,7 +4390,16 @@
      independently of each other.
      ================================================================== */
   @media (pointer: coarse) {
-    input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; }
+    input[type="checkbox"], input[type="radio"] { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
+    .ps-dept input[type="checkbox"],
+    .reg-toggle input[type="checkbox"],
+    .nt-ev input[type="checkbox"] {
+      width: 40px !important;
+      height: 40px !important;
+      min-width: 40px !important;
+      min-height: 40px !important;
+      flex: 0 0 40px !important;
+    }
     label > input[type="checkbox"], label > input[type="radio"] { margin-right: 9px; }
     .gt-btn, .wiz-close, .bot-close, .profile-menu-btn { width: 42px; height: 42px; }
     .dp-btn { width: 40px; height: 40px; }
@@ -4094,8 +4524,10 @@
     .dept-prompt { padding: 14px 14px calc(104px + env(safe-area-inset-bottom)); align-items: center; }
     .dept-prompt .dp-card { padding: 22px 18px 16px; border-radius: 22px; }
     .dept-prompt h2 { font-size: 19px; }
+    .dpz-x { width: 44px; height: 44px; top: 10px; right: 10px; }
     .dpz-choice { padding: 12px 13px; gap: 11px; }
     .dpz-ico { width: 36px; height: 36px; border-radius: 11px; }
+    .dpz-skip { min-height: 44px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .dept-prompt .dp-card, .dept-prompt.closing .dp-card { animation: none; }
@@ -4170,12 +4602,31 @@
        view because the rail is shared: the profile badge that used to carry
        "Sign out" sits inside #toolsView, so once an admin was routed into the
        portal there was no way to sign out at all — no button anywhere. -->
+  <!-- The rail lists sections and nothing else. The way across to the admin
+       dashboard used to sit here as a button of its own; it belongs with the
+       account it applies to, so it moved into this block's menu. That menu has
+       to exist, and has to be reachable from both sides: #profileMenu lives
+       inside #toolsView, so on its own it would leave an admin in the portal
+       with no way back at all — the stranding bug in AGENTS.md 12. -->
   <div class="rail-account" id="railAccount" hidden>
-    <div class="ra-avatar" id="railAvatar" aria-hidden="true">?</div>
-    <div class="ra-text">
-      <span class="ra-name" id="railName">—</span>
-      <span class="ra-role" id="railRole">—</span>
-    </div>
+    <button type="button" class="ra-who" id="railWho" onclick="toggleAccountMenu(event)"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="accountMenu">
+      <span class="ra-avatar" id="railAvatar" aria-hidden="true">?</span>
+      <span class="ra-text">
+        <span class="ra-name" id="railName">—</span>
+        <span class="ra-role" id="railRole">—</span>
+      </span>
+    </button>
+    <!-- Told in the app as well as by email. Mail is where people find out
+         when they are not here; this is where they find out when they are. -->
+    <button type="button" class="ra-bell" id="railBell" onclick="openNotifications()"
+            title="What has happened" aria-label="What has happened">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 8a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10.5 20a2 2 0 0 0 3 0"/>
+      </svg>
+      <span class="ra-dot" id="railBellDot" hidden></span>
+    </button>
     <button type="button" class="ra-out" onclick="signOut()" title="Sign out" aria-label="Sign out">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -4206,18 +4657,22 @@
         Sign in with Google
       </button>
       <p class="auth-legal">Use your Swangz Avenue Google account. Your profile, tools and history are saved across devices.</p>
+      <!-- Only drawn once the browser has told us it can actually install.
+           A permanent "Install" that does nothing on an unsupported browser is
+           worse than no button at all. See the install block in the script. -->
+      <button type="button" class="secondary install-btn" id="installBtn" hidden onclick="installApp()">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v11"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg>
+        <span id="installLabel">Install the app</span>
+      </button>
       <div class="auth-foot">
         <button type="button" onclick="botToggle(true)">Support</button>
         <a href="https://swangzavenue.com" target="_blank" rel="noopener noreferrer">Swangz Avenue</a>
       </div>
     </div>
 
-    <div class="credits" aria-label="Credits">
-      <span class="credits-rule" aria-hidden="true"></span>
-      <p class="credits-kicker">Designed &amp; developed by</p>
-      <p class="credits-names"><span>Arnold Kigozi</span><i aria-hidden="true">&amp;</i><span>Marvin Musoke</span></p>
-      <span class="credits-rule" aria-hidden="true"></span>
-    </div>
     </div>
   </section>
 
@@ -4231,7 +4686,7 @@
       <button type="button" class="purpose-card" onclick="choosePurpose('report')">
         <span class="pc-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="7" width="3" height="10" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg></span>
         <span class="pc-title">Report a tool we use</span>
-        <span class="pc-sub">An AI tool your team already uses. You'll record the time and money it saves, and any revenue it helped win.</span>
+        <span class="pc-sub">An AI tool your team already uses. You'll record the projects, time saved, and the difference it makes in the work.</span>
         <span class="pc-go">Start reporting →</span>
       </button>
       <button type="button" class="purpose-card" onclick="choosePurpose('request')">
@@ -4264,7 +4719,7 @@
       <img class="onboard-logo" src="assets/swangz-badge.webp" alt="" />
       <span class="onboard-step">Getting started</span>
       <h1>Welcome to the AI&nbsp;Adoption Tracker</h1>
-      <p>Tell us where you work. You'll then record the AI tools your team uses — the time and money they save, and the revenue they help win — so leadership can see the full business case.</p>
+      <p>Tell us where you work. You'll then record the AI tools your team uses — the projects, time saved, and the impact on the work — so leadership can see the full business case.</p>
       <div class="onboard-steps">
         <div><b>1</b><span>Pick your department</span></div>
         <div><b>2</b><span>Add the tools you use</span></div>
@@ -4343,6 +4798,12 @@
           </button>
           <button role="menuitem" onclick="closeProfileMenu(); startTour(botDept(), true);">
             <span class="pm-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="m6.3 6.3 2.8 2.8M14.9 14.9l2.8 2.8M17.7 6.3l-2.8 2.8M9.1 14.9l-2.8 2.8"/></svg></span> Replay tour
+          </button>
+          <div class="pm-sep"></div>
+          <!-- Named in full here, because the rail's icon is for the person who
+               already knows it exists and this is for the person who does not. -->
+          <button role="menuitem" id="pmAdminBtn" onclick="closeProfileMenu(); openAdminDashboard();">
+            <span class="pm-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10.5" width="16" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></span> <span id="pmAdminLabel">Admin dashboard</span>
           </button>
           <div class="pm-sep"></div>
           <button role="menuitem" class="pm-danger" onclick="closeProfileMenu(); signOut();">
@@ -4429,9 +4890,27 @@
       <div class="grid cols-3">
         <div>
           <label>Tool Name</label>
-          <input id="f_toolName" type="text" list="toolRegistry" autocomplete="off"
-                 placeholder="e.g. Higgsfield, ElevenLabs, Midjourney"
-                 oninput="onDetailDirty(); onToolNameInput()" />
+          <!-- A real combobox, not a native <datalist>. Chrome filters a
+               datalist down to whatever is already typed, so once a tool had
+               been picked the list held exactly one entry — its own — and
+               pressing the field looked like a dead dropdown. You could not
+               change your mind without deleting the text first, which is the
+               one thing nobody thinks to try. See toolPicker* below. -->
+          <div class="combo" id="toolCombo">
+            <input id="f_toolName" type="text" autocomplete="off" role="combobox"
+                   aria-expanded="false" aria-autocomplete="list" aria-controls="toolComboList"
+                   placeholder="e.g. Higgsfield, ElevenLabs, Midjourney"
+                   oninput="onDetailDirty(); onToolNameInput(); toolPickerOpen()"
+                   onfocus="toolPickerOpen()"
+                   onclick="toolPickerOpen()"
+                   onkeydown="toolPickerKey(event)" />
+            <button type="button" class="combo-toggle" id="toolComboBtn" tabindex="-1"
+                    aria-label="Show every tool" title="Show every tool"
+                    onmousedown="event.preventDefault(); toolPickerToggle()">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
           <datalist id="toolRegistry"></datalist>
           <div class="field-caption" id="cap_toolUrl" style="margin-top:6px;"></div>
         </div>
@@ -4672,7 +5151,7 @@
           <button type="button" class="chooser-card" onclick="chooseAddType('report')">
             <div class="cc-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="7" width="3" height="10" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg></div>
             <h3>Report a tool we use</h3>
-            <p>Document an AI tool already in use — projects, time &amp; cost saved, and revenue impact.</p>
+            <p>Document an AI tool already in use — projects, time saved, and the impact on the work.</p>
           </button>
           <button type="button" class="chooser-card" onclick="chooseAddType('request')">
             <div class="cc-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/></svg></div>
@@ -4778,6 +5257,37 @@
     </div>
 
     </div><!-- /#adminOverview -->
+
+    <!-- Reports Inbox. A report had no inbox at all: the only ways to one were
+         Tools Entered, which consolidates by tool and hides who filed what, and
+         Manage Submissions, which is for fixing attribution. So the thing the
+         whole tracker exists to collect was the one thing an admin could not sit
+         down and work through. Deliberately the same shape as the Requests
+         Inbox below — filter, search, list, open one — because they are the same
+         job on two kinds of entry. -->
+    <details class="accordion" id="acc_reports" open>
+      <summary>
+        <span class="chevron">▸</span>
+        <span class="acc-title">Reports Inbox</span>
+        <span class="acc-meta" id="acc_reportsMeta">—</span>
+      </summary>
+      <div class="acc-body">
+        <p class="help">Every tool a department has reported, newest first. Open one to read what they wrote, see the work and the media behind it, price it, and tell them where it stands.</p>
+        <div class="req-filters">
+          <select id="repStatusFilter" onchange="renderReportsInbox()">
+            <option value="">All reports</option>
+            <option value="new">New</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="returned">Sent back</option>
+            <option value="__unpriced">Not priced yet</option>
+            <option value="__media">With media attached</option>
+          </select>
+          <input id="repSearch" class="search-input" placeholder="Search tool / person / department…" oninput="renderReportsInbox()" />
+        </div>
+        <div id="reportsInboxList"></div>
+      </div>
+    </details>
 
     <details class="accordion" id="acc_requests" open>
       <summary>
@@ -4993,8 +5503,18 @@
         <span class="acc-meta" id="acc_manageMeta">reassign · edit attribution</span>
       </summary>
       <div class="acc-body">
-        <p class="help">Fix mis-attributed entries — for example, if someone accidentally adopted an entry that wasn't theirs from the "Found N entries that may be yours" banner. Reassigning updates who the entry belongs to in My History on every device.</p>
-        <input id="manageSearchInput" type="text" class="search-input" placeholder="Search by tool name, submitter, email, or department…" oninput="renderManageSubmissions()" style="margin-bottom: 10px;" />
+        <p class="help">Every submission in the tracker. Fix who one belongs to, or tick the ones that should never have been filed and remove them — they disappear from every dashboard, report and chart at once, and from the database, so they cannot come back.</p>
+        <div class="req-filters">
+          <select id="manageFilter" onchange="renderManageSubmissions()">
+            <option value="">All submissions</option>
+            <option value="junk">Looks like a test</option>
+            <option value="noemail">No email on file</option>
+            <option value="report">Reports only</option>
+            <option value="request">Requests only</option>
+          </select>
+          <input id="manageSearchInput" type="text" class="search-input" placeholder="Search by tool name, submitter, email, or department…" oninput="renderManageSubmissions()" />
+        </div>
+        <div id="manageBulk" class="manage-bulk" hidden></div>
         <div id="manageList"></div>
       </div>
     </details>
@@ -5115,7 +5635,15 @@
      standing here the markup and the boot hold have already painted, so the
      wait for it is spent looking at the app rather than at nothing. The head
      preloads it, so this is usually served straight from cache. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js" crossorigin></script>
+<!-- Served from our own origin rather than jsDelivr. Measured on a first
+     visit it was the single slowest thing on the page — 934ms for 29KB,
+     nearly all of it a fresh DNS lookup, TLS handshake and connection to a
+     host the browser had never spoken to. Same origin means the connection is
+     already open, and it lets sw.js cache it as a first-class asset instead of
+     an opaque cross-origin response. Same file, same version, byte for byte
+     from the CDN. To update: replace vendor/supabase-js-<version>.min.js and
+     change the src and the SHELL entry in sw.js together. -->
+<script src="/vendor/supabase-js-2.45.0.min.js"></script>
 
 <script>
 /* --------------------------------------------------------
@@ -5443,6 +5971,7 @@ async function autoSyncOnLoad() {
     if (currentView === 'admin' && adminUnlocked) renderAdmin();
     if (currentView === 'tools') renderToolsList();
     renderBackendStatus();
+    try { announcePublicRequests(); } catch (e) { console.warn('public request notify skipped:', e); }
     return { ok: true, before, merged: merged.length, pushed };
   } catch (err) {
     console.warn('Auto-sync failed', err);
@@ -5582,6 +6111,17 @@ function supabaseEndpoint() {
    ============================================================ */
 const CONFIG_TABLE = 'app_config';
 const CONFIG_DRIVE_KEY = 'drive_folder';
+/* Who has been granted admin. This was the whole of the "I made someone an
+   admin and their dashboard never changed" bug: the list lived in
+   localStorage, so the grant was written on the granting owner's own laptop
+   and the person being promoted read their own, empty copy for ever. It is a
+   company fact, like the Drive folder, so it lives in the same shared row set
+   and localStorage is only a cache for the moment before the pull lands. */
+const CONFIG_ADMINS_KEY = 'admin_emails';
+/* How the company sends mail — endpoint, sender name, who is quietly copied,
+   which events are written about. Same reason as the two above: an admin set
+   it on their own laptop and every other admin's decisions told nobody. */
+const CONFIG_NOTIFY_KEY = 'notify_settings';
 
 /* The config row lives in the project the whole team shares. If an admin has
    pointed this browser at their own Supabase, honour that; otherwise use the
@@ -5605,37 +6145,100 @@ async function configHeaders(key) {
   return { 'apikey': key, 'Authorization': 'Bearer ' + bearer, 'Content-Type': 'application/json' };
 }
 
-/* Read the company's folder and apply it here. Deliberately quiet: a missing
-   table, a paused project or no session must never stop the page loading. */
+/* Read everything the company has set and apply it here. Deliberately quiet: a
+   missing table, a paused project or no session must never stop the page
+   loading. One request for every key — a second round trip per setting would
+   make adding the next one cost a page load. */
 async function configPull() {
   const c = configCreds();
   if (!c) return null;
   try {
-    const res = await fetch(c.ep + '?key=eq.' + encodeURIComponent(CONFIG_DRIVE_KEY) + '&select=value',
-      { headers: await configHeaders(c.key) });
+    const res = await fetch(c.ep + '?select=key,value', { headers: await configHeaders(c.key) });
     if (!res.ok) return null;
     const rows = await res.json();
-    if (!Array.isArray(rows) || !rows.length) return null;
-    const url = String((rows[0].value && rows[0].value.url) || '').trim();
-    if (url === (settings.driveFolderUrl || '')) return url;   // already in step
-    settings.driveFolderUrl = url;
-    saveSettings();
-    refreshDriveUi();
-    return url;
+    if (!Array.isArray(rows)) return null;
+    const byKey = {};
+    rows.forEach(r => { if (r && r.key) byKey[r.key] = r.value; });
+    applyDriveConfig(byKey[CONFIG_DRIVE_KEY]);
+    applyAdminsConfig(byKey[CONFIG_ADMINS_KEY]);
+    applyNotifyConfig(byKey[CONFIG_NOTIFY_KEY]);
+    return byKey;
   } catch (err) { console.warn('config pull skipped', err); return null; }
+}
+
+function applyDriveConfig(value) {
+  if (!value) return null;
+  const url = String((value && value.url) || '').trim();
+  if (url === (settings.driveFolderUrl || '')) return url;   // already in step
+  settings.driveFolderUrl = url;
+  saveSettings();
+  refreshDriveUi();
+  return url;
+}
+
+/* An absent row means "nobody has published a list yet", which is not the same
+   as "there are no admins" — overwriting the cache on that would take an admin's
+   access away every time the table was unreachable. Only a real list applies. */
+function applyAdminsConfig(value) {
+  const list = value && Array.isArray(value.emails) ? value.emails : null;
+  if (!list) return null;
+  if (typeof saveExtraAdmins !== 'function' || typeof extraAdmins !== 'function') return null;
+  const before = extraAdmins().join(',');
+  const after = saveExtraAdmins(list).join(',');
+  if (after === before) return after;
+  /* Their role has just changed under them. Repaint the chrome that depends on
+     it rather than waiting for the 1.5s poll — the admin door appearing a
+     second and a half after the page settles reads as a glitch. */
+  try { if (typeof applyRoleChrome === 'function') applyRoleChrome(); } catch (_) {}
+  try { if (typeof renderAdminsPanel === 'function') renderAdminsPanel(); } catch (_) {}
+  /* A grant taken away has to take the dashboard with it. Without this, an
+     admin whose access was just revoked keeps the open portal, and every tile
+     already on screen — built while they still had the role — keeps working
+     until they happen to reload. */
+  try {
+    if (!canSeeAdmin()) {
+      adminUnlocked = false;
+      if (typeof DECK !== 'undefined' && DECK.closeAll) DECK.closeAll(true);
+      if (typeof currentView !== 'undefined' && currentView === 'admin') {
+        toast('Your admin access has been changed', true);
+        goToUser();
+      }
+    }
+  } catch (_) {}
+  return after;
+}
+
+/* Same rule as the admin list: an absent row means nobody has published these
+   yet, not "the company has no mail endpoint". Only a real object applies. */
+function applyNotifyConfig(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (typeof notifySettings !== 'function' || typeof saveNotifySettings !== 'function') return null;
+  const s = notifySettings();
+  const next = Object.assign({}, s, {
+    endpoint: String(value.endpoint || ''),
+    fromName: String(value.fromName || s.fromName),
+    method: value.method === 'mailto' ? 'mailto' : 'endpoint',
+    bcc: Array.isArray(value.bcc) ? value.bcc : s.bcc,
+    copySubmitter: value.copySubmitter !== false,
+    events: Object.assign({}, s.events, value.events || {}),
+  });
+  if (JSON.stringify(next) === JSON.stringify(s)) return next;
+  saveNotifySettings(next);
+  try { if (typeof renderNotify === 'function') renderNotify(); } catch (_) {}
+  return next;
 }
 
 /* Only an admin writes this. The field is never rendered for anyone else, and
    this second check means a stray call cannot push one person's idea of the
    folder over the company's. Returns null when it does not apply, false when
    it genuinely failed — the caller says different things about each. */
-async function configPushDrive() {
+async function configPut(key, value) {
   if (typeof canSeeAdmin === 'function' && !canSeeAdmin()) return null;
   const c = configCreds();
   if (!c) return null;
   const row = {
-    key: CONFIG_DRIVE_KEY,
-    value: { url: (settings.driveFolderUrl || '').trim() },
+    key: key,
+    value: value,
     updated_at: new Date().toISOString(),
     updated_by: (typeof currentEmail === 'function' ? currentEmail() : ''),
   };
@@ -5648,7 +6251,17 @@ async function configPushDrive() {
     });
     if (!res.ok) throw new Error('server ' + res.status + ' ' + (await res.text()).slice(0, 120));
     return true;
-  } catch (err) { console.warn('config push failed', err); return false; }
+  } catch (err) { console.warn('config push failed', key, err); return false; }
+}
+function configPushDrive() {
+  return configPut(CONFIG_DRIVE_KEY, { url: (settings.driveFolderUrl || '').trim() });
+}
+/* Publishing the admin list is what makes a grant real for anybody but the
+   person who made it. It is owner-only at the call sites; this is the second
+   check, because the panel not being drawn is not a gate. */
+function configPushAdmins() {
+  if (typeof isSuperAdmin !== 'function' || !isSuperAdmin(currentEmail())) return Promise.resolve(null);
+  return configPut(CONFIG_ADMINS_KEY, { emails: extraAdmins() });
 }
 let _configPushTimer = null;
 function configPushDriveDebounced() {
@@ -5726,10 +6339,14 @@ async function supabaseDeleteAllRemote() {
 /* Propagate a single local removal to a remote backend. Supabase needs an
    explicit delete now that pushes are upsert-only; Sheets still replaces all
    rows on its next push, so no extra call is needed there. */
-function backendDeleteEntry(id) {
+function backendDeleteEntry(id) { return backendDeleteEntries([id]); }
+function backendDeleteEntries(ids) {
+  const list = (ids || []).filter(Boolean);
+  if (!list.length) return Promise.resolve(null);
   if (settings.backend && settings.backend.mode === 'supabase') {
-    supabaseDeleteIds([id]).catch(err => console.warn('remote delete failed', err));
+    return supabaseDeleteIds(list).catch(err => { console.warn('remote delete failed', err); return false; });
   }
+  return Promise.resolve(null);
 }
 async function supabasePullAll() {
   const ep = supabaseEndpoint();
@@ -6391,8 +7008,18 @@ function statusPillClass(s) {
   return 'good';
 }
 
+function dismissDeptPromptNow() {
+  const el = document.getElementById('deptPrompt');
+  document.body.classList.remove('dept-asking');
+  if (!el || el.hidden) return;
+  if (typeof markDeptPromptAnswered === 'function') markDeptPromptAnswered();
+  el.hidden = true;
+  el.classList.remove('closing');
+}
+
 function addNewTool(tag) {
   if (!profile.department || !profile.name) { switchView('landing'); toast('Enter your details first', true); return; }
+  dismissDeptPromptNow();
   currentToolId = null;
   projectsInForm = [];
   isDirty = false;
@@ -6488,6 +7115,179 @@ function populateToolRegistryDatalist() {
     .join('');
   dl.dataset.populated = '1';
 }
+
+/* ============================================================
+   THE TOOL PICKER
+   ------------------------------------------------------------
+   The tool name used to be an <input list="toolRegistry">. A native datalist
+   filters itself against whatever is already in the field, so the moment a
+   tool had been chosen the list contained exactly one entry — the one already
+   picked — and the dropdown read as broken. Changing your mind meant clearing
+   the field first, which is the one thing nobody thinks to try.
+
+   So: a real listbox. Typing filters it; pressing the chevron always shows
+   everything; and a value that exactly matches a known tool shows everything
+   too, because somebody re-opening a settled field is looking to change it,
+   not to narrow it further.
+   ============================================================ */
+let toolPickerIndex = -1;
+/* Built at body level and positioned against the field, exactly as the rail
+   menu is. Inside the wizard it would be clipped by the step's own scroller —
+   four rows visible out of forty-seven, which reads as a broken list rather
+   than a cropped one. */
+function toolPickerEl() {
+  let el = document.getElementById('toolComboList');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toolComboList';
+    el.className = 'combo-list';
+    el.setAttribute('role', 'listbox');
+    el.hidden = true;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function toolPickerPlace() {
+  const input = document.getElementById('f_toolName');
+  const el = document.getElementById('toolComboList');
+  if (!input || !el || el.hidden) return;
+  const r = input.getBoundingClientRect();
+  const gap = 6, edge = 12;
+  el.style.width = Math.round(r.width) + 'px';
+  el.style.left = Math.round(Math.max(edge, Math.min(r.left, window.innerWidth - r.width - edge))) + 'px';
+  /* Below the field, unless there is more room above it */
+  const below = window.innerHeight - r.bottom - gap - edge;
+  const above = r.top - gap - edge;
+  const h = Math.min(264, Math.max(120, below >= 180 || below >= above ? below : above));
+  el.style.maxHeight = Math.round(h) + 'px';
+  el.style.top = (below >= 180 || below >= above)
+    ? Math.round(r.bottom + gap) + 'px'
+    : Math.round(Math.max(edge, r.top - gap - h)) + 'px';
+}
+function toolPickerRows() {
+  const seen = new Set(), out = [];
+  for (const t of fullRegistry()) {
+    const k = (t.name || '').toLowerCase();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+function toolPickerMatches(q) {
+  const all = toolPickerRows();
+  const query = (q || '').trim().toLowerCase();
+  if (!query) return all;
+  /* Already sitting on a known tool: show the whole list. This is the bug. */
+  if (findToolInRegistry(query)) return all;
+  const hit = t => (t.name || '').toLowerCase().includes(query)
+    || (t.url || '').toLowerCase().includes(query)
+    || (t.aliases || []).some(a => String(a).toLowerCase().includes(query));
+  return all.filter(hit);
+}
+function toolPickerRender() {
+  const input = document.getElementById('f_toolName');
+  const list = toolPickerEl();
+  if (!input || !list) return;
+  const q = input.value;
+  const rows = toolPickerMatches(q);
+  const current = (findToolInRegistry(q) || {}).name || '';
+  const typed = (q || '').trim();
+  const body = rows.map((t, i) => {
+    const display = (t.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const team = t.source === 'dynamic' ? '<span class="ci-tag">team-added</span>' : '';
+    return '<button type="button" role="option" class="combo-item' +
+      (t.name === current ? ' picked' : '') + (i === toolPickerIndex ? ' cursor' : '') + '"' +
+      ' aria-selected="' + (t.name === current ? 'true' : 'false') + '"' +
+      ' onmousedown="event.preventDefault(); toolPickerChoose(' + jsArg(t.name) + ')">' +
+      '<span class="ci-name">' + escapeHTML(t.name) + team + '</span>' +
+      (display ? '<span class="ci-url">' + escapeHTML(display) + '</span>' : '') +
+      '</button>';
+  }).join('');
+  /* Something the team has never recorded is a legitimate answer, so the list
+     offers it rather than looking like the name is wrong. */
+  const isNew = typed && !findToolInRegistry(typed);
+  const addRow = isNew
+    ? '<button type="button" role="option" class="combo-item is-new"' +
+      ' onmousedown="event.preventDefault(); toolPickerChoose(' + jsArg(typed) + ')">' +
+      '<span class="ci-name">Use “' + escapeHTML(typed) + '”</span>' +
+      '<span class="ci-url">Nobody has recorded this one yet</span></button>'
+    : '';
+  list.innerHTML = (body || addRow)
+    ? body + addRow
+    : '<div class="combo-empty">Nothing matches that. Keep typing to add it as a new tool.</div>';
+  input.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
+  toolPickerPlace();
+}
+function toolPickerOpen() {
+  const input = document.getElementById('f_toolName');
+  const list = toolPickerEl();
+  if (!input || !list) return;
+  if (list.hidden) toolPickerIndex = -1;   // reopening starts with no cursor
+  list.hidden = false;
+  toolPickerRender();
+}
+function toolPickerClose() {
+  const list = document.getElementById('toolComboList');
+  const input = document.getElementById('f_toolName');
+  if (list) list.hidden = true;
+  if (input) input.setAttribute('aria-expanded', 'false');
+  toolPickerIndex = -1;
+}
+function toolPickerToggle() {
+  const list = toolPickerEl();
+  if (list.hidden) { document.getElementById('f_toolName')?.focus(); toolPickerOpen(); }
+  else toolPickerClose();
+}
+function toolPickerChoose(name) {
+  const input = document.getElementById('f_toolName');
+  if (!input) return;
+  input.value = name;
+  /* The field's own handlers do the real work — the registry caption, the
+     official-URL autofill, the plan list, the dirty flag. Going around them
+     was how a chosen tool could end up with no URL. */
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  toolPickerClose();
+  input.focus();
+}
+function toolPickerKey(e) {
+  const list = document.getElementById('toolComboList');
+  if (!list) return;
+  const items = [...list.querySelectorAll('.combo-item')];
+  if (e.key === 'Escape') { if (!list.hidden) { e.preventDefault(); toolPickerClose(); } return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (list.hidden) { toolPickerOpen(); return; }
+    if (!items.length) return;
+    toolPickerIndex = (toolPickerIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    toolPickerRender();
+    list.querySelector('.combo-item.cursor')?.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  if (e.key === 'Enter' && !list.hidden && toolPickerIndex >= 0 && items[toolPickerIndex]) {
+    e.preventDefault();
+    items[toolPickerIndex].dispatchEvent(new Event('mousedown', { bubbles: true }));
+    return;
+  }
+  if (e.key === 'Tab') toolPickerClose();
+}
+/* Nothing may outlive the field it belongs to — it is at body level now, so a
+   closed wizard would otherwise leave a list floating over the dashboard. */
+document.addEventListener('click', function (e) {
+  const combo = document.getElementById('toolCombo');
+  const list = document.getElementById('toolComboList');
+  if (list && list.contains(e.target)) return;
+  if (combo && !combo.contains(e.target)) toolPickerClose();
+});
+window.addEventListener('resize', () => toolPickerClose());
+document.addEventListener('scroll', () => toolPickerPlace(), true);
+(function () {
+  ['closeWizard', 'gotoStep'].forEach(fn => {
+    if (typeof window[fn] !== 'function') return;
+    const original = window[fn];
+    window[fn] = function () { try { toolPickerClose(); } catch (_) {} return original.apply(this, arguments); };
+  });
+})();
 
 function onToolNameInput() {
   const input = document.getElementById('f_toolName');
@@ -6746,6 +7546,7 @@ function openWizard(mode) {
   wizardMaxStep = currentToolId ? WIZARD_STEPS : 1;
   setWizardTag(currentTag);
   applyWizardMode();
+  applyWizardScope();
   clearAllStepErrors();
   const ov = document.getElementById('detailView');
   ov.classList.add('open');
@@ -6804,7 +7605,11 @@ function setWizardTag(tag) {
   if (wizardMode === 'public') tag = 'request';
   currentTag = (tag === 'request') ? 'request' : 'report';
   document.querySelectorAll('#wizTagSeg button').forEach(b => b.classList.toggle('active', b.dataset.tag === currentTag));
-  if (wizardOpen) updateWizardFooter();
+  if (wizardOpen) {
+    applyWizardScope();
+    if (!wizardStepPlan().includes(wizardStep)) gotoStep(firstStep());
+    else updateWizardFooter();
+  }
 }
 function validateStep(n) {
   if (n === 1) {
@@ -6843,6 +7648,7 @@ function finishWizard() {
 /* ----- Add-type chooser (Report vs Request) ----- */
 function openAddChooser() {
   if (!profile.department || !profile.name) { switchView('landing'); toast('Enter your details first', true); return; }
+  dismissDeptPromptNow();
   const ov = document.getElementById('addChooser');
   ov.classList.add('open');
   ov.setAttribute('aria-hidden', 'false');
@@ -7221,6 +8027,7 @@ function renderAdmin() {
   renderRegistryManager();
   renderManageSubmissions();
   renderRequestsInbox();
+  try { renderReportsInbox(); } catch (_) { /* defined in a later block */ }
 
   // Table
   const tb = document.getElementById('adminTbody');
@@ -7809,7 +8616,11 @@ function deleteRegistryTool(url) {
   const key = _stripUrlTrail(url);
   const matches = entries.filter(e => _stripUrlTrail(e.officialUrl) === key);
   // Only remove the stub(s); keep the real submissions intact.
+  /* And tell the database, or the stub comes back on the next sync — the same
+     bug that made deleted submissions reappear. */
+  const goneIds = entries.filter(e => isRegistryStub(e) && _stripUrlTrail(e.officialUrl) === key).map(e => e.id);
   entries = entries.filter(e => !(isRegistryStub(e) && _stripUrlTrail(e.officialUrl) === key));
+  backendDeleteEntries(goneIds);
   // Also unset persistInRegistry on any real entries so they don't recreate the stub on edit
   entries.forEach(e => { if (!isRegistryStub(e) && _stripUrlTrail(e.officialUrl) === key) e.persistInRegistry = false; });
   saveEntries();
@@ -8473,8 +9284,8 @@ function boot() {
         </div>
       </div>
 
-      <div class="ps-group" id="psAdminBlock" data-title="Admin password" data-hint="Unlocks the dashboard for everyone" data-icon="gear" data-of="settings" style="display:none;">
-        <p class="help" style="margin:0 0 12px;">Changes the password that unlocks the Admin Dashboard for everyone.</p>
+      <div class="ps-group" id="psAdminBlock" data-title="Admin password" data-hint="Yours, for opening the dashboard" data-icon="gear" data-of="settings" style="display:none;">
+        <p class="help" style="margin:0 0 12px;">Your own password for opening the Admin Dashboard on this device. Nobody else uses it, and it is asked for every time you go in.</p>
         <div class="grid cols-3">
           <div><label for="psPwdOld">Current</label><input id="psPwdOld" type="password" placeholder="Current password" /></div>
           <div><label for="psPwdNew">New</label><input id="psPwdNew" type="password" placeholder="New password" /></div>
@@ -8797,6 +9608,368 @@ function otpAvailable() {
 })();
 
 /* ============================================================
+   THE ADMIN DOOR
+   ------------------------------------------------------------
+   Two changes, and they only make sense together.
+
+   1. Everybody now lands in their department, an admin included, so the
+      dashboard needs a door that is visible from both sides. It is the shield
+      in the rail account block — the one piece of chrome the portal and the
+      department side share — repeated by name in the profile menu for anyone
+      who has not noticed the icon. It is drawn for every account, and it is
+      visibly shut for accounts that have not been granted access: a locked
+      door explains itself, a missing one just looks like a bug.
+
+   2. The password is now the admin's own, not the app's. There used to be a
+      single `settings.adminPasswordHash`: whoever opened the dashboard first
+      chose it and every other admin typed that same shared secret — so it
+      proved nothing about who was reading the company's figures. Each admin
+      now sets their own, it is checked against their address, and it is
+      stretched with PBKDF2 rather than a bare digest, which a four-character
+      password would not survive for a second.
+
+   What this is and is not: the Google session is the authentication. This is
+   a second gate in front of the figures, against a laptop left open — so it
+   is asked for again every time the dashboard is entered, and it is held per
+   device rather than published anywhere. An admin sets it once on each
+   machine they use, which is the honest shape for a "prove it is still you".
+   ============================================================ */
+const ADMIN_PASS_KEY = 'swangz_admin_pass_v2';
+const ADMIN_PASS_ITERS = 150000;
+const ADMIN_PASS_MIN = 6;
+
+function adminPassStore() {
+  try { return JSON.parse(localStorage.getItem(ADMIN_PASS_KEY)) || {}; } catch (_) { return {}; }
+}
+function saveAdminPassStore(s) {
+  try { localStorage.setItem(ADMIN_PASS_KEY, JSON.stringify(s)); } catch (_) {}
+}
+function adminPassRecord(email) { return adminPassStore()[normEmail(email)] || null; }
+function _hex(buf) { return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''); }
+
+/* PBKDF2 where the browser will do it, and the app's existing digest where it
+   will not (file://, ancient browsers). The weak path is marked in the record
+   so a later visit on a capable browser can tell the difference. */
+async function derivePass(pwd, saltHex, iters) {
+  if (typeof crypto !== 'undefined' && crypto.subtle && window.isSecureContext !== false) {
+    try {
+      const enc = new TextEncoder();
+      const salt = new Uint8Array((saltHex.match(/.{2}/g) || []).map(h => parseInt(h, 16)));
+      const base = await crypto.subtle.importKey('raw', enc.encode(String(pwd)), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', hash: 'SHA-256', salt: salt, iterations: iters }, base, 256);
+      return { hash: 'pbkdf2:' + _hex(bits), weak: false };
+    } catch (err) { console.warn('PBKDF2 unavailable, falling back', err); }
+  }
+  return { hash: await hashPassword(saltHex + ':' + pwd), weak: true };
+}
+function randomSaltHex() {
+  const a = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+  return _hex(a.buffer);
+}
+async function setAdminPassFor(email, pwd) {
+  const saltHex = randomSaltHex();
+  const d = await derivePass(pwd, saltHex, ADMIN_PASS_ITERS);
+  const store = adminPassStore();
+  store[normEmail(email)] = { salt: saltHex, iters: ADMIN_PASS_ITERS, hash: d.hash, weak: d.weak, at: new Date().toISOString() };
+  saveAdminPassStore(store);
+}
+async function verifyAdminPass(email, pwd) {
+  const rec = adminPassRecord(email);
+  if (!rec) return false;
+  const d = await derivePass(pwd, rec.salt, rec.iters || ADMIN_PASS_ITERS);
+  return d.hash === rec.hash;
+}
+function clearAdminPassFor(email) {
+  const store = adminPassStore();
+  delete store[normEmail(email)];
+  saveAdminPassStore(store);
+}
+/* One migration, and only for the person sitting here: if the old shared
+   password is set and this admin has no password of their own, the old one is
+   accepted once and immediately becomes theirs. Without this, the owner who
+   set it is locked out of their own dashboard by an upgrade. */
+async function adoptLegacyAdminPassword(email, pwd) {
+  if (!settings.adminPasswordHash) return false;
+  if (adminPassRecord(email)) return false;
+  const hash = await hashPassword(pwd);
+  if (hash !== settings.adminPasswordHash) return false;
+  await setAdminPassFor(email, pwd);
+  return true;
+}
+
+function adminGateCard(inner) {
+  return '<div class="card lock-card">' +
+    '<div class="lock-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>' +
+    inner + '</div>';
+}
+
+function renderAdminPasswordGate() {
+  const gate = document.getElementById('adminGate');
+  if (typeof showAdminGateOnly === 'function') showAdminGateOnly();
+  if (!gate) return;
+  const email = currentEmail();
+  const has = !!adminPassRecord(email) || !!settings.adminPasswordHash;
+  /* Say what the steps actually are. Claiming a code was emailed when nothing
+     can send one would be the worst kind of security theatre. */
+  const noCode = (typeof otpAvailable === 'function' && !otpAvailable())
+    ? ' Sign-in is your Google account and this password; email codes stay off until a mail endpoint is set.' : '';
+  gate.innerHTML = has
+    ? adminGateCard(
+        '<h2>Admin access</h2>' +
+        '<p class="help">Signed in as <strong>' + escapeHTML(email) + '</strong>. Enter your admin password to open the dashboard.' + noCode + '</p>' +
+        '<div id="adm_error" class="gate-error" style="display:none;"></div>' +
+        '<div style="margin:14px 0;">' +
+          '<label for="adm_pwd">Your admin password</label>' +
+          '<input id="adm_pwd" type="password" autocomplete="current-password" placeholder="Admin password" ' +
+            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); unlockAdmin();}" />' +
+        '</div>' +
+        '<div class="row-actions" style="justify-content:space-between;">' +
+          '<button type="button" class="ghost" onclick="requestPasswordReset()">Forgot it</button>' +
+          '<div style="display:flex; gap:10px;">' +
+            '<button type="button" class="secondary" onclick="goToUser()">Cancel</button>' +
+            '<button id="adm_unlockBtn" type="button" class="primary" onclick="unlockAdmin()">Unlock</button>' +
+          '</div>' +
+        '</div>')
+    : adminGateCard(
+        '<h2>Set your admin password</h2>' +
+        '<p class="help">This is yours, not the app\'s — it belongs to <strong>' + escapeHTML(email) + '</strong> and is asked for every time you open the dashboard on this device. At least ' + ADMIN_PASS_MIN + ' characters.' + noCode + '</p>' +
+        '<div id="adm_error" class="gate-error" style="display:none;"></div>' +
+        '<div style="margin:14px 0;">' +
+          '<label for="adm_newPwd">New password</label>' +
+          '<input id="adm_newPwd" type="password" autocomplete="new-password" placeholder="Choose a password" ' +
+            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); document.getElementById(\'adm_newPwd2\').focus();}" />' +
+        '</div>' +
+        '<div style="margin:14px 0;">' +
+          '<label for="adm_newPwd2">Confirm password</label>' +
+          '<input id="adm_newPwd2" type="password" autocomplete="new-password" placeholder="Repeat it" ' +
+            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); setAdminPassword();}" />' +
+        '</div>' +
+        '<div class="row-actions" style="justify-content:center;">' +
+          '<button type="button" class="secondary" onclick="goToUser()">Cancel</button>' +
+          '<button id="adm_setBtn" type="button" class="primary" onclick="setAdminPassword()">Set it and continue</button>' +
+        '</div>');
+  setTimeout(() => (document.getElementById('adm_pwd') || document.getElementById('adm_newPwd'))?.focus(), 50);
+}
+
+/* Replaces only the last step. Refusing a non-admin, and the email code in
+   between, are the wrapper above's job and stay exactly as they were. */
+(function () {
+  const previous = window.renderAdminGate;
+  if (typeof previous !== 'function') return;
+  window.renderAdminGate = function () {
+    if (!canSeeAdmin()) return previous.apply(this, arguments);
+    if (typeof otpAvailable === 'function' && otpAvailable() &&
+        typeof otpVerified === 'function' && !otpVerified()) return previous.apply(this, arguments);
+    return renderAdminPasswordGate();
+  };
+})();
+
+window.setAdminPassword = async function () {
+  const btn = document.getElementById('adm_setBtn');
+  const a = document.getElementById('adm_newPwd')?.value || '';
+  const b = document.getElementById('adm_newPwd2')?.value || '';
+  gateError('');
+  if (!a)                     { gateError('Please choose a password.'); document.getElementById('adm_newPwd')?.focus(); return; }
+  if (a.length < ADMIN_PASS_MIN) { gateError('It has to be at least ' + ADMIN_PASS_MIN + ' characters.'); document.getElementById('adm_newPwd')?.focus(); return; }
+  if (a !== b)                { gateError('Those do not match. Type the same password in both boxes.'); document.getElementById('adm_newPwd2')?.focus(); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Setting…'; }
+  try {
+    await setAdminPassFor(currentEmail(), a);
+    adminUnlocked = true;
+    toast('Admin password set');
+    showAdminContent();
+    renderAdmin();
+  } catch (err) {
+    console.error('setAdminPassword failed', err);
+    gateError('Could not set the password: ' + (err && err.message ? err.message : 'unknown error'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Set it and continue'; }
+  }
+};
+
+window.unlockAdmin = async function () {
+  const btn = document.getElementById('adm_unlockBtn');
+  const pwd = document.getElementById('adm_pwd')?.value || '';
+  const email = currentEmail();
+  gateError('');
+  if (!pwd) { gateError('Enter your password.'); document.getElementById('adm_pwd')?.focus(); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Unlocking…'; }
+  try {
+    const ok = (await verifyAdminPass(email, pwd)) || (await adoptLegacyAdminPassword(email, pwd));
+    if (!ok) {
+      gateError('That is not your admin password. Try again, or use “Forgot it”.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Unlock'; }
+      document.getElementById('adm_pwd')?.select();
+      return;
+    }
+    adminUnlocked = true;
+    showAdminContent();
+    renderAdmin();
+    toast('Admin unlocked');
+  } catch (err) {
+    console.error('unlockAdmin failed', err);
+    gateError('Could not check the password: ' + (err && err.message ? err.message : 'unknown error'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Unlock'; }
+  }
+};
+
+/* Forgetting it is not a way in — the Google session already proved who this
+   is, so all this does is let them choose a new one on this device. */
+window.requestPasswordReset = function () {
+  clearAdminPassFor(currentEmail());
+  delete settings.adminPasswordHash;      // retire the old shared secret with it
+  saveSettings();
+  adminUnlocked = false;
+  renderAdminGate();
+  toast('Cleared — choose a new admin password');
+};
+
+/* ---- The account menu ----
+   Built at body level and positioned against the block, the same as the rail's
+   section menus, so nothing in the layout can clip it. It carries the things
+   that are about *you* rather than about a section: your profile, your
+   settings, the way across to the dashboard, and the way out. It exists in
+   both views because #railAccount does — #profileMenu is inside #toolsView and
+   would be missing exactly where an admin needs it most. */
+function accountMenuEl() {
+  let el = document.getElementById('accountMenu');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'accountMenu';
+    el.className = 'rail-menu account-menu';
+    el.setAttribute('role', 'menu');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function accountMenuOpen() { return !!document.getElementById('accountMenu')?.classList.contains('open'); }
+function renderAccountMenu() {
+  const el = accountMenuEl();
+  const can = canSeeAdmin();
+  const inAdmin = (typeof currentView !== 'undefined' && currentView === 'admin');
+  const item = (label, icon, onclick, cls) =>
+    '<button type="button" role="menuitem"' + (cls ? ' class="' + cls + '"' : '') +
+    ' onclick="' + onclick + '">' + svgIcon(icon) +
+    '<span class="sm-txt">' + escapeHTML(label) + '</span></button>';
+  el.innerHTML =
+    '<div class="sm-head">' + escapeHTML((profile && profile.name) || currentEmail() || 'Account') + '</div>' +
+    item('Profile', 'users', 'closeAccountMenu(); openProfileTile();') +
+    item('Settings', 'gear', 'closeAccountMenu(); openSettingsTile();') +
+    '<div class="sm-sep"></div>' +
+    (can
+      ? item(inAdmin ? 'Your department' : 'Admin dashboard', 'lock',
+             'closeAccountMenu(); openAdminDashboard();')
+      : item('Admin dashboard (no access)', 'lock',
+             'closeAccountMenu(); openAdminDashboard();', 'is-locked')) +
+    '<div class="sm-sep"></div>' +
+    item('Sign out', 'power', 'closeAccountMenu(); signOut();', 'is-danger');
+  return el;
+}
+function openAccountMenu() {
+  const anchor = document.getElementById('railAccount');
+  if (!anchor) return;
+  const el = renderAccountMenu();
+  el.classList.add('open');
+  const r = anchor.getBoundingClientRect();
+  const m = el.getBoundingClientRect();
+  const gap = 10, edge = 12, vw = window.innerWidth, vh = window.innerHeight;
+  /* Beside the rail on desktop, above the block on a phone strip */
+  let left = (vw >= 920) ? r.right + gap : r.left;
+  if (left + m.width > vw - edge) left = Math.max(edge, vw - m.width - edge);
+  let top = (vw >= 920) ? Math.min(r.bottom - m.height, vh - m.height - edge) : r.top - m.height - gap;
+  el.style.left = Math.round(Math.max(edge, left)) + 'px';
+  el.style.top = Math.round(Math.max(edge, top)) + 'px';
+  document.getElementById('railWho')?.setAttribute('aria-expanded', 'true');
+  setTimeout(() => el.querySelector('button')?.focus(), 60);
+}
+function closeAccountMenu(refocus) {
+  document.getElementById('accountMenu')?.classList.remove('open');
+  const who = document.getElementById('railWho');
+  if (who) { who.setAttribute('aria-expanded', 'false'); if (refocus) who.focus(); }
+}
+function toggleAccountMenu(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (accountMenuOpen()) closeAccountMenu(); else openAccountMenu();
+}
+window.toggleAccountMenu = toggleAccountMenu;
+document.addEventListener('click', function (e) {
+  if (!accountMenuOpen()) return;
+  const menu = document.getElementById('accountMenu');
+  const block = document.getElementById('railAccount');
+  if ((menu && menu.contains(e.target)) || (block && block.contains(e.target))) return;
+  closeAccountMenu();
+});
+document.addEventListener('keydown', function (e) {
+  if (accountMenuOpen() && e.key === 'Escape') { e.preventDefault(); closeAccountMenu(true); }
+});
+window.addEventListener('resize', () => closeAccountMenu());
+
+/* ---- The door itself ---- */
+function openAdminDashboard() {
+  if (!canSeeAdmin()) {
+    toast('This account has not been given admin access. A system owner adds it under Settings › Admin Access.', true);
+    return;
+  }
+  if (currentView === 'admin') { goToUser(); return; }   // the same button is the way back
+  switchView('admin');
+}
+window.openAdminDashboard = openAdminDashboard;
+
+/* Leaving locks it again. The password is a "prove it is still you" in front of
+   the company's figures, and one that is only asked once a day is not that. */
+(function () {
+  if (typeof switchView !== 'function') return;
+  const original = window.switchView;
+  window.switchView = function (v) {
+    if (v !== 'admin' && currentView === 'admin') adminUnlocked = false;
+    return original.apply(this, arguments);
+  };
+})();
+
+/* Paint both doors — the rail icon and the named entry in the profile menu —
+   from the role, every time the role chrome is applied. */
+(function () {
+  function paintAdminDoor() {
+    const signedIn = !!currentEmail();
+    const can = signedIn && canSeeAdmin();
+    const inAdmin = (typeof currentView !== 'undefined' && currentView === 'admin');
+    /* The rail carries no admin button of its own any more — it lists sections.
+       The door is in the account menu, which is rebuilt each time it opens, so
+       there is nothing here to repaint except the menu if it is already up. */
+    if (accountMenuOpen()) renderAccountMenu();
+    const item = document.getElementById('pmAdminBtn');
+    const label = document.getElementById('pmAdminLabel');
+    if (item) {
+      item.hidden = !signedIn;
+      item.classList.toggle('pm-locked', !can);
+    }
+    if (label) label.textContent = !can ? 'Admin dashboard (no access)'
+                                : inAdmin ? 'Back to your department' : 'Admin dashboard';
+  }
+  window.paintAdminDoor = paintAdminDoor;
+  /* applyRoleChrome is defined further down the file and its own poll holds a
+     direct reference to it, so wrapping it here would paint on the calls that
+     go through window and miss the poll entirely. A poll of its own, at the
+     same cadence as the one already in the file, is the honest version. */
+  document.addEventListener('DOMContentLoaded', function () {
+    paintAdminDoor();
+    setInterval(paintAdminDoor, 1200);
+  });
+  /* And immediately on a view change, so the label flips with the page rather
+     than up to a second afterwards. */
+  if (typeof window.switchView === 'function') {
+    const original = window.switchView;
+    window.switchView = function () {
+      const out = original.apply(this, arguments);
+      try { paintAdminDoor(); } catch (_) {}
+      return out;
+    };
+  }
+})();
+
+/* ============================================================
    RICH DASHBOARD — SVG charts bound to real entry data.
    Additive: wraps renderAdmin() instead of modifying it. No
    external chart library (keeps load light on low-end machines).
@@ -9017,9 +10190,10 @@ function renderAdminsPanel() {
     (isOwner ? '<span class="rr-actions"><button type="button" class="danger" onclick="removeAdminEmail(' + jsArg(e) + ')">Remove</button></span>' : '') +
     '</div>'
   );
-  list.innerHTML = rows.length ? rows.join('')
+  list.innerHTML = (rows.length ? rows.join('')
     : '<p class="help" style="margin:0;">No admins yet. Add a @' + ALLOWED_DOMAINS[0] +
-      ' address below and they get the admin dashboard the next time they sign in.</p>';
+      ' address below and they get the admin dashboard the next time they sign in.</p>')
+    + adminsPublishLine();
   const meta = document.getElementById('acc_adminsMeta');
   if (meta) meta.textContent = admins.length === 1 ? '1 admin' : admins.length + ' admins';
 }
@@ -9040,13 +10214,45 @@ function addAdminEmail() {
   saveExtraAdmins(extraAdmins().concat(email));
   if (input) input.value = '';
   renderAdminsPanel();
-  toast('Admin access granted to ' + email);
+  publishAdmins('Admin access granted to ' + email);
 }
 function removeAdminEmail(email) {
   if (!isSuperAdmin(currentEmail())) { toast('Only system owners can remove admins', true); return; }
   saveExtraAdmins(extraAdmins().filter(e => e !== normEmail(email)));
   renderAdminsPanel();
-  toast('Admin access removed');
+  publishAdmins('Admin access removed');
+}
+/* A grant that stops at this browser is the bug this replaced, so whether it
+   left the browser is stated in the panel rather than in a toast that has gone
+   by the time anyone wonders. */
+let adminsPublish = { state: 'idle', at: '' };
+function publishAdmins(okMsg) {
+  toast(okMsg);
+  if (typeof configPushAdmins !== 'function') return;
+  adminsPublish = { state: 'sending', at: '' };
+  try { renderAdminsPanel(); } catch (_) {}
+  configPushAdmins().then(res => {
+    adminsPublish = {
+      state: res === true ? 'ok' : res === false ? 'failed' : 'local',
+      at: new Date().toISOString(),
+    };
+    /* This lands after an await, so the page may be gone by now (it is, in the
+       test harness). Never let a status line take the app down with it. */
+    try { if (typeof document !== 'undefined' && document) renderAdminsPanel(); } catch (_) {}
+  }).catch(() => {});
+}
+function adminsPublishLine() {
+  const when = adminsPublish.at ? new Date(adminsPublish.at).toLocaleTimeString() : '';
+  switch (adminsPublish.state) {
+    case 'sending': return '<p class="help" style="margin:10px 0 0;">Publishing to the company…</p>';
+    case 'ok':      return '<p class="help live" style="margin:10px 0 0;">✓ Published to the company at ' + escapeHTML(when) +
+                           ' — each admin picks it up the next time they sign in.</p>';
+    case 'failed':  return '<p class="help bad" style="margin:10px 0 0;">This list did not reach the company — it is on this device only. ' +
+                           'Check Settings › Backend &amp; Sync, then add or remove someone again to retry.</p>';
+    case 'local':   return '<p class="help bad" style="margin:10px 0 0;">No shared backend is configured, so this list is on this device only. ' +
+                           'Until that is set, granting admin here changes nothing for the person you granted it to.</p>';
+    default:        return '';
+  }
 }
 document.addEventListener('DOMContentLoaded', function () {
   const acc = document.getElementById('acc_admins');
@@ -9701,6 +10907,9 @@ function updateOnboardHint() {
    ============================================================ */
 const DISCLOSE_KEY = 'swangz_admin_open_panels_v1';
 const ICONS = {
+  /* The admin door and the way out, for the account menu */
+  lock:    '<rect x="4" y="10.5" width="16" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
+  power:   '<path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/>',
   chart:   '<path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/>',
   graph:   '<circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="m10 11-4-4M14 11l4-4M10 13l-4 4M14 13l4 4"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="m6.3 6.3 2.8 2.8M14.9 14.9l2.8 2.8M17.7 6.3l-2.8 2.8M9.1 14.9l-2.8 2.8"/>',
@@ -9805,7 +11014,7 @@ function buildDisclosures() {
    so the interface can stay quiet without hiding functionality.
    ============================================================ */
 const SECTION_ICONS = {
-  overview: 'grid', acc_requests: 'inbox', acc_tools: 'list', acc_exec: 'doc',
+  overview: 'grid', acc_reports: 'flag', acc_requests: 'inbox', acc_tools: 'list', acc_exec: 'doc',
   acc_rotation: 'refresh', acc_business: 'chart', acc_registry: 'book',
   acc_manage: 'users', acc_admins: 'users', acc_backend: 'db', acc_actions: 'sliders',
   acc_summary: 'trophy', acc_finance: 'money', acc_calc: 'calc', acc_notify: 'inbox',
@@ -10132,7 +11341,7 @@ function openProfileSettings() {
   renderProfileAvatar();
   renderDeptAccess();
   const row = document.getElementById('psThemeGrid');
-  const cur = document.documentElement.getAttribute('data-theme') || 'swangz';
+  const cur = document.documentElement.getAttribute('data-theme') || 'midnight';
   if (row) row.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === cur));
   const adminBlock = document.getElementById('psAdminBlock');
   if (adminBlock) adminBlock.style.display = canSeeAdmin() ? '' : 'none';
@@ -10241,23 +11450,30 @@ function submitAccessRequest() {
   const r = document.getElementById('psAccessReason'); if (r) r.value = '';
   toast('Access request sent to the admin inbox');
 }
-/* Uses the same sha256 + settings the app already uses, but with proper form
-   fields instead of the legacy prompt() dialogs (which block the whole page). */
+/* Changes THIS admin's password, not a password shared by all of them — see
+   "THE ADMIN DOOR". The current one is still asked for, because somebody who
+   walks up to an unlocked laptop must not be able to lock the owner out of it. */
 async function changePasswordFromProfile() {
   const val = id => (document.getElementById(id) || {}).value || '';
   const oldV = val('psPwdOld'), n1 = val('psPwdNew'), n2 = val('psPwdNew2');
+  const email = currentEmail();
+  const min = (typeof ADMIN_PASS_MIN === 'number') ? ADMIN_PASS_MIN : 6;
   if (!canSeeAdmin())  { toast('Only admins can change this password', true); return; }
-  if (n1.length < 4)   { toast('New password must be at least 4 characters', true); return; }
+  if (n1.length < min) { toast('New password must be at least ' + min + ' characters', true); return; }
   if (n1 !== n2)       { toast('New passwords do not match', true); return; }
   try {
-    if (settings.adminPasswordHash) {
-      const curHash = await sha256(oldV);
-      if (curHash !== settings.adminPasswordHash) { toast('Current password is wrong', true); return; }
+    const hasOwn = typeof adminPassRecord === 'function' && !!adminPassRecord(email);
+    if (hasOwn) {
+      if (!(await verifyAdminPass(email, oldV))) { toast('Current password is wrong', true); return; }
+    } else if (settings.adminPasswordHash) {
+      /* Still on the old shared secret: prove it, then leave it behind. */
+      if ((await sha256(oldV)) !== settings.adminPasswordHash) { toast('Current password is wrong', true); return; }
     }
-    settings.adminPasswordHash = await sha256(n1);
+    await setAdminPassFor(email, n1);
+    delete settings.adminPasswordHash;
     if (typeof saveSettings === 'function') saveSettings();
     ['psPwdOld', 'psPwdNew', 'psPwdNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    toast('Admin password updated');
+    toast('Your admin password is updated');
   } catch (err) {
     console.warn('password change failed', err);
     toast('Could not update the password', true);
@@ -10286,9 +11502,101 @@ document.addEventListener('keydown', function (e) {
 });
 
 /* ---- Theme switching (persisted per browser) ---- */
+/* ============================================================
+   INSTALLING IT
+   ------------------------------------------------------------
+   The tracker is one static page, which means it can be a real installed app
+   on every platform the company actually uses, without shipping a separate
+   build to anybody: Chrome and Edge give it its own window, icon and
+   Start-menu / Applications entry on Windows and macOS, Chrome on Android
+   gives it a home-screen app, and iOS takes it through Share → Add to Home
+   Screen. In every case it is the same page, so sign-in keeps working —
+   which is the thing that breaks when you wrap a Google login in a webview.
+
+   Two rules here:
+     · the button is only drawn once the browser has said it can install, so
+       it never sits there doing nothing;
+     · iOS never fires that event, so it gets told what to do instead.
+   ============================================================ */
+/* The captured event lives in exactly one place: window.__swangzInstallEvent,
+   set by the <head> listener. It used to be mirrored into a local as well, and
+   the two only ever reconciled at parse time — so an event that arrived after
+   this block was parsed set the window copy, called paintInstall(), and
+   paintInstall read the local, found null, and hid the button. Chrome fires
+   that event once and never repeats it, so the Install button simply never
+   appeared. One variable, read everywhere. */
+function installEvent() { return window.__swangzInstallEvent || null; }
+
+function isStandalone() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+         window.navigator.standalone === true;
+}
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+window.addEventListener('appinstalled', () => {
+  window.__swangzInstallEvent = null;
+  paintInstall();
+  try { toast('Installed — you can open the tracker from your apps now'); } catch (_) {}
+});
+
+function paintInstall() {
+  const btn = document.getElementById('installBtn');
+  const label = document.getElementById('installLabel');
+  if (!btn) return;
+  if (isStandalone()) { btn.hidden = true; return; }
+  if (installEvent()) {
+    btn.hidden = false;
+    if (label) label.textContent = 'Install the app';
+    return;
+  }
+  /* Safari has no install event and never will; say the steps instead. */
+  if (isIOS()) {
+    btn.hidden = false;
+    if (label) label.textContent = 'Add to Home Screen';
+    return;
+  }
+  btn.hidden = true;
+}
+
+async function installApp() {
+  if (isIOS() && !installEvent()) {
+    DECK.open('ask', {
+      title: 'Add to Home Screen',
+      html: 'On iPhone and iPad the tracker installs from Safari itself.<br><br>' +
+            'Press the <strong>Share</strong> button at the bottom of the screen, ' +
+            'scroll down, and choose <strong>Add to Home Screen</strong>.<br><br>' +
+            'It then opens like any other app, full screen, with the Swangz mark.',
+      confirm: 'Got it', cancel: 'Close', icon: 'wand',
+    });
+    return;
+  }
+  const e = installEvent();
+  if (!e) { toast('This browser cannot install the app — use Chrome or Edge', true); return; }
+  window.__swangzInstallEvent = null;
+  try {
+    e.prompt();
+    const { outcome } = await e.userChoice;
+    /* Declining is not "never" — put it back so the button still works. */
+    if (outcome !== 'accepted') window.__swangzInstallEvent = e;
+  } catch (err) {
+    console.warn('install prompt failed', err);
+  }
+  paintInstall();
+}
+window.paintInstall = paintInstall;     // the <head> listener calls this
+document.addEventListener('DOMContentLoaded', paintInstall);
+paintInstall();                         // it may already have fired
+
 const THEME_KEY = 'swangz_theme_v1';
+/* Midnight is the house look now — true dark, minimal colour, maximum focus.
+   Only the default moved: anyone who has already picked a theme keeps it,
+   because their choice is in localStorage and is read before this applies. */
+const THEME_DEFAULT = 'midnight';
 function setTheme(name) {
-  const t = ['swangz', 'aurora', 'midnight'].includes(name) ? name : 'swangz';
+  const t = ['swangz', 'aurora', 'midnight'].includes(name) ? name : THEME_DEFAULT;
   document.documentElement.setAttribute('data-theme', t);
   try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
   ['themeRow', 'psThemeGrid'].forEach(id => {
@@ -10298,8 +11606,8 @@ function setTheme(name) {
   if (typeof toast === 'function' && document.readyState === 'complete') toast(t.charAt(0).toUpperCase() + t.slice(1) + ' theme applied');
 }
 (function () {
-  let saved = 'swangz';
-  try { saved = localStorage.getItem(THEME_KEY) || 'swangz'; } catch (_) {}
+  let saved = THEME_DEFAULT;
+  try { saved = localStorage.getItem(THEME_KEY) || THEME_DEFAULT; } catch (_) {}
   document.documentElement.setAttribute('data-theme', saved);
   document.addEventListener('DOMContentLoaded', function () {
     const row = document.getElementById('themeRow');
@@ -10374,11 +11682,28 @@ function tourSteps(dept) {
     { sel: '.tools-head', title: 'Add the tools you use',
       body: 'Record any AI tool you use or want. You can file a full report, or a quick request for a tool you would like the company to get.' },
     { sel: '#toolsList', title: 'Your tools live here',
-      body: 'Each tool you add appears in this list. Click one to fill in time saved, costs and revenue impact — that is what turns into savings figures.' },
-    { sel: '.view-toggle', title: 'Getting around',
-      body: 'Switch between your department view and — if you are an admin — the dashboard with company-wide analytics.' },
+      body: 'Each tool you add appears in this list. Click one to fill in the projects, time saved, and work impact — admins handle the money side later.' },
+    /* This used to point at .view-toggle and describe switching between the
+       department view and the dashboard. Those tabs were removed — the element
+       is display:none !important — so the last step of every tour anchored to
+       something invisible, the popover could not place itself, and the tour
+       appeared to stick on its final step. It also described a way of getting
+       around that had not existed for months. */
+    { sel: '#railBell', title: 'You will be told',
+      body: 'When the admin team answers something you filed, this marks itself and the tracker emails you as well. Nothing to keep checking.' },
+    { sel: '#railAccount', title: 'Everything about you',
+      body: 'Your name opens your profile and settings — change your department, pick a theme, replay this tour, or sign out.' },
   ];
-  return steps.filter(s => document.querySelector(s.sel));
+  /* Existence is not enough: a hidden element cannot be pointed at. This is
+     what let the .view-toggle step through in the first place. */
+  return steps.filter(s => {
+    const el = document.querySelector(s.sel);
+    if (!el) return false;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || el.hidden) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
 }
 let tourIdx = 0, tourList = [], tourDept = '';
 function startTour(dept, force) {
@@ -10530,7 +11855,7 @@ function botAnswer(qRaw) {
   }
   if (has('add', 'new tool', 'report a tool', 'submit')) {
     return 'To add a tool: click <strong>+ Add Tool</strong> on your department page, then choose:<ul>' +
-      '<li><strong>Full report</strong> — a tool you already use. You will enter time and cost before vs. with AI, plus any revenue impact.</li>' +
+      '<li><strong>Full report</strong> — a tool you already use. You will enter what it is, why it matters, projects, and time saved.</li>' +
       '<li><strong>Request</strong> — a tool you would like the company to get. It goes to the admin inbox.</li></ul>' +
       'Tip: fill in frequency per month — that is what turns a single task saving into a monthly figure.';
   }
@@ -10561,8 +11886,8 @@ function botAnswer(qRaw) {
            'This chat is private: it runs entirely inside your browser, sends nothing to any server, and has no access to other departments\' data.';
   }
   if (has('what is', 'what does', 'purpose', 'why', 'about this app', 'help')) {
-    return 'The <strong>Swangz AI Tracker</strong> records which AI tools each department uses, what they cost, and what they save in time and money. ' +
-           'That builds an evidence-based case for what to keep, scale, or drop. Your part: record the tools <strong>' + escapeHTML(dept) + '</strong> uses, as accurately as you can.';
+    return 'The <strong>Swangz AI Tracker</strong> records which AI tools each department uses, the projects they support, and the time they save. ' +
+           'Admins add the money figures later so leadership gets an evidence-based case for what to keep, scale, or drop. Your part: record the tools <strong>' + escapeHTML(dept) + '</strong> uses, as accurately as you can.';
   }
   if (has('tour', 'show me around', 'walkthrough', 'guide')) {
     setTimeout(() => startTour(botDept(), true), 350);
@@ -10641,21 +11966,40 @@ function botToggle(open) {
    default, one search away when you know what you want).
    ============================================================ */
 const RAIL_GROUPS = [
-  { id: '__requests', label: 'Requests', icon: 'inbox',
-    sections: ['acc_requests', 'acc_manage'], badgeFrom: 'acc_requestsMeta' },
+  /* Everything about the tools lives behind one door, in the order the work
+     actually happens: what has come in, then what it adds up to, then the
+     catalogue behind it. "Requests" used to be a door of its own and was
+     almost always empty — one live request does not earn a permanent place in
+     the rail, and a door with one thing behind it is a worse version of that
+     thing. Both inboxes sit here instead. */
   { id: '__tools',    label: 'Tools',    icon: 'list',
-    sections: ['acc_tools', 'acc_summary', 'acc_rotation', 'acc_registry'] },
+    sections: ['acc_reports', 'acc_requests', 'acc_tools', 'acc_summary', 'acc_rotation', 'acc_registry', 'acc_manage'],
+    heads: { acc_reports: 'Coming in', acc_tools: 'What it adds up to', acc_registry: 'Behind the scenes' },
+    /* Everything unread behind this door, not only the requests. It read the
+       requests meta line alone, so eleven unread reports and one new request
+       showed a badge of 1. */
+    badgeCount: () => (typeof inboxPending === 'function' ? inboxPending() : 0),
+    badgeTitle: 'waiting to be read' },
   { id: '__money',    label: 'Money',    icon: 'money',
     sections: ['acc_finance', 'acc_calc'] },
-  { id: '__reports',  label: 'Reports',  icon: 'doc',
-    sections: ['acc_exec', 'acc_business'] },
   /* Configuration is not daily work — it lives at the foot of the rail,
      outside the scrolling list, so it is always in reach. */
   { id: '__settings', label: 'Settings', icon: 'gear', atFoot: true,
-    sections: ['acc_company', 'acc_notify', 'acc_actions', 'acc_admins', 'acc_backend'],
+    sections: ['acc_company', 'acc_notify', 'acc_admins', 'acc_actions', 'acc_backend'],
+    heads: { acc_company: 'The company', acc_admins: 'Who runs it', acc_backend: 'Where it is stored' },
     badgeCount: () => (typeof settingsPending === 'function' ? settingsPending() : 0),
     badgeTitle: 'waiting on you' },
 ];
+
+/* The rail, in the order the work happens — not in the order the sections
+   happen to sit in the document, which is where the injected ones landed and
+   why Money sat below Reports for no reason anyone could name.
+
+   The Executive Report and the Core Business Case are named on the rail rather
+   than folded into a "Reports" door: they are the two documents this whole
+   thing exists to produce, and they were two clicks in behind a word that
+   described neither of them. */
+const RAIL_ORDER = ['overview', '__tools', '__money', 'acc_exec', 'acc_business', '__settings'];
 const CARET_SVG =
   '<svg class="nav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
   'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
@@ -10684,6 +12028,18 @@ function groupBadge(g) {
   const el = document.getElementById(g.badgeFrom);
   const m = el && el.textContent.match(/(\d+)\s*new/i);
   return m && +m[1] > 0 ? m[1] : '';
+}
+
+/* What is genuinely waiting behind the Tools door: entries nobody has opened
+   yet, of either kind. A badge is a claim that there is work, so it counts the
+   work rather than one corner of it. */
+function inboxPending() {
+  let n = 0;
+  try {
+    n += requestEntries().filter(e => (e.requestStatus || 'new') === 'new').length;
+    n += reportEntries().filter(e => (e.reportStatus || 'new') === 'new').length;
+  } catch (_) {}
+  return n;
 }
 
 /* What is genuinely waiting under Settings. Each of these is something an
@@ -10750,9 +12106,21 @@ function buildRailGroups() {
       nav.insertAdjacentElement('afterend', sep);
       sep.insertAdjacentElement('afterend', btn);
     } else {
-      firstBtn.insertAdjacentElement('beforebegin', btn);   // keeps the rail in section order
+      firstBtn.insertAdjacentElement('beforebegin', btn);   // placed properly below
     }
   });
+
+  /* Now put it in the declared order. appendChild moves what is already there,
+     so anything RAIL_ORDER does not name keeps its place ahead of the list —
+     which is only ever the grouped section buttons, and those are display:none
+     so that they stay findable in the palette. */
+  RAIL_ORDER.forEach(key => {
+    const el = key.indexOf('__') === 0
+      ? nav.parentNode.querySelector('.rail-group[data-group="' + key + '"]')
+      : nav.querySelector('button[data-sec="' + key + '"]');
+    if (el && !el.classList.contains('at-foot')) nav.appendChild(el);
+  });
+
   syncGroupActive(adminSection);
   try { syncBackendWarning(); } catch (_) {}
   if (wasOpen && groupItems[wasOpen]) openRailMenu(wasOpen);
@@ -10775,7 +12143,12 @@ function renderRailMenu(groupId) {
   const items = groupItems[groupId] || [];
   const menu = railMenuEl();
   menu.setAttribute('aria-label', g ? g.label : 'Sections');
+  /* Seven entries under one door is a list; three captions make it three jobs.
+     A caption is drawn only when its section is actually in this build, so a
+     removed section can never leave a heading with nothing under it. */
+  const heads = (g && g.heads) || {};
   menu.innerHTML = '<div class="sm-head">' + escapeHTML(g ? g.label : '') + '</div>' + items.map(i =>
+    (heads[i.id] ? '<div class="sm-group">' + escapeHTML(heads[i.id]) + '</div>' : '') +
     '<button type="button" role="menuitem" data-sec="' + i.id + '"' +
     (i.id === adminSection ? ' class="active"' : '') + '>' +
     svgIcon(SECTION_ICONS[i.id] || 'grid') +
@@ -12092,7 +13465,13 @@ function injectAdminSections() {
         '</select></div>' +
       '<div><label for="nt_endpoint">Mail endpoint (Apps Script web app URL)</label>' +
         '<input id="nt_endpoint" type="url" placeholder="https://script.google.com/macros/s/…/exec" oninput="saveNotify()" />' +
-        '<div class="field-caption">Until this is set, every message waits in the outbox below and can be opened in your mail client.</div></div>' +
+        '<div class="field-caption">Until this is set, every message waits in the outbox below and can be opened in your mail client. ' +
+          'Deploy <code>apps-script/Code.gs</code> as a web app — Execute as: Me, Who has access: Anyone — and paste its /exec URL here.</div>' +
+        '<div class="field-caption" id="nt_shared"></div>' +
+        '<div class="row-actions" style="margin-top:10px;">' +
+          '<button type="button" class="secondary" onclick="testMailEndpoint()">Send myself a test</button>' +
+        '</div>' +
+        '<div class="field-caption" id="nt_testOut"></div></div>' +
       '<div><label for="nt_from">Sent as</label>' +
         '<input id="nt_from" type="text" placeholder="Swangz Avenue AI Tracker" oninput="saveNotify()" /></div>' +
     '</div>' +
@@ -12672,10 +14051,67 @@ function saveNotify() {
     if (box) s.events[ev.key] = box.checked;
   });
   saveNotifySettings(s);
+  /* How the company sends mail is a company setting, like the Drive folder.
+     Held only in localStorage it was set on one admin's laptop, so a second
+     admin deciding a request sent nothing and had no way to know why. */
+  configPushNotifyDebounced();
   const meta = document.getElementById('acc_notifyMeta');
   if (meta) meta.textContent = (s.bcc.length ? s.bcc.length + ' copied · ' : '') +
     (s.method === 'endpoint' && s.endpoint ? 'sending automatically' : 'sent by hand');
 }
+let _notifyPushTimer = null;
+function configPushNotifyDebounced() {
+  clearTimeout(_notifyPushTimer);
+  /* Every keystroke saves; the team only needs the finished settings. */
+  _notifyPushTimer = setTimeout(() => {
+    if (typeof configPut !== 'function') return;
+    const s = notifySettings();
+    configPut(CONFIG_NOTIFY_KEY, {
+      endpoint: s.endpoint, fromName: s.fromName, method: s.method,
+      bcc: s.bcc, copySubmitter: s.copySubmitter, events: s.events,
+    }).then(res => {
+      const cap = document.getElementById('nt_shared');
+      if (!cap) return;
+      cap.className = 'field-caption' + (res === true ? ' live' : res === false ? ' bad' : '');
+      cap.textContent = res === true ? '✓ Saved for the whole team — every admin sends through this endpoint.'
+        : res === false ? 'Saved here, but it did not reach the team — check Settings › Backend & Sync.'
+        : 'Saved on this device only — no shared backend is configured.';
+    });
+  }, 1200);
+}
+/* "Is it working?" answered by trying it, addressed to the person asking.
+   Every other reading of a mail endpoint is a guess. */
+async function testMailEndpoint() {
+  const out = document.getElementById('nt_testOut');
+  const say = (msg, bad) => { if (out) { out.className = 'field-caption' + (bad ? ' bad' : ' live'); out.textContent = msg; } };
+  const s = notifySettings();
+  const me = currentEmail();
+  if (!me) { say('Sign in first.', true); return; }
+  if (!/^https?:\/\//i.test(s.endpoint || '')) { say('Paste the endpoint URL above first.', true); return; }
+  say('Sending…');
+  try {
+    const res = await fetch(s.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'notify', kind: 'notify', fromName: s.fromName,
+        to: [me], cc: [], bcc: [],
+        subject: '[Swangz AI Tracker] Test message',
+        body: 'If you are reading this, the tracker can send mail. Nothing else was changed.',
+      }),
+    });
+    if (!res.ok) throw new Error('the endpoint answered ' + res.status);
+    const reply = readMailReply(await res.text());
+    if (!reply.ok) throw new Error(reply.why);
+    const j = reply.data;
+    if (j && j.quotaLeft != null) mailQuotaLeft = Number(j.quotaLeft);
+    say('Sent to ' + me + '. It should arrive within a minute.' +
+        (j && j.quotaLeft != null ? ' ' + j.quotaLeft + ' messages left in today\'s quota.' : ''));
+  } catch (err) {
+    say('It did not go: ' + (err && err.message ? err.message : String(err)), true);
+  }
+}
+
 function renderNotify() {
   const s = notifySettings();
   const set = (id, val) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = val; };
@@ -13915,10 +15351,10 @@ function downloadExecCsv() {
    ------------------------------------------------------------
    Two changes of principle:
 
-   1. The people reporting a tool describe the work — what it is,
-      why it matters, what it produced, how long things take.
-      They are never asked what anything costs and never shown an
-      analysis of it. Money is the admin's, in Money & Pricing.
+   1. Reporting a tool describes the work — what it is, why it matters,
+      what it produced, and how long things take. The report form itself
+      never asks for money, subscriptions, or revenue. Money is handled
+      by admins later in Money & Pricing.
 
    2. It floats in the middle of the screen again instead of
       taking the whole page.
@@ -13929,14 +15365,15 @@ function moneyIsMine() { return typeof canSeeAdmin === 'function' && canSeeAdmin
 
    A request is an ask for budget, so the person making it says what the tool
    costs — that is the whole point of the ask. A report is a record of work
-   already done, and there the money is the admin's: the team supplies the
-   hours, the admin supplies the price. */
+   already done, and there the report form stays non-financial for every
+   role: the team supplies the work context and hours, and admins price it
+   later in Money & Pricing. */
 function wizardStepPlan() {
   if (currentTag === 'request') return [1, 2, 4, 5];   // no past projects; cost stays with the asker
-  return moneyIsMine() ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4];
+  return [1, 2, 3, 4];
 }
-/* Cost fields are the requester's on a request, the admin's on a report */
-function costIsMine() { return currentTag === 'request' || moneyIsMine(); }
+/* Cost fields only belong to the request flow; reports stay non-financial. */
+function costIsMine() { return currentTag === 'request'; }
 function planIndex(step) { const p = wizardStepPlan(); const i = p.indexOf(step); return i < 0 ? 0 : i; }
 function firstStep() { return wizardStepPlan()[0]; }
 function lastStep()  { const p = wizardStepPlan(); return p[p.length - 1]; }
@@ -13944,7 +15381,7 @@ function lastStep()  { const p = wizardStepPlan(); return p[p.length - 1]; }
 /* Money fields are removed from the DOM flow for anyone who is not an admin,
    so nobody can tab into them or read a figure they were never meant to see. */
 function applyWizardScope() {
-  const mine = moneyIsMine();
+  const mine = currentTag !== 'report' && moneyIsMine();
   const wiz = document.getElementById('detailView');
   if (!wiz) return;
   wiz.setAttribute('data-money', mine ? 'on' : 'off');
@@ -14290,15 +15727,13 @@ DECK.register('project', function (id) {
         '<input id="pj_name" type="text" value="' + escapeAttr(p.name || '') + '" placeholder="e.g. Hare &amp; Ogre EP1" oninput="updateProject(\'' + escapeAttr(id) + '\',\'name\',this.value)" /></div>' +
       '<div style="margin-top:14px;"><label for="pj_desc">In a line, what was it?</label>' +
         '<input id="pj_desc" type="text" value="' + escapeAttr(p.description || '') + '" placeholder="e.g. 18-shot animated pilot" oninput="updateProject(\'' + escapeAttr(id) + '\',\'description\',this.value)" /></div>' +
-      '<div style="margin-top:14px;"><label for="pj_link">Project media — Google Drive link</label>' +
+      '<div style="margin-top:14px;"><label for="pj_link">Project media — paste any link</label>' +
         '<div class="drive-row">' +
-          '<input id="pj_link" type="url" value="' + escapeAttr(p.link || '') + '" placeholder="https://drive.google.com/…" oninput="onProjectLink(\'' + escapeAttr(id) + '\')" />' +
+          '<input id="pj_link" type="url" value="' + escapeAttr(p.link || '') + '" placeholder="https://… Drive, YouTube, Vimeo, Dropbox, anywhere" oninput="onProjectLink(\'' + escapeAttr(id) + '\')" />' +
           '<button type="button" class="secondary drive-btn" onclick="openDriveFolder()">' + svgIcon('drive') + ' Upload to Swangz Drive</button>' +
         '</div>' +
-        '<div class="field-caption" id="pj_linkCap">' +
-          (folder ? 'Upload the file to the Swangz Drive, copy its link, and it lands here by itself. Only Drive links are accepted.'
-                  : 'Only Google Drive links are accepted, so the media stays in one place the company controls.') +
-        '</div></div>' +
+        '<div class="field-caption" id="pj_linkCap">' + escapeHTML(projectLinkHint()) + '</div>' +
+        '<div id="pj_preview" class="pj-preview">' + mediaViewerHTML(p.link) + '</div></div>' +
       '<div style="margin-top:14px;"><label for="pj_trad">How this was done before</label>' +
         '<textarea id="pj_trad" placeholder="People, time, what it involved" oninput="updateProject(\'' + escapeAttr(id) + '\',\'traditional\',this.value)">' + escapeHTML(p.traditional || '') + '</textarea></div>' +
       '<div style="margin-top:14px;"><label for="pj_ai">How it was done with the tool</label>' +
@@ -14312,24 +15747,32 @@ DECK.register('project', function (id) {
   };
 });
 
+function projectLinkHint() {
+  return driveFolderUrl()
+    ? 'Anywhere the work actually lives — the Swangz Drive, YouTube, Vimeo, Dropbox, a client site. Upload to the Drive and the link lands here by itself.'
+    : 'Anywhere the work actually lives — Drive, YouTube, Vimeo, Dropbox, a client site. Whatever you paste, the admin can open it.';
+}
 function onProjectLink(id) {
   const field = document.getElementById('pj_link');
   const cap = document.getElementById('pj_linkCap');
+  const prev = document.getElementById('pj_preview');
   if (!field) return;
   const v = field.value.trim();
   updateProject(id, 'link', v);
+  /* Show it back to them. Half the value of allowing any link is that the
+     person pasting it can see, there and then, that it is the right one. */
+  if (prev) prev.innerHTML = mediaViewerHTML(v);
   if (!cap) return;
+  const m = v ? mediaKind(v) : null;
   if (!v) {
     cap.className = 'field-caption';
-    cap.textContent = driveFolderUrl()
-      ? 'Upload the file to the Swangz Drive, copy its link, and it lands here by itself. Only Drive links are accepted.'
-      : 'Only Google Drive links are accepted, so the media stays in one place the company controls.';
-  } else if (isDriveLink(v)) {
+    cap.textContent = projectLinkHint();
+  } else if (m) {
     cap.className = 'field-caption live';
-    cap.textContent = '✓ Google Drive link';
+    cap.textContent = '✓ ' + m.label + (m.embed || m.kind !== 'link' ? ' — the admin will see it here' : ' — the admin will open it in a new tab');
   } else {
     cap.className = 'field-caption bad';
-    cap.textContent = 'That is not a Google Drive link. Upload the file to the Swangz Drive and paste the link from there.';
+    cap.textContent = 'That is not a link the app can open. It needs to start with http:// or https://';
   }
 }
 /* Keep the row list in step with what is typed on the tile */
@@ -14355,20 +15798,120 @@ function onProjectLink(id) {
   };
 })();
 
-/* A Drive link is the only kind we keep */
+/* A link has to be a link, and that is the whole of the rule now.
+
+   It used to have to be a Google Drive link, and anything else was refused at
+   save time. That was one company's filing habit written into the software:
+   the work being evidenced lives on YouTube, on Vimeo, on Dropbox, on a client
+   site, in a WeTransfer that expires next week — and a person holding one of
+   those had no way to attach it and no way to save. The Drive folder is still
+   offered and still the recommended home; it is no longer the only one. */
 (function () {
   if (typeof saveDetail !== 'function') return;
   const original = window.saveDetail;
   window.saveDetail = function () {
-    const bad = projectsInForm.find(p => (p.link || '').trim() && !isDriveLink(p.link));
+    const bad = projectsInForm.find(p => (p.link || '').trim() && !safeUrl(p.link));
     if (bad) {
-      toast('“' + (bad.name || 'A project') + '” has a link that is not on Google Drive — fix it before saving', true);
+      toast('“' + (bad.name || 'A project') + '” has a link the app cannot open — it needs to start with http:// or https://', true);
       openProjectTile(bad.id);
       return;
     }
     return original.apply(this, arguments);
   };
 })();
+
+/* ============================================================
+   WHAT THE MEDIA ACTUALLY IS
+   ------------------------------------------------------------
+   The admin's job is to check the evidence, so a bare link is not enough —
+   "open media ↗" told them nothing about what they were about to open, or
+   whether anything was there at all. Naming the host, and showing the thing
+   itself where the host allows it, is the difference between reading a report
+   and checking one.
+
+   Every embed is same-origin-free and sandboxed by the host's own player.
+   Anything not recognised is shown as a link and never as an <iframe>, so a
+   pasted URL can never become an arbitrary frame in the dashboard.
+   ============================================================ */
+function mediaKind(raw) {
+  const url = safeUrl(raw);
+  if (!url) return null;
+  let u;
+  try { u = new URL(url); } catch (_) { return null; }
+  const host = u.hostname.replace(/^www\./, '').toLowerCase();
+  const path = u.pathname.toLowerCase();      // for extension tests only
+  /* Ids are case-sensitive — a YouTube id lowercased is a different video, or
+     none. Only the extension tests may use the folded path. */
+  const rawPath = u.pathname;
+
+  if (host === 'drive.google.com' || host === 'docs.google.com') {
+    /* Drive serves a preview page for any file id; a folder has no preview. */
+    const id = (url.match(/\/d\/([-\w]{10,})/) || url.match(/[?&]id=([-\w]{10,})/) || [])[1];
+    const folder = /\/folders\//.test(path);
+    return { kind: 'drive', label: 'Google Drive', embed: (!folder && id) ? 'https://drive.google.com/file/d/' + id + '/preview' : '', url };
+  }
+  if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be') {
+    const id = host === 'youtu.be' ? rawPath.slice(1).split('/')[0]
+             : (u.searchParams.get('v') || (rawPath.match(/\/(?:embed|shorts)\/([-\w]{6,})/) || [])[1] || '');
+    return { kind: 'youtube', label: 'YouTube', embed: id ? 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) : '', url };
+  }
+  if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+    const id = (rawPath.match(/(\d{6,})/) || [])[1];
+    return { kind: 'vimeo', label: 'Vimeo', embed: id ? 'https://player.vimeo.com/video/' + id : '', url };
+  }
+  /* Hosts before extensions. A Dropbox share URL ends in .mov but serves an
+     HTML page, so treating it as a video file gives a broken player rather
+     than a link that works. */
+  if (/^dropbox\.com$/.test(host))                   return { kind: 'link', label: 'Dropbox', embed: '', url };
+  if (/wetransfer\.com$/.test(host))                 return { kind: 'link', label: 'WeTransfer — these expire', embed: '', url };
+  if (/(^|\.)instagram\.com$/.test(host))            return { kind: 'link', label: 'Instagram', embed: '', url };
+  if (/\.(jpe?g|png|gif|webp|avif|bmp)$/.test(path)) return { kind: 'image', label: 'Image', embed: '', url };
+  if (/\.(mp4|webm|mov|m4v)$/.test(path))            return { kind: 'video', label: 'Video', embed: '', url };
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)$/.test(path))    return { kind: 'audio', label: 'Audio', embed: '', url };
+  if (/(^|\.)tiktok\.com$/.test(host))               return { kind: 'link', label: 'TikTok', embed: '', url };
+  if (/(^|\.)spotify\.com$/.test(host))              return { kind: 'link', label: 'Spotify', embed: '', url };
+  if (/(^|\.)soundcloud\.com$/.test(host))           return { kind: 'link', label: 'SoundCloud', embed: '', url };
+  if (/(^|\.)figma\.com$/.test(host))                return { kind: 'link', label: 'Figma', embed: '', url };
+  if (/(^|\.)notion\.(so|site)$/.test(host))         return { kind: 'link', label: 'Notion', embed: '', url };
+  return { kind: 'link', label: host, embed: '', url };
+}
+
+/* The player itself, for the admin's read-only view. Images, video and audio
+   are played by the browser; the two video hosts that publish an embed URL get
+   an iframe; everything else is a link that says where it goes. */
+function mediaViewerHTML(raw) {
+  const m = mediaKind(raw);
+  if (!m) return '';
+  /* safeUrl again, at the point of use. mediaKind() already ran it, so this is
+     belt and braces — but a reader (and the audit) should be able to see that
+     an href is guarded without tracing where the value came from. */
+  const href = escapeAttr(safeUrl(m.url));
+  const open = '<a class="mv-open" href="' + escapeAttr(safeUrl(m.url)) + '" target="_blank" rel="noopener">' +
+    escapeHTML(m.label) + ' ↗</a>';
+  if (m.embed) {
+    return '<div class="media-view"><div class="mv-frame"><iframe src="' + escapeAttr(m.embed) +
+      /* No referrerpolicy here on purpose: YouTube and Vimeo check the
+         referrer before they will play an embed, and stripping it is how you
+         get "Error 153 — video player configuration error" instead of a
+         video. Images keep it, because nothing checks a referrer to show a
+         picture and the URL is somebody else's. */
+      '" loading="lazy" allowfullscreen' +
+      ' sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"' +
+      ' title="Attached media"></iframe></div>' + open + '</div>';
+  }
+  if (m.kind === 'image') {
+    return '<div class="media-view"><a href="' + escapeAttr(safeUrl(m.url)) + '" target="_blank" rel="noopener">' +
+      '<img class="mv-img" src="' + href + '" alt="Attached media" loading="lazy" referrerpolicy="no-referrer" /></a>' + open + '</div>';
+  }
+  if (m.kind === 'video') {
+    return '<div class="media-view"><video class="mv-el" controls preload="metadata" src="' + href + '"></video>' + open + '</div>';
+  }
+  if (m.kind === 'audio') {
+    return '<div class="media-view"><audio class="mv-el" controls preload="metadata" src="' + href + '"></audio>' + open + '</div>';
+  }
+  return '<div class="media-view is-link">' + open +
+    '<span class="mv-note">Opens in a new tab — this host does not allow it to be shown here.</span></div>';
+}
 
 /* ============================================================
    THE DEPARTMENT SIDE
@@ -14388,9 +15931,13 @@ function renderQuickStats() {
   /* Counts of what the team has filed, and what is still waiting on an
      answer. Hours saved and projects logged were figures — they belong to
      the admin's read of the portfolio, not to the person filing. */
+  /* Say whose these are. They count the whole department while My History
+     underneath counts only you, so two different numbers under two labels
+     that both read "Tools reported" looked like one of them was wrong. */
+  const whose = (profile && profile.department) ? escapeHTML(profile.department) : 'the team';
   const stats = [
-    { ico: 'wand',  val: String(list.filter(e => e.tag !== 'request').length), lbl: 'Tools reported' },
-    { ico: 'inbox', val: String(list.filter(e => e.tag === 'request').length), lbl: 'Tools requested' },
+    { ico: 'wand',  val: String(list.filter(e => e.tag !== 'request').length), lbl: whose + ' has reported' },
+    { ico: 'inbox', val: String(list.filter(e => e.tag === 'request').length), lbl: whose + ' has requested' },
   ];
   if (pending) stats.push({ ico: 'flag', val: String(pending), lbl: pending === 1 ? 'Awaiting a decision' : 'Awaiting a decision' });
   host.innerHTML = stats.map(s =>
@@ -14542,15 +16089,39 @@ function renderDeptExtra() {
 }
 
 /* The tools list keeps the shape it had on the live site, minus the money */
+/* Reported and requested are two different things with two different
+   lifecycles, and one mixed table made you read the Type column on every row
+   to work out which list you were in. They are tabs now, on the person's own
+   side as well as the admin's, and the counts are on the tabs so the shape of
+   your own contribution is visible without opening anything. */
+let myToolsTab = 'report';
+function setMyToolsTab(t) {
+  myToolsTab = (t === 'request') ? 'request' : 'report';
+  renderToolsList();
+}
+function myToolsTabsHTML(reports, requests) {
+  const tab = (key, label, n) =>
+    '<button type="button" class="' + (myToolsTab === key ? 'active' : '') + '" ' +
+      'data-tab="' + key + '" onclick="setMyToolsTab(\'' + key + '\')">' +
+      escapeHTML(label) + '<span class="mt-count">' + n + '</span></button>';
+  return '<div class="mytools-tabs" role="tablist">' +
+    tab('report', 'Reported', reports.length) +
+    tab('request', 'Requested', requests.length) +
+    '</div>';
+}
+
 function renderToolsList() {
   renderProfileBadge();
   renderMyHistoryCard();
   renderClaimBanner();
-  const list = myEntries();
+  const all = myEntries();
+  const reports  = all.filter(e => e.tag !== 'request');
+  const requests = all.filter(e => e.tag === 'request');
+  const list = (myToolsTab === 'request') ? requests : reports;
   const wrap = document.getElementById('toolsList');
   if (!wrap) return;
 
-  if (!list.length) {
+  if (!all.length) {
     wrap.innerHTML =
       '<div class="empty-state">' +
         '<h3>No tools added yet</h3>' +
@@ -14558,25 +16129,44 @@ function renderToolsList() {
       '</div>';
     return;
   }
-  wrap.innerHTML =
+  if (!list.length) {
+    wrap.innerHTML = myToolsTabsHTML(reports, requests) +
+      '<div class="empty-state">' +
+        (myToolsTab === 'request'
+          ? '<h3>You have not asked for anything yet</h3>' +
+            '<p>Use <strong>Add tool</strong> → <em>Request a new tool</em> to ask leadership for one you need.</p>'
+          : '<h3>You have not reported a tool yet</h3>' +
+            '<p>Use <strong>Add tool</strong> → <em>Report a tool we use</em> to log one your team already works with.</p>') +
+      '</div>';
+    return;
+  }
+  wrap.innerHTML = myToolsTabsHTML(reports, requests) +
     '<div class="tools-table-wrap"><table class="tools-table">' +
-      /* What was filed and where it stands. The saved-time and project
-         columns were figures, and figures are not this person's business
-         here — they read them in the admin's report, not in their own list. */
-      '<thead><tr><th>Tool</th><th>Type</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody>' +
+      /* The Type column is gone: the tab above already says which list this
+         is, and repeating it on every row was the reason you had to read the
+         table to find out where you were. In its place, the thing neither
+         list used to show — what the admin has done about it.
+
+         The saved-time and project columns stay out. Figures are not this
+         person's business here; they read them in the admin's report. */
+      '<thead><tr><th>Tool</th><th>Category</th>' +
+      (myToolsTab === 'request' ? '<th>Decision</th>' : '<th>Stage</th><th>Where it stands</th>') +
+      '<th></th></tr></thead><tbody>' +
       list.map(e => {
-        const tag = (e.tag === 'request') ? 'request' : 'report';
+        const isReq = e.tag === 'request';
+        const rep = e.reportStatus || 'new';
         return '<tr onclick="openTool(\'' + e.id + '\')">' +
           '<td><span class="tt-name">' + toolLinkHTML(e.toolName || 'Untitled tool', e.officialUrl) + '</span></td>' +
-          '<td><span class="pill tag-' + tag + '">' + (tag === 'request' ? 'Request' : 'Report') + '</span></td>' +
           '<td>' + (e.category ? escapeHTML(e.category) : '—') + '</td>' +
           /* For something you asked for, the status you care about is the
              answer — new, reviewed, approved, declined — not the adoption
              stage, which just repeats that you are requesting it. */
-          '<td>' + (tag === 'request'
-            ? '<span class="pill req-' + escapeAttr(e.requestStatus || 'new') + '">' +
-              escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</span>'
-            : (e.status ? '<span class="pill ' + statusPillClass(e.status) + '">' + escapeHTML(e.status) + '</span>' : '—')) + '</td>' +
+          (isReq
+            ? '<td><span class="pill req-' + escapeAttr(e.requestStatus || 'new') + '">' +
+              escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</span></td>'
+            : '<td>' + (e.status ? '<span class="pill ' + statusPillClass(e.status) + '">' + escapeHTML(e.status) + '</span>' : '—') + '</td>' +
+              '<td><span class="pill req-' + escapeAttr(rep === 'confirmed' ? 'approved' : rep === 'returned' ? 'new' : rep) + '">' +
+              escapeHTML(repStatusLabel(rep)) + '</span></td>') +
           '<td><button class="tt-remove" title="Remove tool" onclick="event.stopPropagation(); removeTool(\'' + e.id + '\')">−</button></td>' +
         '</tr>';
       }).join('') +
@@ -14681,15 +16271,27 @@ document.addEventListener('keydown', e => {
   if (el && !el.hidden) { e.stopPropagation(); dismissDeptPrompt(); }
 }, true);
 
+/* Everybody lands in their own department — an admin too. An admin is a member
+   of staff who also has a second job; the dashboard is that second job, not
+   their home. Sending them straight to it meant the two owners had never once
+   seen the app the company uses.
+
+   This is only safe because there is now a door: openAdminDashboard() sits in
+   the rail account block, which is the one piece of chrome both sides share,
+   and in the profile menu. Take that door away and this reintroduces the
+   stranding bug it used to cause (see AGENTS.md 12). */
 function routeAfterSignIn() {
   if (!authUser && !currentEmail()) { switchView('auth'); return; }
-  if (canSeeAdmin()) { switchView('admin'); return; }
+  /* Somebody already in the dashboard put themselves there and typed a
+     password to do it. This is called from more than one place and at least
+     one of them fires on a timer, so without this a late call would tip an
+     admin straight back out of the room they had just unlocked. */
+  if (currentView === 'admin') return;
   if (!profile.department || !profile.name) { switchView('landing'); return; }
   switchView('tools');
   setTimeout(maybeShowDeptPrompt, 260);
 }
 window.goToUser = function () {
-  if (canSeeAdmin()) { switchView('admin'); return; }
   if (!profile.department || !profile.name) { switchView('landing'); return; }
   switchView('tools');
 };
@@ -14828,12 +16430,110 @@ function renderRequestsInbox() {
   wrap.innerHTML = list.map(e => {
     const st = e.requestStatus || 'new';
     const when = e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '';
+    /* Say so on the row. The two rows that started all of this sat in this very
+       list looking like real requests waiting on a decision. */
+    const junk = (typeof looksLikeTest === 'function' && looksLikeTest(e))
+      ? '<span class="rep-flags"><span class="rep-flag price">looks like a test — clear it under Manage Submissions</span></span>' : '';
     return '<button type="button" class="deck-row" onclick="DECK.open(\'entry\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
       '<span class="dr-ico">' + svgIcon(needsDecision(e) ? 'flag' : 'inbox') + '</span>' +
       '<span class="dr-text"><b>' + escapeHTML(e.toolName || 'Untitled') + '</b>' +
         '<i>' + escapeHTML(e.submittedBy || 'Someone') + (e.isPublic ? ' · public' : '') +
-        (e.department ? ' · ' + escapeHTML(e.department) : '') + (when ? ' · ' + when : '') + '</i></span>' +
+        (e.department ? ' · ' + escapeHTML(e.department) : '') + (when ? ' · ' + when : '') + '</i>' +
+        junk + '</span>' +
       '<span class="dr-stat"><b class="req-status s-' + st + '">' + escapeHTML(reqStatusLabel(st)) + '</b><span>status</span></span>' +
+      '<span class="dr-go">' + svgIcon('expand') + '</span>' +
+    '</button>';
+  }).join('');
+}
+
+/* ============================================================
+   THE REPORTS INBOX
+   ------------------------------------------------------------
+   A request arrives asking for a decision, so it always had an inbox. A report
+   arrives asking to be counted, and had none — the only routes to one were
+   Tools Entered, which consolidates by tool and so loses who filed what, and
+   Manage Submissions, which exists to fix attribution. The thing the tracker
+   is for was the thing an admin could not work through.
+
+   Reports carry their own status because their lifecycle is not a request's.
+   Nothing here filters them out of the figures: an unconfirmed report is still
+   what the team reported, and quietly dropping it from the KPIs would change
+   the company's numbers on an admin's reading habits.
+   ============================================================ */
+const REPORT_STATUSES = [
+  { key: 'new',       label: 'New',       note: 'Filed, not looked at yet' },
+  { key: 'reviewed',  label: 'Reviewed',  note: 'You have read it' },
+  { key: 'confirmed', label: 'Confirmed', note: 'Checked and standing in the business case' },
+  { key: 'returned',  label: 'Sent back', note: 'Something is missing — they have been asked for it' },
+];
+function repStatusLabel(k) { return (REPORT_STATUSES.find(s => s.key === k) || {}).label || 'New'; }
+function reportEntries() { return dashboardEntries().filter(e => e.tag !== 'request'); }
+function entryMedia(e) { return ((e && e.projects) || []).filter(p => p && (p.link || '').trim()); }
+function setReportStatus(id, status) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  e.reportStatus = status;
+  e.updatedAt = new Date().toISOString();
+  saveEntries();
+  try { renderReportsInbox(); } catch (_) {}
+}
+function setReportNote(id, note) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  e.adminNote = note;
+  e.updatedAt = new Date().toISOString();
+  saveEntries();
+}
+
+function renderReportsInbox() {
+  const wrap = document.getElementById('reportsInboxList');
+  if (!wrap) return;
+  const filter = (document.getElementById('repStatusFilter') || {}).value || '';
+  const q = ((document.getElementById('repSearch') || {}).value || '').toLowerCase().trim();
+  let list = reportEntries();
+
+  const meta = document.getElementById('acc_reportsMeta');
+  const fresh = list.filter(e => (e.reportStatus || 'new') === 'new').length;
+  const unpriced = list.filter(e => needsPricing(e)).length;
+  if (meta) meta.textContent = list.length + (list.length === 1 ? ' report' : ' reports') +
+    (fresh ? ' · ' + fresh + ' new' : '') + (unpriced ? ' · ' + unpriced + ' unpriced' : '');
+
+  if (filter === '__unpriced')   list = list.filter(e => needsPricing(e));
+  else if (filter === '__media') list = list.filter(e => entryMedia(e).length);
+  else if (filter)               list = list.filter(e => (e.reportStatus || 'new') === filter);
+  if (q) list = list.filter(e =>
+    (e.toolName || '').toLowerCase().includes(q) ||
+    (e.submittedBy || '').toLowerCase().includes(q) ||
+    (e.submittedByEmail || '').toLowerCase().includes(q) ||
+    (e.department || '').toLowerCase().includes(q));
+  list.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+
+  if (!list.length) {
+    wrap.innerHTML = '<div class="empty-state"><h3>No reports' + (q || filter ? ' match that' : ' yet') + '</h3>' +
+      '<p>' + (q || filter ? 'Clear the search or the filter to see them all.'
+                           : 'Every tool a department reports lands here the moment it is saved.') + '</p></div>';
+    return;
+  }
+  wrap.className = 'deck-list';
+  wrap.innerHTML = list.map(e => {
+    const st = e.reportStatus || 'new';
+    const when = e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '';
+    const media = entryMedia(e).length;
+    const m = monthlySavings(e);
+    /* What is waiting, and what there is to look at. The status is already on
+       the right-hand side of the row, so it is not repeated here. */
+    const flags = (needsPricing(e) ? '<span class="rep-flag price">Not priced</span>' : '') +
+                  (media ? '<span class="rep-flag media">' + media + (media === 1 ? ' file' : ' files') + '</span>' : '') +
+                  (entryMedia(e).length === 0 && (e.projects || []).length === 0
+                    ? '<span class="rep-flag">No projects attached</span>' : '');
+    return '<button type="button" class="deck-row" onclick="DECK.open(\'entry\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
+      '<span class="dr-ico">' + svgIcon(st === 'new' ? 'flag' : 'doc') + '</span>' +
+      '<span class="dr-text"><b>' + escapeHTML(e.toolName || 'Untitled') + '</b>' +
+        '<i>' + escapeHTML(e.submittedBy || 'Someone') +
+        (e.department ? ' · ' + escapeHTML(e.department) : '') + (when ? ' · ' + when : '') +
+        ' · ' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + ' saved/mo' + '</i>' +
+        (flags ? '<span class="rep-flags">' + flags + '</span>' : '') + '</span>' +
+      '<span class="dr-stat"><b class="req-status s-' + st + '">' + escapeHTML(repStatusLabel(st)) + '</b><span>status</span></span>' +
       '<span class="dr-go">' + svgIcon('expand') + '</span>' +
     '</button>';
   }).join('');
@@ -14842,36 +16542,152 @@ function renderRequestsInbox() {
 /* Requests and reports open the same working tile — see 'entry' below. */
 
 /* ---- Submissions: a list, with reassignment on its own tile ---- */
+/* ---- Clearing out what was never a real submission ----
+   Somebody trying the app out files "test", "policy", "delete me". Those rows
+   are not confined to a list somewhere: they are counted in Tools Entered, in
+   the money, in the graph, in the Executive Report and in the business case —
+   so a handful of them read as the tracker being broken. Deleting them one at
+   a time did not work either, because deleting told the database nothing and
+   the next sync brought them back.
+
+   This flags them rather than removing them by itself: "test" is a guess, and
+   a guess must never delete a real department's work on its own. */
+const JUNK_NAMES = /^(?:tests?|testing|test\s*\d+|policy|policies|delete\s*me|deleteme|remove\s*me|asdf\w*|qwerty\w*|x+|a+|z+|abc|123+|demo|sample|dummy|trial|check|try|hello|hi|new\s*tool|untitled|none|n\/?a|null|undefined|[.\-_]+)$/i;
+/* Markers that can appear anywhere in the name and mean the same thing
+   wherever they are. The row that started this was called
+   "__POLICY TEST - delete me__", filed by "policy-test" — a check somebody ran
+   against the anonymous-request policy and left behind. An exact-name match
+   would never have caught it. Each of these is a phrase no real product is
+   called, so a substring test is safe here in a way that a bare "test" is not:
+   "A/B Test Suite" and "TestGorilla" are real tools and must survive. */
+const JUNK_MARKERS = /(?:delete\s*me|remove\s*me|policy[\s\-_]*test|test[\s\-_]*(?:entry|record|row|data)|do\s*not\s*use|ignore\s*(?:me|this)|placeholder|lorem\s+ipsum|__)/i;
+function looksLikeTest(e) {
+  const n = String(e.toolName || '').trim();
+  if (!n) return true;
+  if (JUNK_NAMES.test(n)) return true;
+  if (JUNK_MARKERS.test(n)) return true;
+  /* Who filed it counts too — "policy-test" is not a member of staff */
+  if (JUNK_MARKERS.test(String(e.submittedBy || '')) || /^(?:policy|test)[\s\-_]/i.test(String(e.submittedBy || ''))) return true;
+  if (n.length <= 2) return true;
+  if (/^(?:test|delete\s*me|asdf|dummy)\b/i.test(n)) return true;
+  /* Nothing said and nothing measured: not proof, but worth a second look */
+  const said = String(e.reason || '').trim().length + String(e.impact || '').trim().length;
+  const measured = (Number(e.tradTime) || 0) + (Number(e.aiTime) || 0) + (Number(e.frequency) || 0);
+  return !said && !measured && !((e.projects || []).length);
+}
+let manageChecked = new Set();
+
 function renderManageSubmissions() {
   const host = document.getElementById('manageList');
   const meta = document.getElementById('acc_manageMeta');
   if (!host) return;
   const search = (document.getElementById('manageSearchInput')?.value || '').toLowerCase().trim();
+  const mode = (document.getElementById('manageFilter') || {}).value || '';
   const all = entries.filter(e => !isRegistryStub(e));
-  if (meta) meta.textContent = all.length + ' submission' + (all.length === 1 ? '' : 's');
+  const junkCount = all.filter(looksLikeTest).length;
+  if (meta) meta.textContent = all.length + ' submission' + (all.length === 1 ? '' : 's') +
+    (junkCount ? ' · ' + junkCount + ' look like tests' : '');
 
   const filtered = all.filter(e => {
+    if (mode === 'junk'    && !looksLikeTest(e)) return false;
+    if (mode === 'noemail' && e.submittedByEmail) return false;
+    if (mode === 'report'  && e.tag === 'request') return false;
+    if (mode === 'request' && e.tag !== 'request') return false;
     if (!search) return true;
     return [e.toolName, e.submittedBy, e.submittedByEmail, e.department, e.role]
       .filter(Boolean).join(' ').toLowerCase().includes(search);
   });
+  /* A tick on a row that is no longer on screen would delete something the
+     admin cannot see, so the selection is confined to what is listed. */
+  manageVisible = filtered.map(e => e.id);
+  const visible = new Set(manageVisible);
+  manageChecked = new Set([...manageChecked].filter(id => visible.has(id)));
+  renderManageBulk(filtered);
+
   if (!filtered.length) {
+    host.className = '';
     host.innerHTML = '<div class="manage-empty">' +
-      (all.length === 0 ? 'No submissions yet.' : 'No matches for &ldquo;' + escapeHTML(search) + '&rdquo;.') + '</div>';
+      (all.length === 0 ? 'No submissions yet.'
+       : mode === 'junk' ? 'Nothing here looks like a test — the tracker is clean.'
+       : search ? 'No matches for &ldquo;' + escapeHTML(search) + '&rdquo;.'
+       : 'Nothing matches that filter.') + '</div>';
     return;
   }
   filtered.sort((a, b) => new Date(b.updatedAt || b.submittedAt || 0) - new Date(a.updatedAt || a.submittedAt || 0));
   host.className = 'deck-list';
-  host.innerHTML = filtered.map(e =>
-    '<button type="button" class="deck-row" onclick="DECK.open(\'reassign\', ' + escapeAttr(JSON.stringify(e.id)) + ')">' +
-      '<span class="dr-ico">' + svgIcon('users') + '</span>' +
-      '<span class="dr-text"><b>' + escapeHTML(e.toolName || 'Untitled') + '</b>' +
-        '<i>' + escapeHTML(e.submittedBy || '(no name)') +
-        (e.submittedByEmail ? ' · ' + escapeHTML(e.submittedByEmail) : ' · no email on file') +
-        ' · ' + escapeHTML(e.department || '—') +
-        (e.submittedAt ? ' · ' + new Date(e.submittedAt).toLocaleDateString() : '') + '</i></span>' +
-      '<span class="dr-go">' + svgIcon('expand') + '</span>' +
-    '</button>').join('');
+  host.innerHTML = filtered.map(e => {
+    const arg = escapeAttr(JSON.stringify(e.id));
+    const junk = looksLikeTest(e);
+    return '<div class="deck-row mg-row' + (manageChecked.has(e.id) ? ' picked' : '') + '">' +
+      '<label class="mg-tick" title="Select for removal">' +
+        '<input type="checkbox"' + (manageChecked.has(e.id) ? ' checked' : '') +
+        ' onchange="toggleManagePick(' + arg + ', this.checked)" /></label>' +
+      '<button type="button" class="mg-open" onclick="DECK.open(\'reassign\', ' + arg + ')">' +
+        '<span class="dr-ico">' + svgIcon('users') + '</span>' +
+        '<span class="dr-text"><b>' + escapeHTML(e.toolName || 'Untitled') + '</b>' +
+          '<i>' + escapeHTML(e.submittedBy || '(no name)') +
+          (e.submittedByEmail ? ' · ' + escapeHTML(e.submittedByEmail) : ' · no email on file') +
+          ' · ' + escapeHTML(e.department || '—') +
+          (e.submittedAt ? ' · ' + new Date(e.submittedAt).toLocaleDateString() : '') + '</i>' +
+          (junk ? '<span class="rep-flags"><span class="rep-flag price">looks like a test</span></span>' : '') +
+        '</span>' +
+        '<span class="dr-go">' + svgIcon('expand') + '</span>' +
+      '</button>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleManagePick(id, on) {
+  if (on) manageChecked.add(id); else manageChecked.delete(id);
+  renderManageSubmissions();
+}
+/* "All" means all of what is listed, never all of what exists — the filter is
+   the whole point, and a tick that reached past it would delete work nobody
+   had looked at. manageVisible is set by the render that drew those rows. */
+let manageVisible = [];
+function pickAllManage(on) {
+  manageChecked = on ? new Set(manageVisible) : new Set();
+  renderManageSubmissions();
+}
+function renderManageBulk(filtered) {
+  const bar = document.getElementById('manageBulk');
+  if (!bar) return;
+  const n = manageChecked.size;
+  const allPicked = filtered.length > 0 && filtered.every(e => manageChecked.has(e.id));
+  bar.hidden = !filtered.length;
+  bar.innerHTML =
+    '<label class="mg-all"><input type="checkbox"' + (allPicked ? ' checked' : '') +
+      ' onchange="pickAllManage(this.checked)" /> Select all ' + filtered.length + ' shown</label>' +
+    '<span class="spacer"></span>' +
+    (n ? '<span class="mg-count">' + n + ' selected</span>' +
+         '<button type="button" class="danger" onclick="removeCheckedSubmissions()">Remove ' + n + '</button>'
+       : '<span class="mg-count muted">Tick anything that should never have been filed</span>');
+}
+
+async function removeCheckedSubmissions() {
+  const ids = [...manageChecked];
+  if (!ids.length) return;
+  const picked = entries.filter(e => ids.includes(e.id));
+  const names = picked.map(e => (e.toolName || 'Untitled') + ' · ' + (e.submittedBy || 'no name')).slice(0, 12);
+  /* `html` rather than `body`: the tile escapes `body`, and this needs the
+     list to read as a list. It is wrapped in a <p>, so no block elements. */
+  const ok = await askConfirm({
+    title: 'Remove ' + ids.length + (ids.length === 1 ? ' submission?' : ' submissions?'),
+    html: 'They go from every dashboard, report and chart, and from the database, ' +
+          'so they will not come back on the next sync.<br><br>' +
+          names.map(n => '<span class="ask-item">' + escapeHTML(n) + '</span>').join('') +
+          (picked.length > names.length
+            ? '<span class="ask-item">… and ' + (picked.length - names.length) + ' more</span>' : '') +
+          '<br><strong>This cannot be undone.</strong>',
+    confirm: 'Remove them', cancel: 'Keep them', danger: true, icon: 'flag',
+  });
+  if (!ok) return;
+  entries = entries.filter(e => !ids.includes(e.id));
+  saveEntries();
+  backendDeleteEntries(ids);
+  manageChecked = new Set();
+  toast(ids.length + (ids.length === 1 ? ' submission removed' : ' submissions removed') + ' — everywhere');
+  renderAdmin();
 }
 
 DECK.register('reassign', function (id) {
@@ -14914,11 +16730,15 @@ function applyReassign(id) {
   toast('Submission reassigned');
   renderAdmin();
 }
+/* This deleted the row locally and stopped there. Pushes are upsert-only, so
+   nothing told the database — and the very next sync pulled the entry straight
+   back. That is why deleted rubbish kept reappearing on every screen. */
 function deleteSubmission(id) {
   const e = entries.find(x => x.id === id);
   if (!e) return;
   entries = entries.filter(x => x.id !== id);
   saveEntries();
+  backendDeleteEntry(id);
   DECK.close('reassign|' + JSON.stringify(id));
   toast('Submission deleted');
   renderAdmin();
@@ -15036,6 +16856,8 @@ DECK.register('entry', function (id) {
         '<div><span>Filed</span><b>' + escapeHTML(new Date(e.submittedAt || Date.now()).toLocaleDateString()) + '</b></div>' +
         '<div><span>Hours saved / mo</span><b>' + escapeHTML(fmtDuration(m.timeSavedMonthly)) + '</b></div>' +
         (isReq ? '<div><span>Decision</span><b>' + escapeHTML(reqStatusLabel(e.requestStatus || 'new')) + '</b></div>'
+         : '<div><span>Where it stands</span><b>' + escapeHTML(repStatusLabel(e.reportStatus || 'new')) + '</b></div>') +
+        (isReq ? ''
          : showMoney
            ? '<div><span>Net / mo</span><b class="' + (m.netMonthlyCostSavedUSD >= 0 ? 'savings-pos' : 'savings-neg') + '">' + fmtUSD(m.netMonthlyCostSavedUSD) + '</b></div>'
            : '<div><span>Times / mo</span><b>' + (Number(e.frequency) || 0) + '</b></div>') +
@@ -15044,7 +16866,14 @@ DECK.register('entry', function (id) {
         sub('entryCase', 'doc', 'The case they made', 'Why it is needed, and how it changes the work') +
         sub('entryEffort', 'clock', 'Effort and volume', fmtEntryTime(e.tradTime, e.tradTimeUnit) + ' → ' + fmtEntryTime(e.aiTime, e.aiTimeUnit) + ', ' + (Number(e.frequency) || 0) + ' a month') +
         sub('entryProjects', 'flag', 'Projects (' + ((e.projects || []).length) + ')', (e.projects || []).length ? 'The work this tool has actually done' : 'None attached') +
-        (isReq ? sub('decide', 'gear', 'Take action', 'Decide what happens next — and tell them', needsDecision(e) ? 'urgent' : '') : '') +
+        /* A report gets this too. Reading one and doing nothing visible about
+           it is how a department stops filing them. */
+        (canSeeAdmin()
+          ? sub('decide', 'gear', 'Take action',
+              isReq ? 'Decide what happens next — and tell them'
+                    : 'Confirm it, price it, or send it back — and tell them',
+              needsDecision(e) ? 'urgent' : '')
+          : '') +
         (showMoney
           ? sub('money', 'money', 'Pricing', needsPricing(e) ? 'Not costed yet — the figures above are missing it' : 'Set by ' + (e.pricedBy || 'an admin'), needsPricing(e) ? 'urgent' : '')
           : '') +
@@ -15059,7 +16888,13 @@ DECK.register('entry', function (id) {
 function costIsMineFor(e) {
   return (e && e.tag === 'request') || moneyIsMine();
 }
-function needsDecision(e) { return e.tag === 'request' && !['approved', 'declined'].includes(e.requestStatus || 'new'); }
+/* Something is waiting on the admin: a request with no answer, or a report
+   nobody has read or priced. */
+function needsDecision(e) {
+  if (!e) return false;
+  if (e.tag === 'request') return !['approved', 'declined'].includes(e.requestStatus || 'new');
+  return (e.reportStatus || 'new') === 'new' || (typeof needsPricing === 'function' && needsPricing(e));
+}
 
 DECK.register('entryCase', function (id) {
   const e = entries.find(x => x.id === id) || {};
@@ -15067,10 +16902,21 @@ DECK.register('entryCase', function (id) {
     title: 'The case they made', sub: (e.toolName || '') + ' · ' + (e.submittedBy || ''),
     icon: 'doc', size: 'slim', noAutofocus: true,
     html:
+      /* Everything they actually wrote. Who filed it, what they do, and the
+         revenue note used to exist only in the money tile — so an admin
+         reading a report could not see who to go back to, or what the entry
+         claimed it had won. */
       '<div class="rc-body">' +
+        '<div class="rc-field"><div class="k">Filed by</div>' +
+          escapeHTML(e.submittedBy || '—') + (e.role ? ' · ' + escapeHTML(e.role) : '') +
+          (e.department ? ' · ' + escapeHTML(e.department) : '') +
+          (e.submittedByEmail ? ' · ' + escapeHTML(e.submittedByEmail) : ' · no email on file') + '</div>' +
         '<div class="rc-field"><div class="k">Why it is needed</div>' + escapeHTML(e.reason || '— nothing written —') + '</div>' +
         '<div class="rc-field"><div class="k">How it changes the work</div>' + escapeHTML(e.impact || '— nothing written —') + '</div>' +
         '<div class="rc-field"><div class="k">Category</div>' + escapeHTML(e.category || '—') + '</div>' +
+        '<div class="rc-field"><div class="k">Stage of adoption</div>' + escapeHTML(e.status || '—') + '</div>' +
+        (e.revenueDesc ? '<div class="rc-field"><div class="k">What it won or protected</div>' + escapeHTML(e.revenueDesc) + '</div>' : '') +
+        (e.adminNote ? '<div class="rc-field"><div class="k">The admin team\'s note</div>' + escapeHTML(e.adminNote) + '</div>' : '') +
         (e.officialUrl ? '<div class="rc-field"><div class="k">Official site</div><a class="tool-link plain" href="' +
           escapeAttr(safeUrl(e.officialUrl)) + '" target="_blank" rel="noopener">' + escapeHTML(e.officialUrl) + '</a></div>' : '') +
       '</div>',
@@ -15102,12 +16948,16 @@ DECK.register('entryProjects', function (id) {
   return {
     title: 'Projects', sub: (e.toolName || '') + ' · ' + list.length + ' recorded',
     icon: 'flag', noAutofocus: true,
+    /* The media is shown, not merely linked. Checking a report means looking
+       at the work; "open media ↗" made that a separate errand in another tab
+       and, when nothing was attached, said nothing at all. */
     html: list.length
       ? '<div class="deck-list">' + list.map(p =>
           '<div class="proj-read">' +
             '<b>' + escapeHTML(p.name || 'Untitled') + '</b>' +
-            (safeUrl(p.link) ? ' <a class="tool-link plain" href="' + escapeAttr(safeUrl(p.link)) + '" target="_blank" rel="noopener">open media ↗</a>' : '') +
             (p.description ? '<i>' + escapeHTML(p.description) + '</i>' : '') +
+            (p.link ? mediaViewerHTML(p.link)
+                    : '<p class="proj-nomedia">No media attached to this project.</p>') +
             (p.traditional ? '<p><em>Before:</em> ' + escapeHTML(p.traditional) + '</p>' : '') +
             (p.aiWay ? '<p><em>With the tool:</em> ' + escapeHTML(p.aiWay) + '</p>' : '') +
             (p.benefit ? '<p><em>Outcome:</em> ' + escapeHTML(p.benefit) + '</p>' : '') +
@@ -15123,43 +16973,156 @@ const DECISIONS = [
   { key: 'approved', label: 'Approve',       note: 'The tool is granted. They are told, and asked to get set up.', icon: 'pulse', cls: 'd-approve' },
   { key: 'declined', label: 'Decline',       note: 'Not this time. Your note below is included in what they receive.', icon: 'flag', cls: 'd-decline' },
 ];
+/* A report is not granted or refused — nobody asked for anything. It is read,
+   checked, and either stands in the business case or goes back for what is
+   missing. Same tile, same three shapes, three honest words. */
+const REPORT_DECISIONS = [
+  { key: 'reviewed',  label: 'Mark reviewed', note: 'You have read it. They are told, and asked for nothing.', icon: 'eye',   cls: 'd-review' },
+  { key: 'confirmed', label: 'Confirm',       note: 'Checked. It stands in the business case and they are told so.', icon: 'pulse', cls: 'd-approve' },
+  { key: 'returned',  label: 'Send back',     note: 'Something is missing. Your note below is what they receive.', icon: 'flag',  cls: 'd-decline' },
+];
+
 DECK.register('decide', function (id) {
   const e = entries.find(x => x.id === id);
-  if (!e) return { title: 'Request', icon: 'gear', html: '<div class="empty-state"><h3>That request is gone</h3></div>' };
-  const now = e.requestStatus || 'new';
+  if (!e) return { title: 'Entry', icon: 'gear', html: '<div class="empty-state"><h3>That entry is gone</h3></div>' };
+  /* Guarded at the builder, not only by who can reach the tile: a department
+     user opening their own request from their list must not find the buttons
+     that decide it. */
+  if (!canSeeAdmin()) {
+    return { title: 'Take action', icon: 'gear', size: 'slim', noAutofocus: true,
+      html: '<div class="empty-state"><h3>The admin team answers this</h3>' +
+            '<p>You will be written to the moment there is anything to tell you.</p></div>' };
+  }
+  const isReq = e.tag === 'request';
+  const set = isReq ? DECISIONS : REPORT_DECISIONS;
+  const now = isReq ? (e.requestStatus || 'new') : (e.reportStatus || 'new');
+  const label = isReq ? reqStatusLabel(now) : repStatusLabel(now);
   const s = notifySettings();
   const arg = escapeAttr(JSON.stringify(id));
+  const bccList = (s.bcc || []).map(normEmail).filter(Boolean);
+  const m = monthlySavings(e);
   return {
-    title: 'Take action', sub: e.toolName + ' · ' + (e.department || '—'),
+    title: 'Take action', sub: (e.toolName || 'Untitled') + ' · ' + (e.department || '—'),
     icon: 'gear', size: 'slim',
     html:
-      '<p class="ask-body">What happens to <strong>' + escapeHTML(e.toolName || 'this request') + '</strong>?' +
-        ' It is currently <strong>' + escapeHTML(reqStatusLabel(now)) + '</strong>.</p>' +
+      '<p class="ask-body">What happens to <strong>' + escapeHTML(e.toolName || 'this entry') + '</strong>?' +
+        ' It is currently <strong>' + escapeHTML(label) + '</strong>.</p>' +
       '<div class="decide-row">' +
-        DECISIONS.map(d =>
+        set.map(d =>
           '<button type="button" class="decide-btn ' + d.cls + (d.key === now ? ' on' : '') + '" onclick="decide(' + arg + ', \'' + d.key + '\')">' +
             '<span class="db-ico">' + svgIcon(d.icon) + '</span>' +
             '<span class="db-text"><b>' + d.label + '</b><i>' + d.note + '</i></span>' +
           '</button>').join('') +
       '</div>' +
+
       '<div style="margin-top:16px;"><label for="dc_note">Note</label>' +
-        '<textarea id="dc_note" placeholder="Why, and anything they should do next. Included in what they receive when you decline.">' + escapeHTML(e.adminNote || '') + '</textarea>' +
+        '<textarea id="dc_note" placeholder="Why, and anything they should do next. It travels in the message they receive.">' + escapeHTML(e.adminNote || '') + '</textarea>' +
         '<div class="field-caption">Saved against your name, separate from what they submitted.</div></div>' +
-      '<div class="who-told">' + svgIcon('inbox') +
-        '<span>Deciding writes to <b>' + escapeHTML(s.copySubmitter && e.submittedByEmail ? e.submittedByEmail : 'the admin team') + '</b>' +
-        (s.bcc && s.bcc.length ? ', and quietly copies <b>' + s.bcc.length + '</b> other ' + (s.bcc.length === 1 ? 'address' : 'addresses') : '') +
-        '. Change that under Notifications &amp; Documents.</span></div>',
+
+      /* Deciding and pricing were two errands in two places, and the second
+         one was easy to forget — an approved request with no figure against it
+         is worth nothing to the business case. Both are here. */
+      '<div class="section-title" style="margin-top:20px;">What it costs' +
+        (needsPricing(e) ? ' <span class="rep-flag price">not set yet</span>' : '') + '</div>' +
+      '<div class="grid cols-2">' +
+        '<div><label for="dc_sub">Monthly licence (USD)</label>' +
+          '<input id="dc_sub" type="number" min="0" step="1" value="' + (Number(e.toolMonthlyCost) || '') + '" placeholder="e.g. 30" /></div>' +
+        '<div><label for="dc_rev">Revenue enabled / protected (USD, monthly)</label>' +
+          '<input id="dc_rev" type="number" min="0" step="1" value="' + (Number(e.revenueAmount) || '') + '" placeholder="0" /></div>' +
+      '</div>' +
+      '<div class="field-caption">' + escapeHTML(e.submittedBy || 'They') + ' reported ' +
+        escapeHTML(fmtDuration(m.timeSavedMonthly)) + ' saved a month. ' +
+        '<button type="button" class="linkish" onclick="DECK.openFrom(' + arg + ', \'money\', ' + arg + ')">Open the full pricing tile →</button></div>' +
+
+      /* Who else hears about it, decided per message rather than once in a
+         settings panel. Some decisions want the GM on them; some do not. */
+      '<div class="section-title" style="margin-top:20px;">Who else hears about it</div>' +
+      '<label class="reg-toggle" style="margin-top:0;">' +
+        '<input id="dc_bcc" type="checkbox"' + (bccList.length ? ' checked' : '') + (bccList.length ? '' : ' disabled') + ' onchange="renderWhoTold(' + arg + ')" />' +
+        '<span><strong>Quietly copy ' + (bccList.length ? bccList.length + ' saved ' + (bccList.length === 1 ? 'address' : 'addresses') : 'the saved list') + '</strong>' +
+        '<span class="rt-help">' + (bccList.length
+          ? escapeHTML(bccList.join(', ')) + ' — on BCC, so ' + escapeHTML(e.submittedBy || 'the person who filed it') + ' never sees them.'
+          : 'Nobody is on the list yet. Add addresses under Settings › Notifications &amp; Documents.') + '</span></span>' +
+      '</label>' +
+      '<div style="margin-top:12px;"><label for="dc_bccExtra">Copy someone else, just this once</label>' +
+        '<input id="dc_bccExtra" type="text" placeholder="name@swangzavenue.com, another@swangzavenue.com" oninput="renderWhoTold(' + arg + ')" />' +
+        '<div class="field-caption">Also BCC. Not saved to the standing list.</div></div>' +
+
+      '<div class="who-told" id="dc_whoTold"></div>',
+    mount() { setTimeout(() => renderWhoTold(id), 0); },
   };
 });
+
+/* Say, in a sentence, exactly who this is about to be sent to. It used to
+   describe the settings rather than this message, so an admin could not tell
+   what pressing the button would actually do. */
+function renderWhoTold(id) {
+  const host = document.getElementById('dc_whoTold');
+  const e = entries.find(x => x.id === id);
+  if (!host || !e) return;
+  const s = notifySettings();
+  const hasEmail = !!e.submittedByEmail;
+  const who = (s.copySubmitter && hasEmail) ? e.submittedByEmail : 'the admin team';
+  const bcc = decideBccList();
+  /* The case that used to pass silently: no address on file, so the decision
+     is announced to the admins and the person who filed it never hears. */
+  const orphan = !hasEmail
+    ? ' <b class="wt-warn">' + escapeHTML(e.submittedBy || 'They') + ' has no email on file, so they will not be told</b> — add one under Manage Submissions.'
+    : (!s.copySubmitter ? ' The person who filed it is not copied, because that is switched off under Notifications & Documents.' : '');
+  host.innerHTML = svgIcon('inbox') +
+    '<span>Deciding writes to <b>' + escapeHTML(who) + '</b>' +
+    (bcc.length ? ', and quietly copies <b>' + escapeHTML(bcc.join(', ')) + '</b>' : ', and copies nobody else') +
+    '. ' + (s.endpoint && s.method === 'endpoint' ? 'It sends straight away.' : 'No mail endpoint is set, so it waits in the outbox.') +
+    orphan + '</span>';
+}
+function decideBccList() {
+  const on = document.getElementById('dc_bcc');
+  const extra = ((document.getElementById('dc_bccExtra') || {}).value || '')
+    .split(',').map(x => normEmail(x)).filter(x => x && x.indexOf('@') > 0);
+  const saved = (!on || on.checked) ? (notifySettings().bcc || []).map(normEmail).filter(Boolean) : [];
+  return [...new Set(saved.concat(extra))];
+}
+
 function decide(id, status) {
   const e = entries.find(x => x.id === id);
   if (!e) return;
+  const isReq = e.tag === 'request';
   const note = (document.getElementById('dc_note') || {}).value;
   /* The note first, so it travels in the message the status change sends */
-  if (note !== undefined) setRequestNote(id, note);
-  setRequestStatus(id, status);          // stamps the decision and writes to people
+  if (note !== undefined) (isReq ? setRequestNote : setReportNote)(id, note);
+
+  /* And the money before the message, so an approval that sets a figure
+     reports the figure rather than the blank it replaced. */
+  const num = elId => {
+    const el = document.getElementById(elId);
+    if (!el || el.value === '') return undefined;
+    const n = Number(el.value);
+    return isFinite(n) && n >= 0 ? n : undefined;
+  };
+  const sub = num('dc_sub'), rev = num('dc_rev');
+  if (sub !== undefined || rev !== undefined) {
+    if (sub !== undefined) e.toolMonthlyCost = sub;
+    if (rev !== undefined) e.revenueAmount = rev;
+    e.pricedBy = currentEmail() || 'an admin';
+    e.pricedAt = new Date().toISOString();
+    e.updatedAt = new Date().toISOString();
+    saveEntries();
+  }
+
+  /* The BCC choice belongs to this decision, so it is read here and handed to
+     whichever status setter sends the message. */
+  decide._bcc = { bcc: true, extraBcc: decideBccList() };
+  const on = document.getElementById('dc_bcc');
+  if (on && !on.checked) decide._bcc = { bcc: false, extraBcc: decideBccList() };
+
+  try {
+    (isReq ? setRequestStatus : setReportStatus)(id, status);   // stamps it and writes to people
+  } finally {
+    decide._bcc = null;
+  }
   DECK.close('decide|' + JSON.stringify(id));
-  toast(e.toolName + ' marked ' + status + ' — the people set up to hear about it have been written to');
+  const said = isReq ? reqStatusLabel(status) : repStatusLabel(status);
+  toast((e.toolName || 'It') + ' — ' + said.toLowerCase() + '. Everyone set up to hear about it has been written to.');
   try { renderAdmin(); } catch (_) {}
 }
 
@@ -15177,28 +17140,42 @@ function decide(id, status) {
    it exactly once.
    ============================================================ */
 (function () {
-  if (typeof setRequestStatus !== 'function') return;
-  const original = window.setRequestStatus;
-  const EVENT = { approved: 'approved', declined: 'declined', reviewed: 'reviewed' };
-  window.setRequestStatus = function (id, status) {
-    const e = entries.find(x => x.id === id);
-    const was = e ? (e.requestStatus || 'new') : null;
-    const out = original.apply(this, arguments);
-    if (!e || was === status) return out;      // no change, nothing to announce
-    /* Back to "new" is un-deciding: clear the stamp rather than announce it */
-    if (status === 'new') {
-      delete e.decidedBy; delete e.decidedAt;
-      saveEntries();
-      try { DECK.refresh(); } catch (_) {}
-      return out;
-    }
-    e.decidedBy = currentEmail() || 'admin';
-    e.decidedAt = new Date().toISOString();
-    saveEntries();
-    if (EVENT[status]) { try { queueMail(e, EVENT[status]); } catch (err) { console.warn('notify skipped:', err); } }
-    try { DECK.refresh(); } catch (_) {}
-    return out;
-  };
+  const REQ_EVENT = { approved: 'approved', declined: 'declined', reviewed: 'reviewed' };
+  const REP_EVENT = { confirmed: 'confirmed', returned: 'returned', reviewed: 'reviewed' };
+
+  function announce(field, events) {
+    return function (original) {
+      return function (id, status) {
+        const e = entries.find(x => x.id === id);
+        const was = e ? (e[field] || 'new') : null;
+        const out = original.apply(this, arguments);
+        if (!e || was === status) return out;    // no change, nothing to announce
+        /* Back to "new" is un-deciding: clear the stamp rather than announce it */
+        if (status === 'new') {
+          delete e.decidedBy; delete e.decidedAt;
+          saveEntries();
+          try { DECK.refresh(); } catch (_) {}
+          return out;
+        }
+        e.decidedBy = currentEmail() || 'admin';
+        e.decidedAt = new Date().toISOString();
+        saveEntries();
+        if (events[status]) {
+          /* The tile that made this decision may have chosen who is copied on
+             it. If the change came from somewhere else, the standing list
+             applies, which is what queueMail does with no options. */
+          const opts = (typeof decide === 'function' && decide._bcc) || undefined;
+          try { queueMail(e, events[status], opts); } catch (err) { console.warn('notify skipped:', err); }
+        }
+        try { DECK.refresh(); } catch (_) {}
+        return out;
+      };
+    };
+  }
+  if (typeof setRequestStatus === 'function')
+    window.setRequestStatus = announce('requestStatus', REQ_EVENT)(window.setRequestStatus);
+  if (typeof setReportStatus === 'function')
+    window.setReportStatus = announce('reportStatus', REP_EVENT)(window.setReportStatus);
 })();
 
 /* ---- The document, and who it went to ---- */
@@ -15741,7 +17718,7 @@ const BRAND_MARK = 'data:image/webp;base64,UklGRsYIAABXRUJQVlA4TLoIAAAvIgAKEDXRr
 function submissionDocBody(e) {
   const isReq = e.tag === 'request';
   const m = monthlySavings(e);
-  const money = moneyIsMine() || isReq;
+  const money = isReq;
   const row = (k, v) => '<tr><td class="k">' + k + '</td><td>' + v + '</td></tr>';
   const projects = (e.projects || []).length
     ? e.projects.map((p, i) =>
@@ -15928,6 +17905,7 @@ function notifySettings() {
   try { return Object.assign(base, JSON.parse(localStorage.getItem(NOTIFY_KEY)) || {}); } catch (_) { return base; }
 }
 function saveNotifySettings(s) { localStorage.setItem(NOTIFY_KEY, JSON.stringify(s)); }
+let mailQuotaLeft = null;      // whatever the endpoint last reported, or null
 function outbox() { try { return JSON.parse(localStorage.getItem(OUTBOX_KEY)) || []; } catch (_) { return []; } }
 function saveOutbox(list) { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list.slice(-200))); }
 
@@ -15943,36 +17921,65 @@ function visibleRecipients(list) {
   return shown.join(', ') || '—';
 }
 
+/* A report and a request are answered differently, so they are written about
+   differently. Confirming a report and approving a request are the same rule
+   in the settings panel, but they are not the same sentence to read. */
+const MAIL_RULE = { confirmed: 'approved', returned: 'declined' };
+function mailRuleFor(event) { return MAIL_RULE[event] || event; }
+
 function mailBodyFor(e, event) {
   const isReq = e.tag === 'request';
   const what = isReq ? 'request' : 'report';
   const who = e.submittedBy || 'A team member';
+  const tool = e.toolName || 'a tool';
+  const note = e.adminNote ? ' Note from the admin team: ' + e.adminNote : '';
   const lines = {
-    submitted: who + ' filed a ' + what + ' for ' + (e.toolName || 'a tool') + ' on behalf of ' + (e.department || 'their department') + '. The full document is attached.',
-    reviewed:  'Your request for ' + (e.toolName || 'a tool') + ' has been read and is under review. You will hear again once a decision is made.',
-    approved:  'Your request for ' + (e.toolName || 'a tool') + ' has been approved. Someone will be in touch about getting you set up.',
-    declined:  'Your request for ' + (e.toolName || 'a tool') + ' has not been approved at this time.' + (e.adminNote ? ' Note: ' + e.adminNote : ''),
+    submitted: who + ' filed a ' + what + ' for ' + tool + ' on behalf of ' + (e.department || 'their department') + '. The full document is attached.',
+    /* Requests — a decision is being waited on */
+    reviewed:  isReq
+      ? 'Your request for ' + tool + ' has been read and is under review. You will hear again once a decision is made.'
+      : 'Your report on ' + tool + ' has been read. Nothing is needed from you; it will be checked against the business case.' + note,
+    approved:  'Your request for ' + tool + ' has been approved. Someone will be in touch about getting you set up.' + note,
+    declined:  'Your request for ' + tool + ' has not been approved at this time.' + note,
+    /* Reports — nothing was asked for, so nothing is granted or refused */
+    confirmed: 'Your report on ' + tool + ' has been checked and now stands in the company\'s business case for AI. Thank you for filing it.' + note,
+    returned:  'Your report on ' + tool + ' needs a little more before it can be counted.' + (note || ' Please open it in the tracker and fill in what is missing.'),
   };
   return lines[event] || lines.submitted;
 }
 
-function queueMail(e, event) {
-  const s = notifySettings();
-  if (!s.events[event]) return null;
+function mailSubjectFor(e, event) {
   const isReq = e.tag === 'request';
-  const subject = '[Swangz AI Tracker] ' +
-    (event === 'submitted' ? (isReq ? 'New tool request' : 'New tool report') : 'Request ' + event) +
-    ' — ' + (e.toolName || 'Untitled') + ' (' + (e.department || 'Unassigned') + ')';
+  const head = event === 'submitted' ? (isReq ? 'New tool request' : 'New tool report')
+             : isReq ? 'Request ' + event
+             : event === 'confirmed' ? 'Report confirmed'
+             : event === 'returned'  ? 'Report sent back'
+             : 'Report ' + event;
+  return '[Swangz AI Tracker] ' + head + ' — ' + (e.toolName || 'Untitled') + ' (' + (e.department || 'Unassigned') + ')';
+}
+
+/* opts lets the admin decide, for this one message, whether anyone is copied
+   quietly and who. The saved BCC list is the default; it is not a sentence.
+   Some decisions want the GM on them and some very much do not. */
+function queueMail(e, event, opts) {
+  const s = notifySettings();
+  const o = opts || {};
+  if (!s.events[mailRuleFor(event)]) return null;
+  const isReq = e.tag === 'request';
 
   const to = event === 'submitted' ? adminRecipients()
                                    : (s.copySubmitter && e.submittedByEmail ? [normEmail(e.submittedByEmail)] : adminRecipients());
   const cc = (event === 'submitted' && s.copySubmitter && e.submittedByEmail) ? [normEmail(e.submittedByEmail)] : [];
   /* Hidden by design: BCC, not CC, so the submitter cannot see who else was told */
-  const bcc = (s.bcc || []).map(normEmail).filter(Boolean);
+  const useBcc = (o.bcc === undefined) ? true : !!o.bcc;
+  const bcc = useBcc
+    ? [...new Set((s.bcc || []).concat(o.extraBcc || []).map(normEmail).filter(Boolean))]
+    : [];
 
   const item = {
     id: 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    entryId: e.id, event, to, cc, bcc, subject,
+    entryId: e.id, event, to, cc, bcc,
+    subject: mailSubjectFor(e, event),
     body: mailBodyFor(e, event),
     docName: slug((isReq ? 'request' : 'report') + '-' + (e.toolName || '')) + '.doc',
     at: new Date().toISOString(),
@@ -15983,6 +17990,41 @@ function queueMail(e, event) {
   saveOutbox(box);
   deliver(item, e);
   return item;
+}
+
+/* What the mail endpoint actually said.
+   ------------------------------------------------------------------
+   Apps Script answers HTTP 200 for almost everything, including its own error
+   pages — so the status code proves nothing. A reply is only a success if it
+   is JSON that says so. Anything else is a failure, and the app must say so:
+   this used to swallow the JSON.parse error, leave `out` null, skip the
+   ok===false test and mark the message SENT. Arnold's first deployment
+   returned "Script function not found: doPost" and the app would have told him
+   it had sent.
+
+   The two failures worth naming, because both have a precise fix:
+     · function not found — the deployment is a snapshot of a VERSION, so a
+       URL created before the code was pasted keeps serving an empty project
+       for ever. Redeploy with a new version; the URL survives.
+     · a sign-in page — "Who has access" is not "Anyone", so Google is asking
+       the tracker to log in. */
+function readMailReply(text) {
+  const body = String(text || '');
+  let j = null;
+  try { j = JSON.parse(body); } catch (_) {}
+  if (j && j.ok === true) return { ok: true, data: j };
+  if (j && j.ok === false) return { ok: false, why: j.error || 'the mail endpoint refused it' };
+
+  const m = body.match(/Script function not found:\s*(\w+)/);
+  if (m) return { ok: false, why: 'the deployed version has no ' + m[1] + '() — it was deployed before the code was pasted. ' +
+    'In Apps Script: Deploy \u2192 Manage deployments \u2192 the pencil \u2192 Version: New version \u2192 Deploy. The URL stays the same.' };
+  if (/accounts\.google\.com|Sign in|ServiceLogin/i.test(body))
+    return { ok: false, why: 'Google asked the tracker to sign in \u2014 redeploy with "Who has access: Anyone".' };
+  if (/authorization is required|requires authorization/i.test(body))
+    return { ok: false, why: 'the script has not been authorised to send mail \u2014 open it in Apps Script and run it once, granting permission.' };
+  if (/^\s*</.test(body))
+    return { ok: false, why: 'the endpoint returned a web page instead of a reply, so nothing was sent. Check the deployment.' };
+  return { ok: false, why: 'the endpoint gave an answer the tracker could not read, so nothing was sent.' };
 }
 
 async function deliver(item, entry) {
@@ -15996,7 +18038,13 @@ async function deliver(item, entry) {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // avoids a CORS preflight Apps Script cannot answer
       body: JSON.stringify({
-        kind: 'notify', fromName: s.fromName,
+        /* `action`, not `kind`. The Apps Script dispatches on `action` and used
+           to fall back to 'replaceAll' when it found none — so every message
+           the tracker sent read as "replace every row with this empty list".
+           Pointing the mail endpoint at the sheet would have emptied it. The
+           script refuses an actionless POST now; this names the action, and
+           `kind` stays only so an older deployment still recognises it. */
+        action: 'notify', kind: 'notify', fromName: s.fromName,
         to: item.to, cc: item.cc, bcc: item.bcc,
         subject: item.subject, body: item.body,
         attachmentName: item.docName,
@@ -16004,6 +18052,12 @@ async function deliver(item, entry) {
       }),
     });
     if (!res.ok) throw new Error('the mail endpoint answered ' + res.status);
+    const reply = readMailReply(await res.text());
+    if (!reply.ok) throw new Error(reply.why);
+    /* Google caps sending per day — 100 on a consumer account, 1500 on
+       Workspace. Silently hitting that would look like mail simply stopping,
+       so whatever the endpoint reports is kept and shown in the panel. */
+    if (reply.data && reply.data.quotaLeft != null) mailQuotaLeft = Number(reply.data.quotaLeft);
     markMail(item.id, 'sent', '');
   } catch (err) {
     markMail(item.id, 'failed', humanBackendMsg(String(err && err.message || err)));
@@ -16036,6 +18090,153 @@ function retryMail(id) {
   if (!it) return;
   markMail(id, 'queued', '');
   deliver(it, entries.find(x => x.id === it.entryId));
+}
+
+/* ============================================================
+   BEING TOLD INSIDE THE APP
+   ------------------------------------------------------------
+   Mail is how people find out when they are not here. This is how they find
+   out when they are — and it is the same events, read straight off the
+   entries rather than kept in a second list that could disagree with them.
+
+   Two audiences, two things worth interrupting for:
+     a department member  — an answer on something they filed
+     an admin             — something new to work through, and mail that failed
+   Nobody is shown their own actions back.
+   ============================================================ */
+const NOTIF_SEEN_KEY = 'swangz_notif_seen_v1';
+function notifSeenKey() { return NOTIF_SEEN_KEY + ':' + (currentEmail() || 'anon'); }
+function notifSeenAt() {
+  try { return localStorage.getItem(notifSeenKey()) || ''; } catch (_) { return ''; }
+}
+function markNotifSeen() {
+  try { localStorage.setItem(notifSeenKey(), new Date().toISOString()); } catch (_) {}
+  paintBell();
+}
+function notifItems() {
+  const me = currentEmail();
+  if (!me) return [];
+  const out = [];
+  const mine = e => normEmail(e.submittedByEmail) === me;
+
+  (typeof dashboardEntries === 'function' ? dashboardEntries() : []).forEach(e => {
+    const isReq = e.tag === 'request';
+    /* An answer on something you filed */
+    if (mine(e) && e.decidedAt) {
+      const st = isReq ? (e.requestStatus || 'new') : (e.reportStatus || 'new');
+      const said = isReq ? reqStatusLabel(st) : repStatusLabel(st);
+      out.push({
+        at: e.decidedAt, entryId: e.id, icon: isReq ? 'inbox' : 'doc',
+        title: (e.toolName || 'Your entry') + ' — ' + said.toLowerCase(),
+        body: isReq ? 'The admin team has answered your request.' : 'The admin team has looked at your report.',
+      });
+    }
+    /* Something new to work through — but not your own filing shown back */
+    if (canSeeAdmin() && !mine(e) && e.submittedAt) {
+      const fresh = isReq ? (e.requestStatus || 'new') === 'new' : (e.reportStatus || 'new') === 'new';
+      if (fresh) out.push({
+        at: e.submittedAt, entryId: e.id, icon: isReq ? 'inbox' : 'flag',
+        title: (e.submittedBy || 'Someone') + ' filed ' + (isReq ? 'a request' : 'a report') + ' for ' + (e.toolName || 'a tool'),
+        body: (e.department || 'A department') + ' · nobody has read it yet',
+      });
+    }
+  });
+
+  /* Mail that did not go is the admin's problem and nobody else's */
+  if (canSeeAdmin()) {
+    (typeof outbox === 'function' ? outbox() : []).forEach(mail => {
+      if (mail.state !== 'failed') return;
+      out.push({
+        at: mail.settledAt || mail.at, entryId: mail.entryId, icon: 'mail', bad: true,
+        title: 'A message did not send',
+        body: mail.subject + (mail.error ? ' — ' + mail.error : ''),
+      });
+    });
+  }
+  return out.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).slice(0, 40);
+}
+function notifUnread() {
+  const seen = notifSeenAt();
+  return notifItems().filter(n => !seen || new Date(n.at || 0) > new Date(seen)).length;
+}
+function paintBell() {
+  const bell = document.getElementById('railBell');
+  const dot = document.getElementById('railBellDot');
+  if (!bell) return;
+  const signedIn = !!currentEmail();
+  bell.hidden = !signedIn;
+  if (!signedIn) return;
+  let n = 0;
+  try { n = notifUnread(); } catch (_) {}
+  if (dot) dot.hidden = n === 0;
+  bell.title = n ? n + (n === 1 ? ' new thing' : ' new things') : 'Nothing new';
+  bell.setAttribute('aria-label', bell.title);
+}
+function openNotifications() { DECK.open('notifications', 1); markNotifSeen(); }
+
+DECK.register('notifications', function () {
+  const seen = notifSeenAt();
+  const list = notifItems();
+  const when = t => { try { return new Date(t).toLocaleString(); } catch (_) { return ''; } };
+  return {
+    title: 'What has happened', sub: list.length ? list.length + ' recent' : 'Nothing yet',
+    icon: 'inbox', size: 'slim', noAutofocus: true, ephemeral: true,
+    html: list.length
+      ? '<div class="deck-list">' + list.map(n => {
+          const fresh = !seen || new Date(n.at || 0) > new Date(seen);
+          return '<button type="button" class="deck-row' + (fresh ? ' is-fresh' : '') + '"' +
+            (n.entryId ? ' onclick="DECK.open(\'entry\', ' + escapeAttr(JSON.stringify(n.entryId)) + ')"' : '') + '>' +
+            '<span class="dr-ico">' + svgIcon(n.icon || 'inbox') + '</span>' +
+            '<span class="dr-text"><b>' + escapeHTML(n.title) + '</b><i>' + escapeHTML(n.body || '') + '</i></span>' +
+            '<span class="dr-stat"><b>' + escapeHTML(when(n.at)) + '</b><span>' + (fresh ? 'new' : '') + '</span></span>' +
+          '</button>';
+        }).join('') + '</div>'
+      : '<div class="empty-state" style="padding:24px;"><h3>Nothing to tell you</h3>' +
+        '<p>Answers on what you have filed show up here, and by email.</p></div>',
+  };
+});
+
+/* Rides on the same poll as the rest of the account block */
+document.addEventListener('DOMContentLoaded', function () {
+  paintBell();
+  setInterval(paintBell, 4000);
+});
+
+/* ============================================================
+   THE ONE SUBMISSION THAT COULD NOT ANNOUNCE ITSELF
+   ------------------------------------------------------------
+   A signed-in person filing something goes through saveDetail, which queues
+   the mail. A public request does not: it is a single anonymous insert from a
+   browser with no session, and therefore no mail settings to read — those live
+   in app_config, which anon cannot see. So the one route explicitly built for
+   people outside the company told nobody it had happened.
+
+   The first admin to load the page sends it instead. The ids already dealt
+   with are remembered, and the very first run only records what is already
+   there — otherwise switching this on would post a message for every request
+   ever filed.
+   ============================================================ */
+const PUBLIC_SEEN_KEY = 'swangz_public_announced_v1';
+function publicSeen() {
+  try { return JSON.parse(localStorage.getItem(PUBLIC_SEEN_KEY)) || null; } catch (_) { return null; }
+}
+function savePublicSeen(ids) {
+  try { localStorage.setItem(PUBLIC_SEEN_KEY, JSON.stringify(ids.slice(-500))); } catch (_) {}
+}
+function announcePublicRequests() {
+  if (typeof canSeeAdmin !== 'function' || !canSeeAdmin()) return 0;
+  const waiting = entries.filter(e => e && e.isPublic && e.tag === 'request' && !e.isDemo);
+  const known = publicSeen();
+  if (known === null) {                       // first run: take a baseline, send nothing
+    savePublicSeen(waiting.map(e => e.id));
+    return 0;
+  }
+  const seen = new Set(known);
+  const fresh = waiting.filter(e => !seen.has(e.id));
+  if (!fresh.length) return 0;
+  fresh.forEach(e => { try { queueMail(e, 'submitted'); } catch (err) { console.warn('notify skipped:', err); } });
+  savePublicSeen(known.concat(fresh.map(e => e.id)));
+  return fresh.length;
 }
 
 /* Filing something tells the people who need to know. */
@@ -16356,7 +18557,7 @@ DECK.register('settings', function () {
       if (block) block.style.display = canSeeAdmin() ? '' : 'none';
       buildPsPanes(body, 'settings');
       const row = document.getElementById('psThemeGrid');
-      const cur = document.documentElement.getAttribute('data-theme') || 'swangz';
+      const cur = document.documentElement.getAttribute('data-theme') || 'midnight';
       if (row) row.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === cur));
     },
     unmount(panel) { returnPsGroups(panel); },

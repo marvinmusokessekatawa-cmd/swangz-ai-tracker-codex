@@ -6,3 +6,11 @@ test/node_modules
 test/*.json
 !test/package.json
 shots/
+
+# Android signing key — NEVER commit this. It is the identity of the app;
+# anyone holding it can publish an update that Android will trust as ours.
+# It lives as the ANDROID_KEYSTORE_B64 secret in GitHub Actions instead.
+android/*.keystore
+android/*.jks
+desktop/node_modules
+desktop/dist
