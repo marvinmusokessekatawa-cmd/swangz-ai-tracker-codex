@@ -247,6 +247,17 @@
   textarea { min-height: 80px; resize: vertical; }
   .field-caption { color: var(--muted-2); font-size: 11px; margin-top: 4px; font-weight: 600; letter-spacing: 0.3px; }
   .field-caption.live { color: var(--accent); }
+  .password-field { position: relative; }
+  .password-field input { padding-right: 72px; }
+  .password-toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    border: 1px solid transparent; border-radius: 6px; padding: 6px 8px;
+    background: transparent; color: var(--accent); font-size: 12px; font-weight: 800;
+    font-family: inherit; cursor: pointer;
+  }
+  .password-toggle:hover, .password-toggle:focus-visible {
+    background: rgba(245,197,66,0.10); border-color: rgba(245,197,66,0.35); outline: none;
+  }
 
   .time-input { display:flex; gap: 6px; align-items: stretch; }
   .time-input input { flex: 2; min-width: 0; }
@@ -5579,7 +5590,7 @@
             </div>
             <div>
               <label>Anon (public) Key</label>
-              <input id="supabaseKeyInput" type="password" placeholder="eyJhbGciOi..." />
+              ${passwordInputHTML('supabaseKeyInput', 'placeholder="eyJhbGciOi..."')}
             </div>
           </div>
           <div style="margin-top:10px;">
@@ -6737,15 +6748,11 @@ function renderAdminGate() {
         <div id="adm_error" class="gate-error" style="display:none;"></div>
         <div style="margin:14px 0;">
           <label>New Password</label>
-          <input id="adm_newPwd" type="password" placeholder="Choose a password (min 4 chars)"
-            oninput="gateError('')"
-            onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('adm_newPwd2').focus();}" />
+          ${passwordInputHTML('adm_newPwd', "placeholder=\"Choose a password (min 4 chars)\" oninput=\"gateError('')\" onkeydown=\"if(event.key==='Enter'){event.preventDefault(); document.getElementById('adm_newPwd2').focus();}\"")}
         </div>
         <div style="margin:14px 0;">
           <label>Confirm Password</label>
-          <input id="adm_newPwd2" type="password" placeholder="Repeat it"
-            oninput="gateError('')"
-            onkeydown="if(event.key==='Enter'){event.preventDefault(); setAdminPassword();}" />
+          ${passwordInputHTML('adm_newPwd2', "placeholder=\"Repeat it\" oninput=\"gateError('')\" onkeydown=\"if(event.key==='Enter'){event.preventDefault(); setAdminPassword();}\"")}
         </div>
         <div class="row-actions" style="justify-content:center;">
           <button type="button" class="secondary" onclick="goToUser()">Cancel</button>
@@ -6763,9 +6770,7 @@ function renderAdminGate() {
         <div id="adm_error" class="gate-error" style="display:none;"></div>
         <div style="margin:14px 0;">
           <label>Password</label>
-          <input id="adm_pwd" type="password" placeholder="Admin password"
-            oninput="gateError('')"
-            onkeydown="if(event.key==='Enter'){event.preventDefault(); unlockAdmin();}" />
+          ${passwordInputHTML('adm_pwd', "placeholder=\"Admin password\" oninput=\"gateError('')\" onkeydown=\"if(event.key==='Enter'){event.preventDefault(); unlockAdmin();}\"")}
         </div>
         <div class="row-actions" style="justify-content:space-between;">
           <button type="button" class="ghost" onclick="requestPasswordReset()">Forgot / reset</button>
@@ -8784,6 +8789,25 @@ function num(id){ const v = parseFloat(document.getElementById(id).value); retur
 function set(id, v){ document.getElementById(id).value = v ?? ''; }
 function escapeHTML(s){ return (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHTML(s); }
+function passwordInputHTML(id, attrs) {
+  return '<div class="password-field">' +
+    '<input id="' + escapeAttr(id) + '" type="password" ' + (attrs || '') + ' />' +
+    '<button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false" ' +
+      'onclick="togglePasswordVisibility(' + jsArg(id) + ', this)">Show</button>' +
+    '</div>';
+}
+function togglePasswordVisibility(id, btn) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  if (btn) {
+    btn.textContent = show ? 'Hide' : 'Show';
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+  }
+  input.focus();
+}
 /* Allow only http/https URLs into href sinks. Returns '' for javascript:, data:,
    etc. so anon-injected request payloads can't run script in an admin's session.
    Bare domains get https:// so they aren't mistaken for relative paths. */
@@ -9287,9 +9311,9 @@ function boot() {
       <div class="ps-group" id="psAdminBlock" data-title="Admin password" data-hint="Yours, for opening the dashboard" data-icon="gear" data-of="settings" style="display:none;">
         <p class="help" style="margin:0 0 12px;">Your own password for opening the Admin Dashboard on this device. Nobody else uses it, and it is asked for every time you go in.</p>
         <div class="grid cols-3">
-          <div><label for="psPwdOld">Current</label><input id="psPwdOld" type="password" placeholder="Current password" /></div>
-          <div><label for="psPwdNew">New</label><input id="psPwdNew" type="password" placeholder="New password" /></div>
-          <div><label for="psPwdNew2">Confirm</label><input id="psPwdNew2" type="password" placeholder="Repeat new" /></div>
+          <div><label for="psPwdOld">Current</label>${passwordInputHTML('psPwdOld', 'placeholder="Current password" autocomplete="current-password"')}</div>
+          <div><label for="psPwdNew">New</label>${passwordInputHTML('psPwdNew', 'placeholder="New password" autocomplete="new-password"')}</div>
+          <div><label for="psPwdNew2">Confirm</label>${passwordInputHTML('psPwdNew2', 'placeholder="Repeat new" autocomplete="new-password"')}</div>
         </div>
         <div class="row-actions" style="justify-content:flex-start; margin-top:12px;">
           <button type="button" class="secondary" onclick="changePasswordFromProfile()">Update password</button>
@@ -9723,8 +9747,8 @@ function renderAdminPasswordGate() {
         '<div id="adm_error" class="gate-error" style="display:none;"></div>' +
         '<div style="margin:14px 0;">' +
           '<label for="adm_pwd">Your admin password</label>' +
-          '<input id="adm_pwd" type="password" autocomplete="current-password" placeholder="Admin password" ' +
-            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); unlockAdmin();}" />' +
+          passwordInputHTML('adm_pwd', 'autocomplete="current-password" placeholder="Admin password" ' +
+            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); unlockAdmin();}"') +
         '</div>' +
         '<div class="row-actions" style="justify-content:space-between;">' +
           '<button type="button" class="ghost" onclick="requestPasswordReset()">Forgot it</button>' +
@@ -9739,13 +9763,13 @@ function renderAdminPasswordGate() {
         '<div id="adm_error" class="gate-error" style="display:none;"></div>' +
         '<div style="margin:14px 0;">' +
           '<label for="adm_newPwd">New password</label>' +
-          '<input id="adm_newPwd" type="password" autocomplete="new-password" placeholder="Choose a password" ' +
-            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); document.getElementById(\'adm_newPwd2\').focus();}" />' +
+          passwordInputHTML('adm_newPwd', 'autocomplete="new-password" placeholder="Choose a password" ' +
+            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); document.getElementById(\'adm_newPwd2\').focus();}"') +
         '</div>' +
         '<div style="margin:14px 0;">' +
           '<label for="adm_newPwd2">Confirm password</label>' +
-          '<input id="adm_newPwd2" type="password" autocomplete="new-password" placeholder="Repeat it" ' +
-            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); setAdminPassword();}" />' +
+          passwordInputHTML('adm_newPwd2', 'autocomplete="new-password" placeholder="Repeat it" ' +
+            'oninput="gateError(\'\')" onkeydown="if(event.key===\'Enter\'){event.preventDefault(); setAdminPassword();}"') +
         '</div>' +
         '<div class="row-actions" style="justify-content:center;">' +
           '<button type="button" class="secondary" onclick="goToUser()">Cancel</button>' +

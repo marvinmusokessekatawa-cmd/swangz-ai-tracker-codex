@@ -555,6 +555,13 @@ async function scenarioAdminGate() {
     ok('no code is printed on a real host', !/Preview delivery|\b\d{6}\b/.test(gate), gate.slice(0, 140));
     ok('the gate goes straight to the password', /admin password/i.test(gate), gate.slice(0, 140));
     ok('and says why there is no email code', /email codes stay off/i.test(gate), gate.slice(0, 200));
+    ok('the password field has a show control',
+       !!doc.querySelector('#adm_pwd + .password-toggle'), doc.getElementById('adminGate').innerHTML.slice(0, 240));
+    eq('the admin password starts hidden', run('document.getElementById("adm_pwd").type'), 'password');
+    run('document.querySelector("#adm_pwd + .password-toggle").click();');
+    eq('show password reveals the admin password while typing', run('document.getElementById("adm_pwd").type'), 'text');
+    run('document.querySelector("#adm_pwd + .password-toggle").click();');
+    eq('pressing it again hides the admin password', run('document.getElementById("adm_pwd").type'), 'password');
     await run('sendAdminOtp()');
     ok('asking for a code on a real host stores nothing',
        run('otpState() === null || !otpState().preview'), String(run('JSON.stringify(otpState())')).slice(0, 80));
